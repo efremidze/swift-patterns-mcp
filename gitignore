@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 package-lock.json
+npm-debug.log*
 
 # Build output
 build/
@@ -21,6 +22,8 @@ dist/
 
 # OS
 .DS_Store
+.DS_Store?
+._*
 Thumbs.db
 
 # Logs
@@ -36,3 +39,10 @@ npm-debug.log*
 # Testing
 coverage/
 .nyc_output/
+
+# MCP
+.swift-mcp/
+
+# Secrets
+*.pem
+*.key
