@@ -8,25 +8,48 @@ export interface PatreonPattern {
   publishDate: string;
   excerpt: string;
   content: string;
+  creator: string;
   topics: string[];
   relevanceScore: number;
   hasCode: boolean;
-  creator: string;
+  tierAmount: number;
 }
 
 export class PatreonSource {
+  private isConfigured: boolean = false;
+  
+  constructor() {
+    // Check if Patreon credentials are available
+    this.isConfigured = !!(
+      process.env.PATREON_CLIENT_ID &&
+      process.env.PATREON_CLIENT_SECRET
+    );
+  }
+  
   async fetchPatterns(): Promise<PatreonPattern[]> {
-    // TODO: Implement Patreon API integration
+    if (!this.isConfigured) {
+      console.warn('Patreon not configured. Set PATREON_CLIENT_ID and PATREON_CLIENT_SECRET.');
+      return [];
+    }
+    
+    // TODO: Implement full Patreon OAuth and API integration
+    // For now, return empty array
     return [];
   }
-
+  
   async searchPatterns(query: string): Promise<PatreonPattern[]> {
-    // TODO: Implement search
-    return [];
+    const patterns = await this.fetchPatterns();
+    const lowerQuery = query.toLowerCase();
+    
+    return patterns.filter(p =>
+      p.title.toLowerCase().includes(lowerQuery) ||
+      p.content.toLowerCase().includes(lowerQuery) ||
+      p.topics.some(t => t.includes(lowerQuery))
+    );
   }
-
-  isConfigured(): boolean {
-    return false;
+  
+  isAvailable(): boolean {
+    return this.isConfigured;
   }
 }
 
