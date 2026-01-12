@@ -282,4 +282,4 @@ A: Content from that creator stops appearing immediately.
 
 ---
 
-Need help? [Open an issue](https://github.com/yourusername/swift-mcp/issues)
+Need help? [Open an issue](https://github.com/efremidze/swift-mcp/issues)
