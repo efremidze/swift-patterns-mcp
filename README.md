@@ -86,3 +86,25 @@ swift-mcp source disable pointfree
 # List sources
 swift-mcp source list
 ```
+
+## 🔐 Patreon Integration (Optional)
+
+**Requirements:**
+- Patreon Creator account (free - no need to launch a page)
+- 10 minutes one-time setup
+- Your own OAuth credentials
+
+**Why Creator Account?**
+Patreon requires OAuth apps to be registered by creators. 
+You don't need to launch a creator page - just become a creator.
+
+**Setup:**
+```bash
+swift-mcp setup --patreon
+```
+
+**What You Get:**
+- Access content from creators you support
+- Automatic code extraction from zips
+- Quality filtering and search
+- Worth the 10-minute setup!
