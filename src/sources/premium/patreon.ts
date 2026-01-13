@@ -1,6 +1,6 @@
 // src/sources/premium/patreon.ts
 
-import fetch from "node-fetch"
+import { getValidAccessToken } from "./patreon-oauth.js"
 
 const API_BASE = "https://www.patreon.com/api/oauth2/v2"
 
@@ -8,15 +8,37 @@ export interface PatreonCreator {
   id: string
   name: string
   url?: string
+  isSwiftRelated?: boolean
+}
+
+interface PatreonApiResponse {
+  data: unknown
+  included?: Array<{
+    id: string
+    type: string
+    attributes: Record<string, unknown>
+    relationships?: Record<string, { data: { id: string; type: string } }>
+  }>
 }
 
 export class PatreonSource {
-  constructor(private accessToken: string) {}
+  private clientId: string
+  private clientSecret: string
 
-  private async request(path: string) {
+  constructor() {
+    this.clientId = process.env.PATREON_CLIENT_ID || ""
+    this.clientSecret = process.env.PATREON_CLIENT_SECRET || ""
+  }
+
+  private async request(path: string): Promise<PatreonApiResponse> {
+    const accessToken = await getValidAccessToken(this.clientId, this.clientSecret)
+    if (!accessToken) {
+      throw new Error("No valid access token. Please run setup first.")
+    }
+
     const res = await fetch(`${API_BASE}${path}`, {
       headers: {
-        Authorization: `Bearer ${this.accessToken}`
+        Authorization: `Bearer ${accessToken}`
       }
     })
 
@@ -24,24 +46,22 @@ export class PatreonSource {
       throw new Error(`Patreon API error ${res.status}`)
     }
 
-    return res.json()
+    return res.json() as Promise<PatreonApiResponse>
   }
 
   /**
-   * ✅ CORRECT WAY
    * Returns creators the user PAYS (patron memberships)
+   * Uses identity endpoint with memberships.campaign include
    */
   async getPatronMemberships(): Promise<PatreonCreator[]> {
-    const res = await this.request(
-      "/identity?include=memberships.campaign"
-    )
+    const res = await this.request("/identity?include=memberships.campaign")
 
     const included = res.included ?? []
 
     const memberships = included.filter(
-      (i: any) =>
+      (i) =>
         i.type === "member" &&
-        i.attributes?.patron_status === "active_patron"
+        (i.attributes?.patron_status as string) === "active_patron"
     )
 
     if (memberships.length === 0) {
@@ -50,41 +70,65 @@ export class PatreonSource {
       )
     }
 
-    return memberships.map((member: any) => {
-      const campaignId = member.relationships.campaign.data.id
+    return memberships.map((member) => {
+      const campaignId = member.relationships?.campaign?.data?.id
+      if (!campaignId) {
+        throw new Error("Membership missing campaign relationship")
+      }
 
       const campaign = included.find(
-        (i: any) => i.type === "campaign" && i.id === campaignId
+        (i) => i.type === "campaign" && i.id === campaignId
       )
+
+      if (!campaign) {
+        throw new Error(`Campaign ${campaignId} not found in included data`)
+      }
+
+      const name = campaign.attributes.name as string
+      const url = campaign.attributes.url as string | undefined
 
       return {
         id: campaign.id,
-        name: campaign.attributes.name,
-        url: campaign.attributes.url
+        name,
+        url,
+        isSwiftRelated: isSwiftRelated(name)
       }
     })
   }
 
   /**
+   * Alias for backwards compatibility with setup.ts
+   */
+  async getSubscribedCreators(): Promise<PatreonCreator[]> {
+    return this.getPatronMemberships()
+  }
+
+  /**
    * Optional: creator-owned campaigns (NOT subscriptions)
-   * Keep only if you want creator-mode later
    */
   async getOwnedCampaigns(): Promise<PatreonCreator[]> {
     const res = await this.request("/campaigns")
+    const data = res.data as Array<{
+      id: string
+      attributes: { name: string; url?: string }
+    }>
 
-    return res.data.map((c: any) => ({
+    return data.map((c) => ({
       id: c.id,
       name: c.attributes.name,
       url: c.attributes.url
     }))
   }
 
-  /**
-   * Fetch posts from a creator the user is entitled to
-   */
-  async fetchPosts(campaignId: string) {
-    return this.request(
-      `/campaigns/${campaignId}/posts`
-    )
+  isAvailable(): boolean {
+    return !!(this.clientId && this.clientSecret)
   }
 }
+
+function isSwiftRelated(name: string): boolean {
+  const lower = name.toLowerCase()
+  const keywords = ["swift", "swiftui", "ios", "apple", "xcode", "uikit", "iphone", "ipad"]
+  return keywords.some((k) => lower.includes(k))
+}
+
+export default PatreonSource
