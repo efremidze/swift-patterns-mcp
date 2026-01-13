@@ -19,6 +19,7 @@ export interface PatreonPattern {
   content: string;
   creator: string;
   topics: string[];
+  relevanceScore: number;
   hasCode: boolean;
 }
 
@@ -105,6 +106,42 @@ function detectTopics(text: string): string[] {
 function hasCodeContent(content: string): boolean {
   return /\b(func|class|struct|protocol|extension)\s+\w+/.test(content) ||
          content.includes('```');
+}
+
+function calculateRelevance(text: string, hasCode: boolean): number {
+  const lower = text.toLowerCase();
+  let score = 0;
+
+  // High-value keywords
+  const keywords: Record<string, number> = {
+    'swift': 10,
+    'swiftui': 10,
+    'ios': 8,
+    'testing': 7,
+    'architecture': 7,
+    'pattern': 6,
+    'best practice': 8,
+    'tutorial': 5,
+    'example': 4,
+    'async': 6,
+    'await': 6,
+    'actor': 6,
+    'protocol': 5,
+    'generic': 5,
+  };
+
+  for (const [keyword, points] of Object.entries(keywords)) {
+    if (lower.includes(keyword)) {
+      score += points;
+    }
+  }
+
+  // Bonus for code content
+  if (hasCode) {
+    score += 15;
+  }
+
+  return Math.min(100, score);
 }
 
 function isSwiftRelated(name: string, summary?: string): boolean {
@@ -267,6 +304,9 @@ export class PatreonSource {
         topics = detectTopics(content);
       }
 
+      const hasCode = hasCodeContent(content);
+      const relevanceScore = calculateRelevance(`${title} ${content}`, hasCode);
+
       patterns.push({
         id: `patreon-${post.id}`,
         title,
@@ -276,7 +316,8 @@ export class PatreonSource {
         content,
         creator: creatorId,
         topics,
-        hasCode: hasCodeContent(content),
+        relevanceScore,
+        hasCode,
       });
 
       // Check for zip attachments
@@ -293,6 +334,10 @@ export class PatreonSource {
             );
             if (result.success) {
               for (const extracted of result.patterns) {
+                const extractedRelevance = calculateRelevance(
+                  `${extracted.filename} ${extracted.content}`,
+                  extracted.hasCode
+                );
                 patterns.push({
                   id: `patreon-${post.id}-${extracted.filename}`,
                   title: `${title} - ${extracted.filename}`,
@@ -302,6 +347,7 @@ export class PatreonSource {
                   content: extracted.content,
                   creator: creatorId,
                   topics: extracted.topics,
+                  relevanceScore: extractedRelevance,
                   hasCode: extracted.hasCode,
                 });
               }
