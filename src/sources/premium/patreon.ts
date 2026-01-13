@@ -44,11 +44,31 @@ interface PatreonPost {
 
 interface PatreonCampaign {
   id: string;
+  type: 'campaign';
   attributes: {
     name: string;
     url: string;
     summary?: string;
   };
+}
+
+interface PatreonMember {
+  id: string;
+  type: 'member';
+  attributes: {
+    patron_status: 'active_patron' | 'declined_patron' | 'former_patron' | null;
+  };
+  relationships?: {
+    campaign?: { data: { id: string; type: string } };
+  };
+}
+
+interface PatreonIdentityResponse {
+  data: {
+    id: string;
+    type: string;
+  };
+  included?: Array<PatreonMember | PatreonCampaign>;
 }
 
 function getSwiftMcpDir(): string {
@@ -134,29 +154,53 @@ export class PatreonSource {
     if (!accessToken) return [];
 
     try {
+      // Use identity endpoint with memberships to get campaigns user is subscribed to
       const response = await fetch(
-        `${PATREON_API}/campaigns?fields[campaign]=name,url,summary`,
+        `${PATREON_API}/identity?include=memberships.campaign&fields[member]=patron_status&fields[campaign]=name,url,summary`,
         { headers: { 'Authorization': `Bearer ${accessToken}` } }
       );
 
       if (!response.ok) {
-        console.error(`Failed to fetch campaigns: ${response.status}`);
+        console.error(`Failed to fetch memberships: ${response.status}`);
         return [];
       }
 
-      const data = await response.json() as { data: PatreonCampaign[] };
+      const data = await response.json() as PatreonIdentityResponse;
 
-      return data.data.map(campaign => ({
-        id: campaign.id,
-        name: campaign.attributes.name,
-        url: campaign.attributes.url,
-        isSwiftRelated: isSwiftRelated(
-          campaign.attributes.name,
-          campaign.attributes.summary
-        ),
-      }));
+      if (!data.included) return [];
+
+      // Extract active memberships and their campaigns
+      const members = data.included.filter(
+        (item): item is PatreonMember =>
+          item.type === 'member' &&
+          (item as PatreonMember).attributes?.patron_status === 'active_patron'
+      );
+
+      const campaigns = data.included.filter(
+        (item): item is PatreonCampaign => item.type === 'campaign'
+      );
+
+      // Get campaign IDs from active memberships
+      const activeCampaignIds = new Set(
+        members
+          .map(m => m.relationships?.campaign?.data?.id)
+          .filter((id): id is string => !!id)
+      );
+
+      // Return campaigns user is actively subscribed to
+      return campaigns
+        .filter(c => activeCampaignIds.has(c.id))
+        .map(campaign => ({
+          id: campaign.id,
+          name: campaign.attributes.name,
+          url: campaign.attributes.url,
+          isSwiftRelated: isSwiftRelated(
+            campaign.attributes.name,
+            campaign.attributes.summary
+          ),
+        }));
     } catch (error) {
-      console.error('Failed to fetch creators:', error);
+      console.error('Failed to fetch subscribed creators:', error);
       return [];
     }
   }

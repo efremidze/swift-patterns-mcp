@@ -96,7 +96,8 @@ export async function startOAuthFlow(
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('response_type', 'code');
-    authUrl.searchParams.set('scope', 'identity campaigns campaigns.members');
+    // Request scopes for identity, memberships (subscriptions), and campaign access
+    authUrl.searchParams.set('scope', 'identity identity.memberships campaigns campaigns.posts');
 
     let serverClosed = false;
 
