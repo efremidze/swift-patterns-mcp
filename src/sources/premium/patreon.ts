@@ -54,46 +54,48 @@ export class PatreonSource {
    * Uses identity endpoint with memberships.campaign include
    */
   async getPatronMemberships(): Promise<PatreonCreator[]> {
-    const res = await this.request("/identity?include=memberships.campaign")
+    const res = await this.request(
+      "/identity" +
+        "?include=memberships.campaign" +
+        "&fields[member]=patron_status" +
+        "&fields[campaign]=name,url"
+    )
 
     const included = res.included ?? []
 
     const memberships = included.filter(
       (i) =>
         i.type === "member" &&
-        (i.attributes?.patron_status as string) === "active_patron"
+        i.attributes?.patron_status === "active_patron"
     )
 
-    if (memberships.length === 0) {
-      throw new Error(
-        "No active Patreon memberships found. You must be a paying patron of at least one creator."
-      )
-    }
+    const creators: PatreonCreator[] = []
 
-    return memberships.map((member) => {
+    for (const member of memberships) {
       const campaignId = member.relationships?.campaign?.data?.id
-      if (!campaignId) {
-        throw new Error("Membership missing campaign relationship")
-      }
+      if (!campaignId) continue
 
       const campaign = included.find(
         (i) => i.type === "campaign" && i.id === campaignId
       )
 
-      if (!campaign) {
-        throw new Error(`Campaign ${campaignId} not found in included data`)
-      }
+      if (!campaign?.attributes?.name) continue
 
-      const name = campaign.attributes.name as string
-      const url = campaign.attributes.url as string | undefined
-
-      return {
+      creators.push({
         id: campaign.id,
-        name,
-        url,
-        isSwiftRelated: isSwiftRelated(name)
-      }
-    })
+        name: campaign.attributes.name,
+        url: campaign.attributes.url,
+        isSwiftRelated: isSwiftRelated(campaign.attributes.name)
+      })
+    }
+
+    if (creators.length === 0) {
+      throw new Error(
+        "No active Patreon memberships found. You must be a paying patron of at least one creator."
+      )
+    }
+
+    return creators
   }
 
   /**
