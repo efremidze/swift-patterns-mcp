@@ -47,7 +47,7 @@ interface PatreonCampaign {
   id: string;
   type: 'campaign';
   attributes: {
-    name: string;
+    creation_name: string;
     url: string;
     summary?: string;
   };
@@ -202,7 +202,7 @@ export class PatreonSource {
     try {
       // Use identity endpoint with memberships to get campaigns user is subscribed to
       // This is the ONLY correct way to get patron memberships
-      const url = `${PATREON_API}/identity?include=memberships.campaign&fields[user]=full_name,email&fields[member]=patron_status&fields[campaign]=name,url,summary`;
+      const url = `${PATREON_API}/identity?include=memberships.campaign&fields[user]=full_name,email&fields[member]=patron_status&fields[campaign]=creation_name,url,summary`;
       console.log(`Fetching: ${url}`);
 
       const response = await fetch(url, {
@@ -246,10 +246,10 @@ export class PatreonSource {
         .filter(c => activeCampaignIds.has(c.id))
         .map(campaign => ({
           id: campaign.id,
-          name: campaign.attributes.name,
+          name: campaign.attributes.creation_name,
           url: campaign.attributes.url,
           isSwiftRelated: isSwiftRelated(
-            campaign.attributes.name,
+            campaign.attributes.creation_name,
             campaign.attributes.summary
           ),
         }));
