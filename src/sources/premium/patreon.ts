@@ -2,6 +2,7 @@
 
 import { loadTokens, getValidAccessToken } from './patreon-oauth.js';
 import { getChannelVideos, searchVideos, Video } from './youtube.js';
+import { extractFromAttachment, ExtractedPattern } from './patreon-zip.js';
 import { getByPatreonId } from '../../config/creators.js';
 import fs from 'fs';
 import path from 'path';
@@ -133,6 +134,33 @@ function isSwiftRelated(name: string, summary?: string): boolean {
   const text = `${name} ${summary || ''}`.toLowerCase();
   const keywords = ['swift', 'swiftui', 'ios', 'apple', 'xcode', 'uikit', 'iphone', 'ipad'];
   return keywords.some(k => text.includes(k));
+}
+
+// Extract post ID from Patreon URL
+// e.g., https://www.patreon.com/posts/apple-stocks-ui-148144034 -> 148144034
+function extractPostId(patreonUrl: string): string | null {
+  const match = patreonUrl.match(/patreon\.com\/posts\/[^\/]+-(\d+)/);
+  return match ? match[1] : null;
+}
+
+interface PatreonPostResponse {
+  data: {
+    id: string;
+    attributes: {
+      title: string;
+      content: string;
+      url: string;
+      published_at: string;
+    };
+  };
+  included?: Array<{
+    id: string;
+    type: string;
+    attributes: {
+      name?: string;
+      url?: string;
+    };
+  }>;
 }
 
 export class PatreonSource {
@@ -268,6 +296,9 @@ export class PatreonSource {
 
     console.log(`Fetching patterns for ${creatorsToFetch.length} creators:`, creatorsToFetch);
 
+    // Get access token for Patreon API (for zip downloads)
+    const accessToken = await getValidAccessToken(this.clientId, this.clientSecret);
+
     for (const patreonId of creatorsToFetch) {
       // Look up creator in registry to get YouTube channel
       const creator = getByPatreonId(patreonId);
@@ -281,7 +312,14 @@ export class PatreonSource {
         console.log(`Found ${videos.length} videos for ${creator.name}`);
 
         for (const video of videos) {
+          // Add video as pattern
           patterns.push(this.videoToPattern(video, creator.name));
+
+          // If video has Patreon link, try to fetch zip attachments
+          if (video.patreonLink && accessToken) {
+            const zipPatterns = await this.fetchPostZips(video.patreonLink, video.title, creator.name, accessToken);
+            patterns.push(...zipPatterns);
+          }
         }
       } catch (error) {
         console.error(`Failed to fetch videos for ${creator.name}:`, error);
@@ -294,6 +332,105 @@ export class PatreonSource {
     );
 
     return patterns;
+  }
+
+  /**
+   * Fetch a Patreon post and extract zip attachments
+   */
+  private async fetchPostZips(
+    patreonUrl: string,
+    videoTitle: string,
+    creatorName: string,
+    accessToken: string
+  ): Promise<PatreonPattern[]> {
+    const postId = extractPostId(patreonUrl);
+    if (!postId) {
+      console.log(`Could not extract post ID from: ${patreonUrl}`);
+      return [];
+    }
+
+    try {
+      const url = `${PATREON_API}/posts/${postId}?include=attachments&fields[post]=title,content,url,published_at&fields[attachment]=name,url`;
+      console.log(`Fetching Patreon post: ${postId}`);
+
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.log(`Failed to fetch post ${postId}: ${response.status}`);
+        console.log(`Error: ${errorBody}`);
+        return [];
+      }
+
+      const data = await response.json() as PatreonPostResponse;
+      const patterns: PatreonPattern[] = [];
+
+      // Find zip attachments
+      const attachments = data.included?.filter(
+        item => item.type === 'attachment' && item.attributes.url?.endsWith('.zip')
+      ) || [];
+
+      console.log(`Found ${attachments.length} zip attachments for post ${postId}`);
+
+      for (const attachment of attachments) {
+        if (!attachment.attributes.url) continue;
+
+        const result = await extractFromAttachment(
+          attachment.attributes.url,
+          postId,
+          accessToken
+        );
+
+        if (result.success) {
+          for (const extracted of result.patterns) {
+            patterns.push(this.extractedToPattern(
+              extracted,
+              videoTitle,
+              patreonUrl,
+              data.data.attributes.published_at,
+              creatorName
+            ));
+          }
+          console.log(`Extracted ${result.patterns.length} files from ${attachment.attributes.name || 'zip'}`);
+        } else {
+          console.log(`Failed to extract zip: ${result.warnings.join(', ')}`);
+        }
+      }
+
+      return patterns;
+    } catch (error) {
+      console.error(`Error fetching post ${postId}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Convert extracted zip file to PatreonPattern
+   */
+  private extractedToPattern(
+    extracted: ExtractedPattern,
+    videoTitle: string,
+    patreonUrl: string,
+    publishDate: string,
+    creatorName: string
+  ): PatreonPattern {
+    const text = `${extracted.filename} ${extracted.content}`;
+    const relevanceScore = calculateRelevance(text, extracted.hasCode);
+
+    return {
+      id: `zip-${patreonUrl.split('-').pop()}-${extracted.filename}`,
+      title: `${videoTitle} - ${extracted.filename}`,
+      url: patreonUrl,
+      publishDate,
+      excerpt: extracted.content.substring(0, 300),
+      content: extracted.content,
+      creator: creatorName,
+      topics: extracted.topics,
+      relevanceScore,
+      hasCode: extracted.hasCode,
+    };
   }
 
   private videoToPattern(video: Video, creatorName: string): PatreonPattern {
