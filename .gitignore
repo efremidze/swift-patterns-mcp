@@ -52,3 +52,7 @@ coverage/
 # Secrets
 *.pem
 *.key
+
+# Patreon browser profile & session
+.patreon-profile/
+.patreon-session
