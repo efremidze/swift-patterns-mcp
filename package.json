@@ -11,7 +11,8 @@
     "watch": "tsc --watch",
     "prepare": "npm run build",
     "setup": "node build/cli/setup.js",
-    "source": "node build/cli/source-manager.js"
+    "source": "node build/cli/source-manager.js",
+    "lint": "tsc --noEmit"
   },
   "keywords": [
     "mcp",
