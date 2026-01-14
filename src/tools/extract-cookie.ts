@@ -44,14 +44,6 @@ const COOKIE_FILE = '.patreon-session';
   // Debug: log all cookie names
   console.log('Available cookies:', cookies.map(c => c.name).join(', '));
 
-  const sessionCookie = cookies.find(c => c.name === 'session_id');
-  if (!sessionCookie) {
-    console.error('Session cookie not found!');
-    console.log('Full cookies:', JSON.stringify(cookies, null, 2));
-    await context.close();
-    process.exit(1);
-  }
-
   fs.writeFileSync(COOKIE_FILE, sessionCookie.value);
   console.log('Saved session_id!');
   await context.close();
