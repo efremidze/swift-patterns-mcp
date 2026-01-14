@@ -16,8 +16,8 @@ export const CREATORS: Creator[] = [
     patreonId: '5338573',
     name: 'iOS App Development with SwiftUI',
     youtube: {
-      channelId: '',  // TODO: Add channel ID
-      handle: '',
+      channelId: 'UCsuV4MRk_aB291SrchUVb4w',  // TODO: Add channel ID
+      handle: 'Kavsoft',
     },
     topics: ['swift', 'swiftui', 'ios'],
   },
