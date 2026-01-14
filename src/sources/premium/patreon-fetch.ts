@@ -1,13 +1,18 @@
 #!/usr/bin/env node
 import { execSync } from 'child_process';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const [,, url, out] = process.argv;
 const cookieFile = '.patreon-session';
 
 if (!fs.existsSync(cookieFile)) {
   console.log('No session cookie — running browser auth...');
-  execSync('node extract-cookie.js', { stdio: 'inherit' });
+  // extract-cookie.js is in build/tools/ relative to this file in build/sources/premium/
+  const extractCookiePath = path.join(__dirname, '..', '..', 'tools', 'extract-cookie.js');
+  execSync(`node "${extractCookiePath}"`, { stdio: 'inherit' });
 }
 
 const session = fs.readFileSync(cookieFile, 'utf8').trim();
