@@ -1,7 +1,11 @@
 // src/sources/premium/patreon-oauth.ts
 
 import http from 'http';
+import { exec } from 'child_process';
 import { URL } from 'url';
+import { join } from 'path';
+import { homedir } from 'os';
+import fs from 'fs/promises';
 import keytar from 'keytar';
 
 const SERVICE_NAME = 'swift-mcp';
@@ -9,6 +13,16 @@ const ACCOUNT_NAME = 'patreon-tokens';
 const CALLBACK_PORT = 9876;
 const PATREON_AUTH_URL = 'https://www.patreon.com/oauth2/authorize';
 const PATREON_TOKEN_URL = 'https://www.patreon.com/api/oauth2/token';
+
+// Scopes explained:
+// - identity: REQUIRED - gives access to patron memberships via /identity endpoint
+// - campaigns: Access campaigns you manage (creator-only, optional)
+// - campaigns.members: Access members of your own campaign (creator-only, optional)
+export const PATREON_SCOPES = [
+  'identity',           // REQUIRED: patron memberships live here
+  'campaigns',          // creator-owned campaigns (optional)
+  'campaigns.members',  // members of creator-owned campaigns (optional)
+].join(' ');
 
 export interface PatreonTokens {
   access_token: string;
@@ -96,8 +110,7 @@ export async function startOAuthFlow(
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('response_type', 'code');
-    // Request scopes for identity, memberships (subscriptions), and campaign access
-    authUrl.searchParams.set('scope', 'identity identity.memberships campaigns campaigns.posts');
+    authUrl.searchParams.set('scope', PATREON_SCOPES);
 
     let serverClosed = false;
 
@@ -194,7 +207,6 @@ export async function startOAuthFlow(
       console.log(`If browser doesn't open, visit: ${authUrl.toString()}\n`);
 
       // Open browser
-      const { exec } = require('child_process');
       const cmd = process.platform === 'darwin' ? 'open' :
                   process.platform === 'win32' ? 'start' : 'xdg-open';
       exec(`${cmd} "${authUrl.toString()}"`);
@@ -230,4 +242,25 @@ export async function getValidAccessToken(
   }
 
   return tokens.access_token;
+}
+
+// =============================================================================
+// Cleanup & Reset
+// =============================================================================
+
+/**
+ * Clear all Patreon authentication data (keytar + legacy tokens.json)
+ */
+export async function clearPatreonAuth(): Promise<void> {
+  // Clear from keytar
+  await keytar.deletePassword(SERVICE_NAME, "patreon")
+  await keytar.deletePassword(SERVICE_NAME, ACCOUNT_NAME)
+  
+  // Clear legacy tokens.json file
+  const tokensPath = join(homedir(), ".swift-mcp", "tokens.json")
+  try {
+    await fs.rm(tokensPath, { force: true })
+  } catch {
+    // Ignore if file doesn't exist
+  }
 }

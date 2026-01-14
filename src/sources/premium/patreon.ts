@@ -186,12 +186,22 @@ export class PatreonSource {
     return tokens !== null;
   }
 
+  /**
+   * Returns creators the user PAYS (patron memberships).
+   * 
+   * IMPORTANT: This uses the identity endpoint with memberships.campaign include,
+   * NOT the /campaigns endpoint. The /campaigns endpoint only returns campaigns
+   * you OWN as a creator, not campaigns you subscribe to as a patron.
+   * 
+   * Correct API: GET /identity?include=memberships.campaign
+   */
   async getSubscribedCreators(): Promise<Creator[]> {
     const accessToken = await getValidAccessToken(this.clientId, this.clientSecret);
     if (!accessToken) return [];
 
     try {
       // Use identity endpoint with memberships to get campaigns user is subscribed to
+      // This is the ONLY correct way to get patron memberships
       const response = await fetch(
         `${PATREON_API}/identity?include=memberships.campaign&fields[member]=patron_status&fields[campaign]=name,url,summary`,
         { headers: { 'Authorization': `Bearer ${accessToken}` } }
@@ -204,7 +214,10 @@ export class PatreonSource {
 
       const data = await response.json() as PatreonIdentityResponse;
 
-      if (!data.included) return [];
+      if (!data.included) {
+        console.error('No memberships data in response. User may not have any active patron memberships.');
+        return [];
+      }
 
       // Extract active memberships and their campaigns
       const members = data.included.filter(
@@ -225,7 +238,7 @@ export class PatreonSource {
       );
 
       // Return campaigns user is actively subscribed to
-      return campaigns
+      const creators = campaigns
         .filter(c => activeCampaignIds.has(c.id))
         .map(campaign => ({
           id: campaign.id,
@@ -236,6 +249,15 @@ export class PatreonSource {
             campaign.attributes.summary
           ),
         }));
+
+      if (creators.length === 0) {
+        console.warn(
+          'No active Patreon memberships found. ' +
+          'You must be a paying patron of at least one creator to use Patreon with swift-mcp.'
+        );
+      }
+
+      return creators;
     } catch (error) {
       console.error('Failed to fetch subscribed creators:', error);
       return [];
