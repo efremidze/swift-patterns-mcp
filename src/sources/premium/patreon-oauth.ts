@@ -240,3 +240,24 @@ export async function getValidAccessToken(
 
   return tokens.access_token;
 }
+
+// =============================================================================
+// Cleanup & Reset
+// =============================================================================
+
+/**
+ * Clear all Patreon authentication data (keytar + legacy tokens.json)
+ */
+export async function clearPatreonAuth(): Promise<void> {
+  // Clear from keytar
+  await keytar.deletePassword(SERVICE_NAME, "patreon")
+  await keytar.deletePassword(SERVICE_NAME, ACCOUNT_NAME)
+  
+  // Clear legacy tokens.json file
+  const tokensPath = join(homedir(), ".swift-mcp", "tokens.json")
+  try {
+    await fs.rm(tokensPath, { force: true })
+  } catch {
+    // Ignore if file doesn't exist
+  }
+}
