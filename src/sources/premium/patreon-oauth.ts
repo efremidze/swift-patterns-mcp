@@ -15,13 +15,15 @@ const PATREON_AUTH_URL = 'https://www.patreon.com/oauth2/authorize';
 const PATREON_TOKEN_URL = 'https://www.patreon.com/api/oauth2/token';
 
 // Scopes explained:
-// - identity: REQUIRED - gives access to patron memberships via /identity endpoint
+// - identity: Basic user info
+// - identity.memberships: REQUIRED - access to patron memberships via /identity endpoint
 // - campaigns: Access campaigns you manage (creator-only, optional)
 // - campaigns.members: Access members of your own campaign (creator-only, optional)
 export const PATREON_SCOPES = [
-  'identity',           // REQUIRED: patron memberships live here
-  'campaigns',          // creator-owned campaigns (optional)
-  'campaigns.members',  // members of creator-owned campaigns (optional)
+  'identity',
+  'identity.memberships',  // REQUIRED: patron memberships live here
+  'campaigns',
+  'campaigns.members',
 ].join(' ');
 
 export interface PatreonTokens {
