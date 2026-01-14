@@ -203,7 +203,11 @@ export class PatreonSource {
       // Use identity endpoint with memberships to get campaigns user is subscribed to
       // This is the ONLY correct way to get patron memberships
       const response = await fetch(
-        `${PATREON_API}/identity?include=memberships.campaign&fields[member]=patron_status&fields[campaign]=name,url,summary`,
+        `${PATREON_API}/identity
+          ?include=memberships.campaign
+          &fields[user]=full_name,email
+          &fields[member]=patron_status
+          &fields[campaign]=name,url`,
         { headers: { 'Authorization': `Bearer ${accessToken}` } }
       );
 
