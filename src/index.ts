@@ -169,6 +169,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         const source = (args?.source as string) || "all";
         const minQuality = (args?.minQuality as number) || 60;
         
+        // Input validation
+        if (!topic || typeof topic !== 'string' || topic.trim().length === 0) {
+          return {
+            content: [{
+              type: "text",
+              text: `Error: 'topic' parameter is required and must be a non-empty string.`,
+            }],
+            isError: true,
+          };
+        }
+        
+        if (minQuality < 0 || minQuality > 100) {
+          return {
+            content: [{
+              type: "text",
+              text: `Error: 'minQuality' must be between 0 and 100.`,
+            }],
+            isError: true,
+          };
+        }
+        
         const results: any[] = [];
         
         // Get from free sources
@@ -234,6 +255,17 @@ ${results.length > 10 ? `\n*Showing top 10 of ${results.length} results*` : ''}
       case "search_swift_content": {
         const query = args?.query as string;
         const requireCode = args?.requireCode as boolean;
+        
+        // Input validation
+        if (!query || typeof query !== 'string' || query.trim().length === 0) {
+          return {
+            content: [{
+              type: "text",
+              text: `Error: 'query' parameter is required and must be a non-empty string.`,
+            }],
+            isError: true,
+          };
+        }
         
         const results: any[] = [];
         

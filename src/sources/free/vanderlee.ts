@@ -17,12 +17,21 @@ export interface VanderLeePattern {
 export class VanderLeeSource {
   private parser = new Parser();
   private feedUrl = 'https://www.avanderlee.com/feed/';
+  private lastFetchTime: number = 0;
+  private cachedPatterns: VanderLeePattern[] | null = null;
+  private readonly CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
   
   async fetchPatterns(): Promise<VanderLeePattern[]> {
+    // Simple cache to avoid hammering RSS feeds
+    const now = Date.now();
+    if (this.cachedPatterns && (now - this.lastFetchTime) < this.CACHE_DURATION_MS) {
+      return this.cachedPatterns;
+    }
+    
     try {
       const feed = await this.parser.parseURL(this.feedUrl);
       
-      return feed.items.map((item: any) => {
+      const patterns = feed.items.map((item: any) => {
         const content = item.content || item.contentSnippet || '';
         const text = `${item.title} ${content}`.toLowerCase();
         
@@ -42,6 +51,10 @@ export class VanderLeeSource {
           hasCode,
         };
       });
+      
+      this.cachedPatterns = patterns;
+      this.lastFetchTime = Date.now();
+      return patterns;
     } catch (error) {
       console.error('Failed to fetch van der Lee content:', error);
       return [];

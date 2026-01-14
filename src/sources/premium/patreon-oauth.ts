@@ -52,6 +52,10 @@ export async function refreshAccessToken(
   clientSecret: string,
   refreshToken: string
 ): Promise<PatreonTokens> {
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error('Missing required parameters for token refresh');
+  }
+  
   const response = await fetch(PATREON_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

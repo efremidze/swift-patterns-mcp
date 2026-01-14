@@ -188,7 +188,10 @@ export class PatreonSource {
 
   async getSubscribedCreators(): Promise<Creator[]> {
     const accessToken = await getValidAccessToken(this.clientId, this.clientSecret);
-    if (!accessToken) return [];
+    if (!accessToken) {
+      console.error('Failed to get valid access token for Patreon');
+      return [];
+    }
 
     try {
       // Use identity endpoint with memberships to get campaigns user is subscribed to
@@ -249,7 +252,10 @@ export class PatreonSource {
 
   async fetchPatterns(creatorId?: string): Promise<PatreonPattern[]> {
     const accessToken = await getValidAccessToken(this.clientId, this.clientSecret);
-    if (!accessToken) return [];
+    if (!accessToken) {
+      console.error('Failed to get valid access token for Patreon');
+      return [];
+    }
 
     const patterns: PatreonPattern[] = [];
     const creatorsToFetch = creatorId

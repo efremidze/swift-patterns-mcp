@@ -30,6 +30,17 @@ function getCacheDir(): string {
   return path.join(getSwiftMcpDir(), 'cache', 'zips');
 }
 
+/**
+ * Sanitizes a filename to prevent path traversal attacks
+ * Removes any path separators and parent directory references
+ */
+function sanitizeFilename(filename: string): string {
+  // Remove any path components, keep only the basename
+  const basename = path.basename(filename);
+  // Remove any remaining potentially dangerous characters
+  return basename.replace(/[<>:"|?*]/g, '_');
+}
+
 function detectFileType(filename: string): ExtractedPattern['type'] {
   const ext = path.extname(filename).toLowerCase();
   switch (ext) {
@@ -132,7 +143,15 @@ export function extractZip(zipPath: string, postId: string): ZipExtractionResult
       if (count >= MAX_FILES) break;
       if (entry.isDirectory) continue;
 
-      const filename = entry.entryName;
+      const rawFilename = entry.entryName;
+      const filename = sanitizeFilename(rawFilename);
+      
+      // Skip if sanitization resulted in an empty filename
+      if (!filename) {
+        warnings.push(`Skipped entry with invalid filename: ${rawFilename}`);
+        continue;
+      }
+      
       const type = detectFileType(filename);
 
       // Skip non-relevant files
