@@ -101,7 +101,7 @@ export async function startOAuthFlow(
 
     let serverClosed = false;
 
-    const server = http.createServer(async (req, res) => {
+    const server = http.createServer(async (req: http.IncomingMessage, res: http.ServerResponse) => {
       if (!req.url?.startsWith('/callback')) {
         res.writeHead(404);
         res.end('Not found');

@@ -22,7 +22,7 @@ export class VanderLeeSource {
     try {
       const feed = await this.parser.parseURL(this.feedUrl);
       
-      return feed.items.map(item => {
+      return feed.items.map((item: any) => {
         const content = item.content || item.contentSnippet || '';
         const text = `${item.title} ${content}`.toLowerCase();
         
