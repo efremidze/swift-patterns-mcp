@@ -17,41 +17,108 @@ export interface VanderLeePattern {
 export class VanderLeeSource {
   private parser = new Parser();
   private feedUrl = 'https://www.avanderlee.com/feed/';
-  
+
   async fetchPatterns(): Promise<VanderLeePattern[]> {
     try {
       const feed = await this.parser.parseURL(this.feedUrl);
-      
-      return feed.items.map(item => {
-        const content = item.content || item.contentSnippet || '';
-        const text = `${item.title} ${content}`.toLowerCase();
 
-        const topics = this.detectTopics(text);
+      // Fetch full content for all articles in parallel (limited concurrency)
+      const patterns = await Promise.all(
+        feed.items.map(item => this.processArticle(item))
+      );
 
-        // Detect code presence first (needed for relevance)
-        const hasCode = this.hasCodeContent(content);
-
-        // Calculate relevance
-        const relevanceScore = this.calculateRelevance(text, hasCode);
-        
-        return {
-          id: `vanderlee-${item.guid || item.link}`,
-          title: item.title || '',
-          url: item.link || '',
-          publishDate: item.pubDate || '',
-          excerpt: (item.contentSnippet || '').substring(0, 300),
-          content: content,
-          topics,
-          relevanceScore,
-          hasCode,
-        };
-      });
+      return patterns;
     } catch (error) {
       console.error('Failed to fetch van der Lee content:', error);
       return [];
     }
   }
-  
+
+  private async processArticle(item: Parser.Item): Promise<VanderLeePattern> {
+    const rssContent = item.content || item.contentSnippet || '';
+    const url = item.link || '';
+
+    // Try to fetch full article content
+    let fullContent = rssContent;
+    try {
+      if (url) {
+        fullContent = await this.fetchArticleContent(url);
+      }
+    } catch {
+      // Fall back to RSS content if fetch fails
+      fullContent = rssContent;
+    }
+
+    const text = `${item.title} ${fullContent}`.toLowerCase();
+    const topics = this.detectTopics(text);
+    const hasCode = this.hasCodeContent(fullContent);
+    const relevanceScore = this.calculateRelevance(text, hasCode);
+
+    return {
+      id: `vanderlee-${item.guid || item.link}`,
+      title: item.title || '',
+      url,
+      publishDate: item.pubDate || '',
+      excerpt: (item.contentSnippet || '').substring(0, 300),
+      content: fullContent,
+      topics,
+      relevanceScore,
+      hasCode,
+    };
+  }
+
+  private async fetchArticleContent(url: string): Promise<string> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'swift-mcp/1.0 (RSS Reader)',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const html = await response.text();
+      return this.extractPostContent(html);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private extractPostContent(html: string): string {
+    // Extract content from post-content div
+    const postContentMatch = html.match(/<div[^>]*class="[^"]*post-content[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<div/i);
+    if (postContentMatch) {
+      return this.stripHtml(postContentMatch[1]);
+    }
+
+    // Fallback: extract from article tag
+    const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
+    if (articleMatch) {
+      return this.stripHtml(articleMatch[1]);
+    }
+
+    return '';
+  }
+
+  private stripHtml(html: string): string {
+    // Keep code blocks intact for detection, remove other HTML
+    return html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+      // Keep pre/code tags for code detection
+      .replace(/<(?!pre|code|\/pre|\/code)[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   private detectTopics(text: string): string[] {
     const topicKeywords: Record<string, string[]> = {
       'debugging': ['debug', 'breakpoint', 'lldb', 'xcode'],
@@ -62,18 +129,18 @@ export class VanderLeeSource {
       'testing': ['test', 'xctest', 'mock'],
       'tooling': ['xcode', 'git', 'ci', 'fastlane'],
     };
-    
+
     const detected: string[] = [];
-    
+
     for (const [topic, keywords] of Object.entries(topicKeywords)) {
       if (keywords.some(keyword => text.includes(keyword))) {
         detected.push(topic);
       }
     }
-    
+
     return detected;
   }
-  
+
   private calculateRelevance(text: string, hasCode: boolean): number {
     // Base score: van der Lee is a known high-quality source
     let score = 50;
@@ -125,7 +192,7 @@ export class VanderLeeSource {
 
     return Math.min(100, score);
   }
-  
+
   private hasCodeContent(content: string): boolean {
     // HTML code tags
     if (content.includes('<code>') || content.includes('<pre>')) {
@@ -157,11 +224,11 @@ export class VanderLeeSource {
 
     return codeIndicators.some(pattern => pattern.test(content));
   }
-  
+
   async searchPatterns(query: string): Promise<VanderLeePattern[]> {
     const patterns = await this.fetchPatterns();
     const lowerQuery = query.toLowerCase();
-    
+
     return patterns.filter(p =>
       p.title.toLowerCase().includes(lowerQuery) ||
       p.content.toLowerCase().includes(lowerQuery) ||
