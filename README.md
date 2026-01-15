@@ -1,5 +1,3 @@
-<div align="center">
-
 # swift-mcp
 
 ### 🎯 Curated Swift/SwiftUI Patterns from Top iOS Developers
@@ -11,8 +9,6 @@
 **An MCP server that brings best practices from leading iOS developers directly to your AI assistant.**
 
 [Quick Start](#-quick-start) • [Features](#-features) • [Documentation](#-documentation) • [Examples](#-usage-examples) • [Contributing](#-contributing)
-
-</div>
 
 ---
 
@@ -539,10 +535,6 @@ This project was inspired by the need to bring expert iOS knowledge directly int
 
 ---
 
-<div align="center">
-
 **Made with ❤️ for the Swift community**
 
 [⭐ Star this repo](https://github.com/efremidze/swift-mcp) • [🐛 Report Bug](https://github.com/efremidze/swift-mcp/issues) • [✨ Request Feature](https://github.com/efremidze/swift-mcp/issues)
-
-</div>
