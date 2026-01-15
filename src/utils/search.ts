@@ -1,5 +1,5 @@
 // src/utils/search.ts
-// Advanced search utilities with fuzzy matching, TF-IDF scoring, and stemming
+// Advanced search utilities with fuzzy matching and smart stemming
 
 import MiniSearch from 'minisearch';
 import natural from 'natural';
@@ -21,6 +21,7 @@ const STOPWORDS = new Set([
 ]);
 
 // Swift-specific terms that shouldn't be stemmed (preserve technical accuracy)
+// NOTE: If you add hyphenated terms here (e.g. "objective-c"), the tokenizer will now respect them.
 const PRESERVE_TERMS = new Set([
   'swift', 'swiftui', 'uikit', 'combine', 'async', 'await', 'actor',
   'struct', 'class', 'enum', 'protocol', 'extension', 'func', 'var', 'let',
@@ -49,22 +50,40 @@ export interface SearchOptions {
   minScore?: number;        // Minimum score threshold
 }
 
-// Custom tokenizer with stemming
+// Custom tokenizer with smart hyphen handling
 function tokenize(text: string): string[] {
-  const tokens = text
+  // 1. Clean text but keep hyphens temporarily
+  const rawTokens = text
     .toLowerCase()
-    .replace(/[^\w\s-]/g, ' ')  // Keep hyphens for terms like async-await
+    .replace(/[^\w\s-]/g, ' ') 
     .split(/\s+/)
-    .filter(token => token.length > 1 && !STOPWORDS.has(token));
+    .filter(t => t.length > 0);
 
-  return tokens.map(token => {
-    // Preserve Swift-specific terms
+  const finalTokens: string[] = [];
+
+  for (const token of rawTokens) {
+    // 2. Check if the full token is a preserved term (e.g., if you added "objective-c")
     if (PRESERVE_TERMS.has(token)) {
-      return token;
+      finalTokens.push(token);
+      continue;
     }
-    // Stem other terms
-    return stemmer.stem(token);
-  });
+
+    // 3. If not preserved, split on hyphens to separate words like "async-await" -> "async", "await"
+    const subTokens = token.split('-');
+
+    for (const sub of subTokens) {
+      if (sub.length <= 1 || STOPWORDS.has(sub)) continue;
+
+      // 4. Check sub-tokens against preserved terms or stem them
+      if (PRESERVE_TERMS.has(sub)) {
+        finalTokens.push(sub);
+      } else {
+        finalTokens.push(stemmer.stem(sub));
+      }
+    }
+  }
+
+  return finalTokens;
 }
 
 // Process query with same tokenization for consistent matching
@@ -80,7 +99,7 @@ export class SearchIndex<T extends SearchableDocument> {
     this.miniSearch = new MiniSearch<T>({
       fields,
       storeFields: ['id'],
-      tokenize,
+      tokenize, // Uses our new smart tokenizer
       processTerm: (term) => term, // Already processed by tokenize
       searchOptions: {
         boost: { title: 2, topics: 1.5, content: 1 },
@@ -170,32 +189,6 @@ export function fuzzySearch<T extends SearchableDocument>(
   const index = new SearchIndex<T>();
   index.addDocuments(documents);
   return index.search(query, options);
-}
-
-// Calculate TF-IDF score for a term in a document
-export function calculateTfIdf(
-  term: string,
-  document: string,
-  corpus: string[]
-): number {
-  const stemmedTerm = PRESERVE_TERMS.has(term.toLowerCase())
-    ? term.toLowerCase()
-    : stemmer.stem(term.toLowerCase());
-
-  // Term Frequency: how often term appears in document
-  const docTokens = tokenize(document);
-  const tf = docTokens.filter(t => t === stemmedTerm).length / docTokens.length;
-
-  // Inverse Document Frequency: how rare is the term across corpus
-  const docsWithTerm = corpus.filter(doc =>
-    tokenize(doc).includes(stemmedTerm)
-  ).length;
-
-  const idf = docsWithTerm > 0
-    ? Math.log(corpus.length / docsWithTerm)
-    : 0;
-
-  return tf * idf;
 }
 
 // Get search relevance score (combines MiniSearch score with static relevance)
