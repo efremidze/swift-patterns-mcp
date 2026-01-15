@@ -17,9 +17,11 @@ const vanderleeSpecificTopics: Record<string, string[]> = {
 const vanderleeSpecificSignals: Record<string, number> = {
   'fix': 4,
   'solve': 4,
+  'performance': 8, // Override base (was 7, now 8 for vanderlee specialization)
   'memory': 7,
   'debugging': 7,
   'leak': 6,
+  'optimization': 7, // Add optimization signal
   'profiling': 6,
   'xcode': 5,
   'instruments': 6,
