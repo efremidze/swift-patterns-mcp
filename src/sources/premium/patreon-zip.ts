@@ -3,6 +3,7 @@
 import AdmZip from 'adm-zip';
 import fs from 'fs';
 import path from 'path';
+import { getCacheDir } from '../../utils/paths.js';
 
 const MAX_ZIP_SIZE = 50 * 1024 * 1024; // 50MB
 const MAX_FILES = 100;
@@ -19,15 +20,6 @@ export interface ZipExtractionResult {
   success: boolean;
   patterns: ExtractedPattern[];
   warnings: string[];
-}
-
-function getSwiftMcpDir(): string {
-  const home = process.env.HOME || process.env.USERPROFILE || '';
-  return path.join(home, '.swift-mcp');
-}
-
-function getCacheDir(): string {
-  return path.join(getSwiftMcpDir(), 'cache', 'zips');
 }
 
 function detectFileType(filename: string): ExtractedPattern['type'] {
@@ -73,7 +65,7 @@ export async function downloadZip(
   postId: string,
   accessToken: string
 ): Promise<string | null> {
-  const cacheDir = getCacheDir();
+  const cacheDir = getCacheDir('zips');
   const zipPath = path.join(cacheDir, `${postId}.zip`);
 
   // Check if already cached
@@ -114,7 +106,7 @@ export function extractZip(zipPath: string, postId: string): ZipExtractionResult
   const warnings: string[] = [];
   const patterns: ExtractedPattern[] = [];
 
-  const destDir = path.join(getCacheDir(), postId);
+  const destDir = path.join(getCacheDir('zips'), postId);
 
   try {
     const zip = new AdmZip(zipPath);
@@ -186,7 +178,7 @@ export async function extractFromAttachment(
 }
 
 export function clearZipCache(): void {
-  const cacheDir = getCacheDir();
+  const cacheDir = getCacheDir('zips');
   if (fs.existsSync(cacheDir)) {
     fs.rmSync(cacheDir, { recursive: true });
   }

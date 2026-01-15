@@ -4,6 +4,7 @@ import { loadTokens, getValidAccessToken } from './patreon-oauth.js';
 import { getChannelVideos, searchVideos, Video } from './youtube.js';
 import { scanDownloadedContent, DownloadedPost } from './patreon-dl.js';
 import { getByPatreonId } from '../../config/creators.js';
+import { getPatreonCreatorsPath } from '../../utils/paths.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -56,15 +57,6 @@ interface PatreonIdentityResponse {
     type: string;
   };
   included?: Array<PatreonMember | PatreonCampaign>;
-}
-
-function getSwiftMcpDir(): string {
-  const home = process.env.HOME || process.env.USERPROFILE || '';
-  return path.join(home, '.swift-mcp');
-}
-
-function getConfigPath(): string {
-  return path.join(getSwiftMcpDir(), 'patreon-creators.json');
 }
 
 function detectTopics(text: string): string[] {
@@ -150,7 +142,7 @@ export class PatreonSource {
 
   private loadEnabledCreators(): void {
     try {
-      const configPath = getConfigPath();
+      const configPath = getPatreonCreatorsPath();
       if (fs.existsSync(configPath)) {
         const data = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
         this.enabledCreators = data.enabledCreators || [];
@@ -162,7 +154,7 @@ export class PatreonSource {
 
   saveEnabledCreators(creatorIds: string[]): void {
     this.enabledCreators = creatorIds;
-    const configPath = getConfigPath();
+    const configPath = getPatreonCreatorsPath();
     fs.mkdirSync(path.dirname(configPath), { recursive: true });
     fs.writeFileSync(configPath, JSON.stringify({ enabledCreators: creatorIds }, null, 2));
   }

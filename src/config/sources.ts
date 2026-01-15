@@ -1,5 +1,7 @@
 // src/config/sources.ts
 
+import { getConfigPath } from '../utils/paths.js';
+
 export type SourceType = 'free' | 'premium';
 export type SourceStatus = 'enabled' | 'disabled' | 'not-configured';
 
@@ -93,13 +95,8 @@ export class SourceManager {
   private configPath: string;
   
   constructor(configPath?: string) {
-    this.configPath = configPath || this.getDefaultConfigPath();
+    this.configPath = configPath || getConfigPath();
     this.config = this.loadConfig();
-  }
-  
-  private getDefaultConfigPath(): string {
-    const home = process.env.HOME || process.env.USERPROFILE || '';
-    return `${home}/.swift-mcp/config.json`;
   }
   
   private loadConfig(): SourceConfig {

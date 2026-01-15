@@ -3,6 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { createHash } from 'crypto';
+import { getCacheDir } from './paths.js';
 
 const DEFAULT_TTL = 86400; // 24 hours in seconds
 
@@ -17,8 +18,7 @@ export class FileCache {
   private memoryCache: Map<string, CacheEntry<unknown>> = new Map();
 
   constructor(namespace: string = 'default') {
-    const home = process.env.HOME || process.env.USERPROFILE || '';
-    this.cacheDir = path.join(home, '.swift-mcp', 'cache', namespace);
+    this.cacheDir = getCacheDir(namespace);
     this.ensureCacheDir();
   }
 

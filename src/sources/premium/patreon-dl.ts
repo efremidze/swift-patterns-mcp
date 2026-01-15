@@ -6,13 +6,9 @@ import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
 import { CREATORS } from '../../config/creators.js';
+import { getPatreonContentDir } from '../../utils/paths.js';
 
 const execAsync = promisify(exec);
-
-function getDownloadDir(): string {
-  const home = process.env.HOME || process.env.USERPROFILE || '';
-  return path.join(home, '.swift-mcp', 'patreon-content');
-}
 
 function getCookiePath(): string {
   // Use .patreon-session in project root (created by extract-cookie.ts)
@@ -75,7 +71,7 @@ export async function downloadCreatorContent(
   }
 
   const cookie = fs.readFileSync(cookiePath, 'utf-8').trim();
-  const outDir = path.join(getDownloadDir(), creatorName);
+  const outDir = path.join(getPatreonContentDir(), creatorName);
 
   try {
     console.log(`Downloading content for ${creatorName}...`);
@@ -110,7 +106,7 @@ export async function downloadAllCreators(): Promise<void> {
  * Scan downloaded content and index files
  */
 export function scanDownloadedContent(): DownloadedPost[] {
-  const downloadDir = getDownloadDir();
+  const downloadDir = getPatreonContentDir();
   const posts: DownloadedPost[] = [];
 
   if (!fs.existsSync(downloadDir)) {
@@ -229,5 +225,5 @@ function scanDirectory(dir: string, files: DownloadedFile[]): void {
  * Get download directory path
  */
 export function getContentDir(): string {
-  return getDownloadDir();
+  return getPatreonContentDir();
 }
