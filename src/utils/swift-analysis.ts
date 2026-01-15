@@ -6,7 +6,7 @@
 
 /**
  * Detect topics from text based on keyword matching
- * @param text The text to analyze (should be lowercased)
+ * @param text The text to analyze
  * @param keywords Map of topic names to keyword arrays
  * @returns Array of detected topic names
  */
@@ -62,7 +62,7 @@ export function hasCodeContent(content: string): boolean {
 
 /**
  * Calculate relevance score based on keyword presence and code content
- * @param text The text to analyze (should be lowercased)
+ * @param text The text to analyze
  * @param hasCode Whether the content has code
  * @param qualitySignals Map of quality signals to point values
  * @param baseScore Starting score (default: 50)

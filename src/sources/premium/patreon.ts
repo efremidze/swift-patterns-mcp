@@ -77,6 +77,10 @@ const patreonSpecificSignals: Record<string, number> = {
 const patreonTopicKeywords = mergeKeywords(BASE_TOPIC_KEYWORDS, patreonSpecificTopics);
 const patreonQualitySignals = mergeQualitySignals(BASE_QUALITY_SIGNALS, patreonSpecificSignals);
 
+// Patreon-specific scoring constants
+const PATREON_CODE_BONUS = 15; // Higher bonus for code-heavy Patreon content
+const PATREON_BASE_SCORE = 0; // Start at 0 for Patreon to rely on quality signals
+
 function isSwiftRelated(name: string, summary?: string): boolean {
   const text = `${name} ${summary || ''}`.toLowerCase();
   const keywords = ['swift', 'swiftui', 'ios', 'apple', 'xcode', 'uikit', 'iphone', 'ipad'];
@@ -282,7 +286,7 @@ export class PatreonSource {
       const text = `${file.filename} ${content}`;
       const topics = detectTopics(text, patreonTopicKeywords);
       const hasCode = file.type === 'swift' || hasCodeContent(content);
-      const relevanceScore = calculateRelevance(text, hasCode, patreonQualitySignals, 0, 15);
+      const relevanceScore = calculateRelevance(text, hasCode, patreonQualitySignals, PATREON_BASE_SCORE, PATREON_CODE_BONUS);
 
       patterns.push({
         id: `dl-${post.postId}-${file.filename}`,
@@ -306,7 +310,7 @@ export class PatreonSource {
     const text = `${video.title} ${video.description}`;
     const topics = detectTopics(text, patreonTopicKeywords);
     const hasCode = hasCodeContent(video.description) || (video.codeLinks?.length ?? 0) > 0;
-    const relevanceScore = calculateRelevance(text, hasCode, patreonQualitySignals, 0, 15);
+    const relevanceScore = calculateRelevance(text, hasCode, patreonQualitySignals, PATREON_BASE_SCORE, PATREON_CODE_BONUS);
 
     return {
       id: `yt-${video.id}`,
