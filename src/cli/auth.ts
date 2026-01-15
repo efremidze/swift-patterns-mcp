@@ -2,6 +2,8 @@
 
 // src/cli/auth.ts
 
+import 'dotenv/config';
+
 import { clearPatreonAuth } from "../sources/premium/patreon-oauth.js"
 
 function print(msg: string): void {

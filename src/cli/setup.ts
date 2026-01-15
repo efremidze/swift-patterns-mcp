@@ -1,5 +1,7 @@
 // src/cli/setup.ts
 
+import 'dotenv/config';
+
 import readline from 'readline';
 import { startOAuthFlow, loadTokens } from '../sources/premium/patreon-oauth.js';
 import PatreonSource from '../sources/premium/patreon.js';
