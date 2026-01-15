@@ -3,6 +3,7 @@
 import Parser from 'rss-parser';
 import { rssCache, articleCache } from '../../utils/cache.js';
 import { SearchIndex, combineScores } from '../../utils/search.js';
+import { detectTopics as detectTopicsUtil, hasCodeContent as hasCodeContentUtil, calculateRelevance as calculateRelevanceUtil } from '../../utils/swift-analysis.js';
 
 export interface BasePattern {
   id: string;
@@ -123,42 +124,15 @@ export abstract class RssPatternSource<T extends BasePattern> {
   }
 
   protected detectTopics(text: string): string[] {
-    const detected: string[] = [];
-    for (const [topic, keywords] of Object.entries(this.options.topicKeywords)) {
-      if (keywords.some(keyword => text.includes(keyword))) {
-        detected.push(topic);
-      }
-    }
-    return detected;
+    return detectTopicsUtil(text, this.options.topicKeywords);
   }
 
   protected calculateRelevance(text: string, hasCode: boolean): number {
-    let score = 50;
-    for (const [keyword, points] of Object.entries(this.options.qualitySignals)) {
-      if (text.includes(keyword)) {
-        score += points;
-      }
-    }
-    if (hasCode) score += 10;
-    return Math.min(100, score);
+    return calculateRelevanceUtil(text, hasCode, this.options.qualitySignals, 50, 10);
   }
 
   protected hasCodeContent(content: string): boolean {
-    if (content.includes('<code>') || content.includes('<pre>')) return true;
-    if (content.includes('```')) return true;
-    if (/\b(func|class|struct|protocol|extension|enum|actor)\s+\w+/.test(content)) return true;
-    const codeIndicators = [
-      /\blet\s+\w+\s*[=:]/,
-      /\bvar\s+\w+\s*[=:]/,
-      /\breturn\s+\w+/, 
-      /\bguard\s+let/,
-      /\bif\s+let/,
-      /\basync\s+(func|let|var|throws)/,
-      /\bawait\s+\w+/, 
-      /\b\w+\s*\(\s*\)\s*->\s*\w+/, 
-      /@\w+\s+(struct|class|func|var)/,
-    ];
-    return codeIndicators.some(pattern => pattern.test(content));
+    return hasCodeContentUtil(content);
   }
 
   async searchPatterns(query: string): Promise<T[]> {

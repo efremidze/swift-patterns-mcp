@@ -4,6 +4,7 @@ import AdmZip from 'adm-zip';
 import fs from 'fs';
 import path from 'path';
 import { getCacheDir } from '../../utils/paths.js';
+import { detectTopics, hasCodeContent } from '../../utils/swift-analysis.js';
 
 const MAX_ZIP_SIZE = 50 * 1024 * 1024; // 50MB
 const MAX_FILES = 100;
@@ -22,6 +23,16 @@ export interface ZipExtractionResult {
   warnings: string[];
 }
 
+// Topic detection keywords for zip content
+const zipTopicKeywords: Record<string, string[]> = {
+  'swiftui': ['swiftui', '@state', '@binding', '@observable', 'view'],
+  'concurrency': ['async', 'await', 'actor', 'task', 'sendable'],
+  'networking': ['urlsession', 'network', 'api', 'http', 'request'],
+  'testing': ['xctest', 'test', 'mock', 'stub'],
+  'architecture': ['mvvm', 'coordinator', 'repository', 'usecase'],
+  'uikit': ['uikit', 'uiview', 'uitableview', 'uicollectionview'],
+};
+
 function detectFileType(filename: string): ExtractedPattern['type'] {
   const ext = path.extname(filename).toLowerCase();
   switch (ext) {
@@ -30,34 +41,6 @@ function detectFileType(filename: string): ExtractedPattern['type'] {
     case '.playground': return 'playground';
     default: return 'other';
   }
-}
-
-function detectTopics(content: string, filename: string): string[] {
-  const text = `${filename} ${content}`.toLowerCase();
-  const topics: string[] = [];
-
-  const keywords: Record<string, string[]> = {
-    'swiftui': ['swiftui', '@state', '@binding', '@observable', 'view'],
-    'concurrency': ['async', 'await', 'actor', 'task', 'sendable'],
-    'networking': ['urlsession', 'network', 'api', 'http', 'request'],
-    'testing': ['xctest', 'test', 'mock', 'stub'],
-    'architecture': ['mvvm', 'coordinator', 'repository', 'usecase'],
-    'uikit': ['uikit', 'uiview', 'uitableview', 'uicollectionview'],
-  };
-
-  for (const [topic, words] of Object.entries(keywords)) {
-    if (words.some(w => text.includes(w))) {
-      topics.push(topic);
-    }
-  }
-
-  return topics;
-}
-
-function hasCodeContent(content: string): boolean {
-  return /\b(func|class|struct|protocol|extension|enum)\s+\w+/.test(content) ||
-         content.includes('```swift') ||
-         content.includes('```');
 }
 
 export async function downloadZip(
@@ -132,7 +115,8 @@ export function extractZip(zipPath: string, postId: string): ZipExtractionResult
 
       try {
         const content = entry.getData().toString('utf8');
-        const topics = detectTopics(content, filename);
+        const text = `${filename} ${content}`;
+        const topics = detectTopics(text, zipTopicKeywords);
         const hasCode = hasCodeContent(content);
 
         patterns.push({
