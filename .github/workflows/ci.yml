@@ -26,15 +26,5 @@ jobs:
     - name: Build
       run: npm run build
     
-    - name: Check build artifacts
-      run: |
-        if [ ! -d "build" ]; then
-          echo "Build directory not found"
-          exit 1
-        fi
-        if [ ! -f "build/index.js" ]; then
-          echo "Build output (index.js) not found"
-          exit 1
-        fi
-        echo "Build successful! Artifacts found:"
-        ls -la build/
+    - name: Test
+      run: npx vitest run
