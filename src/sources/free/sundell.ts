@@ -16,7 +16,7 @@ export interface SundellPattern {
 
 export class SundellSource {
   private parser = new Parser();
-  private feedUrl = 'https://www.swiftbysundell.com/feed.xml';
+  private feedUrl = 'https://www.swiftbysundell.com/feed.rss';
   
   async fetchPatterns(): Promise<SundellPattern[]> {
     try {
