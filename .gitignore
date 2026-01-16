@@ -45,7 +45,6 @@ coverage/
 # Claude Code
 .claude/
 .gsd/
-.planning/
 .worktrees/
 
 # Secrets
