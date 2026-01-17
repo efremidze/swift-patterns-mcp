@@ -16,7 +16,7 @@ None (TypeScript/Node.js project, standard patterns)
 
 - [x] **Phase 1: Foundation & Error Handling** - Consistent error handling, structured logging
 - [ ] **Phase 2: Test Infrastructure** - Test coverage for utilities and core logic
-- [ ] **Phase 3: MCP Tool Refactoring** - Extract handlers from monolithic index.ts
+- [~] **Phase 3: MCP Tool Refactoring** - Extract handlers from monolithic index.ts (IN PROGRESS)
 - [ ] **Phase 4: Patreon OAuth Hardening** - Robust OAuth flow, token refresh edge cases
 - [ ] **Phase 5: Search & Response Quality** - Better MCP responses, improved search
 - [ ] **Phase 6: Premium Source Testing** - Test coverage for Patreon/YouTube
@@ -49,17 +49,22 @@ Key work:
 - Tests for `src/utils/swift-analysis.ts`
 - Add coverage reporting to vitest config
 
-### Phase 3: MCP Tool Refactoring
+### Phase 3: MCP Tool Refactoring (IN PROGRESS)
 **Goal**: Extract tool handlers from monolithic 515-line index.ts
 **Depends on**: Phase 2
 **Research**: Unlikely (internal refactoring)
-**Plans**: TBD
+**Plans**: 1 (in progress)
 
-Key work:
-- Extract tool handlers to `src/tools/handlers/`
-- Use factory pattern or registry for tool registration
-- Fix type safety in dynamic imports (remove `any` types)
-- Maintain backward compatibility for tool names
+Progress:
+- [x] Plan 01: Handler registry structure and core handler extraction
+  - Created `src/tools/types.ts`, `src/tools/registry.ts`, `src/tools/index.ts`
+  - Extracted 4 core handlers to `src/tools/handlers/`
+  - Reduced index.ts from 515 to 330 lines (36% reduction)
+  - Fixed `any[]` to `BasePattern[]` in handlers
+
+Remaining work:
+- Consider extracting Patreon handlers (requires refactoring dynamic import pattern)
+- Consider extracting tool definitions to separate module
 
 ### Phase 4: Patreon OAuth Hardening
 **Goal**: Make OAuth flow robust and handle edge cases
@@ -108,7 +113,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Foundation & Error Handling | 1/1 | Complete | 2026-01-16 |
 | 2. Test Infrastructure | 0/TBD | Not started | - |
-| 3. MCP Tool Refactoring | 0/TBD | Not started | - |
+| 3. MCP Tool Refactoring | 1/TBD | In progress | - |
 | 4. Patreon OAuth Hardening | 0/TBD | Not started | - |
 | 5. Search & Response Quality | 0/TBD | Not started | - |
 | 6. Premium Source Testing | 0/TBD | Not started | - |
