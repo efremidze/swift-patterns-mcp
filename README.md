@@ -242,9 +242,18 @@ Requires authentication and active subscriptions:
 
 ## 🔐 Premium Integration (Optional)
 
-### Patreon Integration
+### Patreon Setup
 
-Unlock premium content from iOS creators you already support on Patreon.
+Access premium content from iOS creators you support:
+
+```bash
+swift-mcp setup --patreon
+```
+
+Follow the interactive wizard to:
+1. Create a Patreon OAuth application
+2. Configure credentials
+3. Complete authentication
 
 #### Requirements
 
