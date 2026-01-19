@@ -4,7 +4,6 @@ import fs from 'fs';
 import path from 'path';
 import { createHash } from 'crypto';
 import { getCacheDir } from './paths.js';
-import { logError } from './errors.js';
 
 const DEFAULT_TTL = 86400; // 24 hours in seconds
 
@@ -65,8 +64,8 @@ export class FileCache {
           fs.unlinkSync(cachePath);
         }
       }
-    } catch (error) {
-      logError('FileCache.get', error, { key });
+    } catch {
+      // Cache read failed, return null
     }
 
     return null;
@@ -86,8 +85,8 @@ export class FileCache {
     const cachePath = this.getCachePath(key);
     try {
       fs.writeFileSync(cachePath, JSON.stringify(entry));
-    } catch (error) {
-      logError('FileCache.set', error, { key });
+    } catch {
+      // Cache write failed, continue without caching
     }
   }
 
@@ -123,8 +122,8 @@ export class FileCache {
           fs.unlinkSync(path.join(this.cacheDir, file));
         }
       }
-    } catch (error) {
-      logError('FileCache.clear', error);
+    } catch {
+      // Ignore errors during clear
     }
   }
 
@@ -152,15 +151,15 @@ export class FileCache {
               fs.unlinkSync(filePath);
               cleared++;
             }
-          } catch (error) {
-            logError('FileCache.clearExpired', error, { file });
+          } catch {
+            // Remove corrupted cache files
             fs.unlinkSync(filePath);
             cleared++;
           }
         }
       }
-    } catch (error) {
-      logError('FileCache.clearExpired', error);
+    } catch {
+      // Ignore errors during cleanup
     }
 
     return cleared;
