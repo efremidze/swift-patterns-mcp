@@ -277,43 +277,18 @@ Patreon requires OAuth apps to be registered by creators. You don't need to laun
 
 ## ⚙️ Commands
 
-### Source Management
-
 ```bash
-# List all available sources and their status
+# Source management
 swift-mcp source list
-
-# Enable a source
 swift-mcp source enable <source-name>
-
-# Disable a source
 swift-mcp source disable <source-name>
 
-# Examples
-swift-mcp source enable patreon
-swift-mcp source disable pointfree
-```
-
-### Configuration
-
-```bash
-# Run initial setup (creates config file)
+# Configuration
 swift-mcp setup
-
-# Set up Patreon integration
 swift-mcp setup --patreon
 
-# View current configuration
-cat ~/.swift-mcp/config.json
-```
-
-### Authentication
-
-```bash
-# Authenticate with Patreon
+# Authentication
 swift-mcp auth patreon
-
-# Check authentication status
 swift-mcp auth status
 ```
 
