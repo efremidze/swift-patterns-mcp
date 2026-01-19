@@ -332,14 +332,14 @@ Once installed, ask your AI assistant natural questions:
 ### Basic Queries
 
 ```
-"Show me SwiftUI animation patterns"
-→ Returns curated animation patterns from all free sources
+"Show me best practices for SwiftUI animations"
+→ Returns curated animation best practices from all free sources
 
 "What does Sundell say about testing?"
 → Returns testing-related content specifically from Swift by Sundell
 
-"Find async/await examples with code"
-→ Returns articles with practical async/await code examples
+"Explain navigation patterns in SwiftUI"
+→ Returns navigation architecture guidance and patterns
 ```
 
 ### Advanced Queries
@@ -350,6 +350,9 @@ Once installed, ask your AI assistant natural questions:
 
 "Get iOS architecture patterns"
 → Returns architecture and design pattern articles
+
+"Give me examples for SwiftUI infinite scrolling"
+→ Returns infinite scrolling implementations and related patterns
 
 "Find Combine framework examples"
 → Returns Combine-related tutorials and patterns
