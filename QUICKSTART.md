@@ -29,6 +29,9 @@ You'll get curated patterns from:
 
 #### Cursor
 
+Install using the Cursor MCP deeplink:
+[Add swift-mcp to Cursor](cursor://settings/mcp?json=%7B%22mcpServers%22%3A%7B%22swift%22%3A%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40swift-learning/mcp%40latest%22%5D%7D%7D%7D)
+
 Create `.cursor/mcp.json`:
 ```json
 {
