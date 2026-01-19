@@ -11,7 +11,7 @@ import type { ToolContext } from './src/tools/types.js';
 const sourceManager = new SourceManager();
 const context: ToolContext = {
   sourceManager,
-  patreonSource: null,
+  PatreonSource: null,
 };
 
 async function testListSources() {
