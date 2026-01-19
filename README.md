@@ -519,12 +519,6 @@ swift-mcp setup
 - 🐛 [Report Issues](https://github.com/efremidze/swift-mcp/issues)
 - 💬 [Discussions](https://github.com/efremidze/swift-mcp/discussions)
 
-## 📚 Documentation
-
-- [Quick Start Guide](QUICKSTART.md) - Get started in 2 minutes
-- [Patreon Setup Guide](docs/PATREON_SETUP.md) - Detailed Patreon integration instructions
-- [Project Structure](docs/STRUCTURE.md) - Technical architecture and codebase overview
-
 ## 🗺️ Roadmap
 
 ### Current Focus (v1.x)
