@@ -91,9 +91,9 @@ npm install -g @efremidze/swift-mcp
 # That's it! Free sources work immediately with no configuration needed
 ```
 
-### Add to Claude Desktop (Fastest)
+### Add to Claude Code (Fastest)
 
-If you use Claude Desktop, you can add the server in one command:
+If you use Claude Code, you can add the server in one command:
 
 ```bash
 claude mcp add swift -- npx -y @efremidze/swift-mcp@latest
