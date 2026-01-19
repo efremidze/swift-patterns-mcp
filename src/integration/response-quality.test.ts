@@ -1,7 +1,10 @@
 // src/integration/response-quality.test.ts
 // End-to-end tests validating response quality for AI assistant consumption
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+
+// Increase timeout for CI environments
+vi.setConfig({ testTimeout: 30000 });
 import { spawn, ChildProcess } from 'child_process';
 import * as readline from 'readline';
 import * as path from 'path';
@@ -48,7 +51,13 @@ class MCPClient {
       } catch { /* ignore */ }
     });
 
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Must consume stderr to prevent process from blocking
+    this.process.stderr?.on('data', () => {
+      // Drain stderr buffer (server logs go here)
+    });
+
+    // Wait for server to start
+    await new Promise(resolve => setTimeout(resolve, 1000));
   }
 
   async stop(): Promise<void> {
@@ -93,7 +102,7 @@ describe('Response Quality Validation', () => {
   beforeAll(async () => {
     client = new MCPClient();
     await client.start();
-  }, 10000);
+  }, 30000);
 
   afterAll(async () => {
     await client.stop();
