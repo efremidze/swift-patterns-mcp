@@ -573,11 +573,7 @@ Please be respectful and constructive. We're here to build something great toget
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
-```
 MIT License - Copyright (c) 2024 Lasha Efremidze
-```
 
 ## 🙏 Credits
 
