@@ -1,8 +1,6 @@
 // src/sources/premium/youtube.ts
 // YouTube Data API client
 
-import { logError } from '../../utils/errors.js';
-
 const API_BASE = 'https://www.googleapis.com/youtube/v3';
 
 export interface Video {
@@ -43,7 +41,7 @@ export async function getChannelVideos(
     const searchRes = await fetch(searchUrl);
 
     if (!searchRes.ok) {
-      logError('YouTube.getChannelVideos', new Error(`Search failed: ${searchRes.status}`), { channelId, status: searchRes.status });
+      console.error(`YouTube search failed: ${searchRes.status}`);
       return [];
     }
 
@@ -106,8 +104,8 @@ export async function getChannelVideos(
       patreonLink: extractPatreonLink(i.snippet.description),
       codeLinks: extractCodeLinks(i.snippet.description),
     }));
-  } catch (error) {
-    logError('YouTube.getChannelVideos', error, { channelId });
+  } catch (err) {
+    console.error('YouTube API error:', err);
     return [];
   }
 }
@@ -118,10 +116,7 @@ export async function searchVideos(
   maxResults = 25
 ): Promise<Video[]> {
   const apiKey = process.env.YOUTUBE_API_KEY;
-  if (!apiKey) {
-    logError('YouTube.searchVideos', new Error('YOUTUBE_API_KEY not set'));
-    return [];
-  }
+  if (!apiKey) return [];
 
   try {
     let url = `${API_BASE}/search?key=${apiKey}&q=${encodeURIComponent(query)}&part=snippet&type=video&maxResults=${maxResults}`;
@@ -130,10 +125,7 @@ export async function searchVideos(
     }
 
     const res = await fetch(url);
-    if (!res.ok) {
-      logError('YouTube.searchVideos', new Error(`Search failed: ${res.status}`), { query, status: res.status });
-      return [];
-    }
+    if (!res.ok) return [];
 
     const data = await res.json() as {
       items: Array<{
@@ -158,8 +150,7 @@ export async function searchVideos(
       patreonLink: extractPatreonLink(i.snippet.description),
       codeLinks: extractCodeLinks(i.snippet.description),
     }));
-  } catch (error) {
-    logError('YouTube.searchVideos', error, { query });
+  } catch {
     return [];
   }
 }

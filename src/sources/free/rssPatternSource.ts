@@ -4,7 +4,6 @@ import Parser from 'rss-parser';
 import { rssCache, articleCache } from '../../utils/cache.js';
 import { SearchIndex, combineScores } from '../../utils/search.js';
 import { detectTopics as detectTopicsUtil, hasCodeContent as hasCodeContentUtil, calculateRelevance as calculateRelevanceUtil } from '../../utils/swift-analysis.js';
-import { logError } from '../../utils/errors.js';
 
 export interface BasePattern {
   id: string;
@@ -51,7 +50,7 @@ export abstract class RssPatternSource<T extends BasePattern> {
       await rssCache.set(cacheKey, patterns, rssCacheTtl);
       return patterns;
     } catch (error) {
-      logError('RssPatternSource.fetchPatterns', error, { feedUrl: this.options.feedUrl });
+      console.error('Failed to fetch RSS content:', error);
       return [];
     }
   }
@@ -83,8 +82,7 @@ export abstract class RssPatternSource<T extends BasePattern> {
       if (url) {
         fullContent = await this.fetchArticleContent(url);
       }
-    } catch (error) {
-      logError('RssPatternSource.processArticle', error, { url });
+    } catch {
       fullContent = rssContent;
     }
     const text = `${item.title} ${fullContent}`.toLowerCase();
