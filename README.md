@@ -148,10 +148,14 @@ After adding the configuration, open `.vscode/mcp.json` and click Start next to 
 
 See the VS Code MCP documentation for more details.
 
-### Verify Installation
+### Test It Out
 
-```bash
-swift-mcp --version
+In your AI assistant, try:
+
+```
+"Show me SwiftUI animation patterns"
+"What does Sundell say about testing?"
+"Explain navigation patterns in SwiftUI"
 ```
 
 ## 🔧 Configuration
