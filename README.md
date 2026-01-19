@@ -195,49 +195,7 @@ For premium features, add to your MCP client config:
 }
 ```
 
-#### VS Code
-
-```json
-{
-  "mcp": {
-    "servers": {
-      "swift": {
-        "command": "npx",
-        "args": ["-y", "@efremidze/swift-mcp@latest"],
-        "env": {
-          "PATREON_CLIENT_ID": "your_client_id",
-          "PATREON_CLIENT_SECRET": "your_client_secret"
-        }
-      }
-    }
-  }
-}
-```
-
-### Local Development
-
-For local development and testing, you can use a `.env` file in the project root:
-
-1. Copy the example file:
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Add your credentials:
-   ```bash
-   # .env
-   PATREON_CLIENT_ID=your_client_id
-   PATREON_CLIENT_SECRET=your_client_secret
-   YOUTUBE_API_KEY=your_api_key
-   ```
-
-3. The `.env` file is automatically loaded when running the server locally.
-
-> **Note:** Never commit `.env` files to version control. The `.env` file is already in `.gitignore`.
-
 ## 💡 Usage Examples
-
-Once installed, ask your AI assistant natural questions:
 
 ### Basic Queries
 
