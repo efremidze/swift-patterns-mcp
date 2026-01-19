@@ -29,7 +29,7 @@ You'll get curated patterns from:
 
 #### Cursor
 
-cursor://anysphere.cursor-deeplink/mcp/install?name=swift&config=eyJjb21tYW5kIjoibnB4IC15IEBlZnJlbWlkemUvc3dpZnQtbWNwQGxhdGVzdCJ9
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=swift&config=eyJjb21tYW5kIjoibnB4IC15IEBlZnJlbWlkemUvc3dpZnQtbWNwQGxhdGVzdCJ9)
 
 Or manually add to **Cursor Settings** → **Tools** → **MCP Servers**:
 
