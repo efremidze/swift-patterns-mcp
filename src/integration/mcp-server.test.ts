@@ -26,15 +26,29 @@ class MCPTestClient {
   private pendingRequests = new Map<number, {
     resolve: (value: JsonRpcResponse) => void;
     reject: (reason: Error) => void;
+    timeout: NodeJS.Timeout;
   }>();
   private rl: readline.Interface | null = null;
+  private stopped = false;
 
   async start(): Promise<void> {
     const serverPath = path.join(process.cwd(), 'build', 'index.js');
+    this.stopped = false;
 
     this.process = spawn('node', [serverPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: process.cwd(),
+    });
+
+    // Handle process errors
+    this.process.on('error', (err) => {
+      this.rejectAllPending(err);
+    });
+
+    this.process.on('exit', (code) => {
+      if (code !== 0 && code !== null) {
+        this.rejectAllPending(new Error(`Server exited with code ${code}`));
+      }
     });
 
     this.rl = readline.createInterface({
@@ -47,6 +61,7 @@ class MCPTestClient {
         const response = JSON.parse(line) as JsonRpcResponse;
         const pending = this.pendingRequests.get(response.id);
         if (pending) {
+          clearTimeout(pending.timeout);
           this.pendingRequests.delete(response.id);
           pending.resolve(response);
         }
@@ -58,38 +73,57 @@ class MCPTestClient {
     await new Promise(resolve => setTimeout(resolve, 500));
   }
 
-  async stop(): Promise<void> {
-    if (this.process) {
-      this.process.kill();
-      this.process = null;
+  private rejectAllPending(err: Error): void {
+    for (const [, pending] of this.pendingRequests) {
+      clearTimeout(pending.timeout);
+      pending.reject(err);
     }
+    this.pendingRequests.clear();
+  }
+
+  async stop(): Promise<void> {
+    this.stopped = true;
+    this.rejectAllPending(new Error('Client stopped'));
+
     if (this.rl) {
       this.rl.close();
       this.rl = null;
     }
+    if (this.process) {
+      this.process.kill();
+      this.process = null;
+    }
   }
 
   async send(method: string, params?: Record<string, unknown>): Promise<JsonRpcResponse> {
-    if (!this.process) throw new Error('Client not started');
+    if (this.stopped || !this.process || !this.process.stdin || this.process.stdin.destroyed) {
+      throw new Error('Client not available');
+    }
 
     const id = ++this.requestId;
     const request: JsonRpcRequest = { jsonrpc: '2.0', id, method, params };
 
     return new Promise((resolve, reject) => {
-      this.pendingRequests.set(id, { resolve, reject });
-
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(id);
         reject(new Error(`Request ${id} timed out`));
       }, 30000);
 
-      this.process!.stdin!.write(JSON.stringify(request) + '\n', (err) => {
-        if (err) {
-          clearTimeout(timeout);
-          this.pendingRequests.delete(id);
-          reject(err);
-        }
-      });
+      this.pendingRequests.set(id, { resolve, reject, timeout });
+
+      try {
+        this.process!.stdin!.write(JSON.stringify(request) + '\n', (err) => {
+          if (err) {
+            clearTimeout(timeout);
+            this.pendingRequests.delete(id);
+            reject(err);
+          }
+        });
+      } catch (err) {
+        clearTimeout(timeout);
+        this.pendingRequests.delete(id);
+        reject(err);
+      }
     });
   }
 
