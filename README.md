@@ -176,65 +176,9 @@ The configuration file is automatically created at `~/.swift-mcp/config.json`:
 }
 ```
 
-### Configuration Options
+### Environment Variables (Optional)
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enabled` | boolean | `true` | Enable/disable a source |
-| `quality` | number | `60` | Minimum quality score (0-100) |
-| `cache.ttl` | number | `86400` | Cache time-to-live in seconds |
-
-## 🔑 Environment Variables
-
-swift-mcp uses environment variables for optional premium features. Free sources work without any configuration.
-
-### Available Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `PATREON_CLIENT_ID` | For Patreon | OAuth client ID from Patreon Developer Portal |
-| `PATREON_CLIENT_SECRET` | For Patreon | OAuth client secret from Patreon Developer Portal |
-| `YOUTUBE_API_KEY` | For YouTube | Google API key for YouTube content |
-
-### Setting Variables in MCP Client Config (Recommended)
-
-The recommended way to configure environment variables is through your MCP client's configuration file. This passes variables directly to the swift-mcp server.
-
-#### Cursor
-
-```json
-{
-  "mcpServers": {
-    "swift": {
-      "command": "npx",
-      "args": ["-y", "@efremidze/swift-mcp@latest"],
-      "env": {
-        "PATREON_CLIENT_ID": "your_client_id",
-        "PATREON_CLIENT_SECRET": "your_client_secret"
-      }
-    }
-  }
-}
-```
-
-#### Claude Desktop
-
-```json
-{
-  "mcpServers": {
-    "swift": {
-      "command": "npx",
-      "args": ["-y", "@efremidze/swift-mcp@latest"],
-      "env": {
-        "PATREON_CLIENT_ID": "your_client_id",
-        "PATREON_CLIENT_SECRET": "your_client_secret"
-      }
-    }
-  }
-}
-```
-
-#### Windsurf
+For premium features, add to your MCP client config:
 
 ```json
 {
