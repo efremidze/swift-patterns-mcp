@@ -201,36 +201,23 @@ For premium features, add to your MCP client config:
 
 ```
 "Show me best practices for SwiftUI animations"
-→ Returns curated animation best practices from all free sources
-
 "What does Sundell say about testing?"
-→ Returns testing-related content specifically from Swift by Sundell
-
 "Explain navigation patterns in SwiftUI"
-→ Returns navigation architecture guidance and patterns
 ```
 
 ### Advanced Queries
 
 ```
 "Show me performance tips from van der Lee"
-→ Filters to Antoine van der Lee's performance-related content
-
-"Find iOS architecture patterns for a feature-based module (MVVM + coordinator)"
-→ Returns architecture and design pattern articles
-
+"Find iOS architecture patterns for MVVM + coordinator"
 "Give me examples for SwiftUI infinite scrolling"
-→ Returns infinite scrolling implementations and related patterns
 ```
 
 ### With Patreon Integration
 
 ```
 "Show me advanced SwiftUI patterns from my Patreon"
-→ Returns premium content from creators you support + free sources
-
 "Get the latest content from creators I support"
-→ Accesses your Patreon subscriptions for exclusive content
 ```
 
 ## 📚 Content Sources
