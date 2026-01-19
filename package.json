@@ -51,14 +51,14 @@
     "minisearch": "^7.2.0",
     "natural": "^8.1.0",
     "node-fetch": "^3.3.2",
-    "patreon-dl": "^3.5.0",
+    "patreon-dl": "^3.6.0",
     "playwright": "^1.57.0",
     "rss-parser": "^3.13.0"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.7",
     "@types/natural": "^5.1.5",
-    "@types/node": "^22.10.2",
+    "@types/node": "^25.0.9",
     "typescript": "^5.7.2",
     "vitest": "^3.2.4"
   },
