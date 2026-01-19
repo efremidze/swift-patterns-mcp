@@ -1,6 +1,6 @@
 {
   "name": "@efremidze/swift-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP server for Swift/SwiftUI learning with curated patterns from top iOS developers. Optional Patreon integration for premium content.",
   "type": "module",
   "bin": {
