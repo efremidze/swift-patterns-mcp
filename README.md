@@ -347,27 +347,19 @@ swift-mcp setup
 
 ## 🗺️ Roadmap
 
-### Current Focus (v1.x)
+### Current (v1.x)
+- [x] Core MCP server
+- [x] Swift by Sundell RSS
+- [x] Antoine van der Lee RSS
+- [x] Patreon OAuth
+- [ ] Point-Free GitHub
+- [ ] Advanced filtering
 
-- [x] Core MCP server implementation
-- [x] Swift by Sundell RSS integration
-- [x] Antoine van der Lee RSS integration
-- [x] Basic source management
-- [x] Patreon OAuth integration
-- [ ] Point-Free GitHub integration
-- [ ] Advanced quality filtering
-- [ ] Code extraction from articles
-
-### Future Plans (v2.x)
-
-- [ ] Additional premium source integrations
-- [ ] More free content sources (developer blogs, newsletters)
-- [ ] Advanced content discovery and recommendations
-- [ ] Better content filtering and categorization
-- [ ] Local content caching improvements
-- [ ] Advanced search with vector embeddings
-- [ ] Custom source plugins
-
+### Future (v2.x)
+- [ ] Additional premium sources
+- [ ] More free sources
+- [ ] Advanced search
+- [ ] Code validation
 
 ## 🤝 Contributing
 
