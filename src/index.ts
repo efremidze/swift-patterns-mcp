@@ -17,10 +17,10 @@ import { getHandler, ToolContext } from './tools/index.js';
 
 // Premium sources (imported conditionally)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let PatreonSource: any = null;
+let patreonSource: any = null;
 try {
   const module = await import("./sources/premium/patreon.js");
-  PatreonSource = module.PatreonSource;
+  patreonSource = module.PatreonSource;
 } catch {
   // Patreon not available
 }
@@ -29,7 +29,7 @@ try {
 const sourceManager = new SourceManager();
 
 // Tool context for handlers
-const toolContext: ToolContext = { sourceManager, PatreonSource };
+const toolContext: ToolContext = { sourceManager, patreonSource };
 
 // Core tools (always available)
 const CORE_TOOLS: Tool[] = [
@@ -156,7 +156,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
   const tools = [...CORE_TOOLS];
 
-  if (hasPatreon && PatreonSource) {
+  if (hasPatreon && patreonSource) {
     tools.push(...PATREON_TOOLS);
   }
 
@@ -177,7 +177,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     // Patreon handlers remain inline (complex, references dynamic import)
     switch (name) {
       case "setup_patreon": {
-        if (!PatreonSource) {
+        if (!patreonSource) {
           return {
             content: [{
               type: "text",
@@ -244,7 +244,7 @@ Set it up with: swift-mcp setup --patreon`,
           };
         }
 
-        if (!PatreonSource) {
+        if (!patreonSource) {
           return {
             content: [{
               type: "text",
@@ -256,7 +256,7 @@ Set it up with: swift-mcp setup --patreon`,
         const topic = args?.topic as string;
         const requireCode = args?.requireCode as boolean;
 
-        const patreon = new PatreonSource();
+        const patreon = new patreonSource();
         let patterns = topic
           ? await patreon.searchPatterns(topic)
           : await patreon.fetchPatterns();

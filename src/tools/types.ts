@@ -8,7 +8,7 @@ import type SourceManager from '../config/sources.js';
 export interface ToolContext {
   sourceManager: SourceManager;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  PatreonSource: any;
+  patreonSource: any;
 }
 
 /**
