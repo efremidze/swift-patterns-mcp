@@ -1,10 +1,7 @@
 // src/integration/mcp-client.test.ts
 // Integration tests that simulate an MCP client calling the server
 
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-
-// Increase timeout for CI environments
-vi.setConfig({ testTimeout: 30000 });
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { spawn, ChildProcess } from 'child_process';
 import * as readline from 'readline';
 import * as path from 'path';
@@ -58,13 +55,8 @@ class TestMCPClient {
       }
     });
 
-    // Must consume stderr to prevent process from blocking
-    this.process.stderr?.on('data', () => {
-      // Drain stderr buffer (server logs go here)
-    });
-
     // Wait for server to start
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
 
   async stop(): Promise<void> {
@@ -132,7 +124,7 @@ describe('MCP Server Integration', () => {
   beforeAll(async () => {
     client = new TestMCPClient();
     await client.start();
-  }, 30000);
+  }, 10000);
 
   afterAll(async () => {
     await client.stop();
