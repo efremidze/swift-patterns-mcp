@@ -348,14 +348,11 @@ Once installed, ask your AI assistant natural questions:
 "Show me performance tips from van der Lee"
 → Filters to Antoine van der Lee's performance-related content
 
-"Get iOS architecture patterns"
+"Find iOS architecture patterns for a feature-based module (MVVM + coordinator)"
 → Returns architecture and design pattern articles
 
 "Give me examples for SwiftUI infinite scrolling"
 → Returns infinite scrolling implementations and related patterns
-
-"Find Combine framework examples"
-→ Returns Combine-related tutorials and patterns
 ```
 
 ### With Patreon Integration
