@@ -6,6 +6,11 @@
   "bin": {
     "swift-mcp": "build/index.js"
   },
+  "files": [
+    "build/**",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
