@@ -160,28 +160,15 @@ In your AI assistant, try:
 
 ## 🔧 Configuration
 
-### Configuration File
-
 The configuration file is automatically created at `~/.swift-mcp/config.json`:
 
 ```json
 {
   "sources": {
-    "sundell": { 
-      "enabled": true,
-      "quality": 60
-    },
-    "vanderlee": { 
-      "enabled": true,
-      "quality": 60
-    },
-    "pointfree": { 
-      "enabled": false,
-      "quality": 60
-    },
-    "patreon": { 
-      "enabled": false
-    }
+    "sundell": { "enabled": true, "quality": 60 },
+    "vanderlee": { "enabled": true, "quality": 60 },
+    "pointfree": { "enabled": false, "quality": 60 },
+    "patreon": { "enabled": false }
   },
   "cache": {
     "ttl": 86400
