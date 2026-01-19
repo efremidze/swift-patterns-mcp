@@ -13,10 +13,10 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import SourceManager from "./config/sources.js";
-import SundellSource from "./sources/free/sundell.js";
-import VanderLeeSource from "./sources/free/vanderlee.js";
+import { getHandler, ToolContext } from './tools/index.js';
 
 // Premium sources (imported conditionally)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let PatreonSource: any = null;
 try {
   const module = await import("./sources/premium/patreon.js");
@@ -27,6 +27,9 @@ try {
 
 // Initialize source manager
 const sourceManager = new SourceManager();
+
+// Tool context for handlers
+const toolContext: ToolContext = { sourceManager, PatreonSource };
 
 // Core tools (always available)
 const CORE_TOOLS: Tool[] = [
@@ -150,13 +153,13 @@ const server = new Server(
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   const enabledSources = sourceManager.getEnabledSources();
   const hasPatreon = enabledSources.some(s => s.id === 'patreon');
-  
+
   const tools = [...CORE_TOOLS];
-  
+
   if (hasPatreon && PatreonSource) {
     tools.push(...PATREON_TOOLS);
   }
-  
+
   return { tools };
 });
 
@@ -165,204 +168,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
+    // Check registry first for core handlers
+    const handler = getHandler(name);
+    if (handler) {
+      return handler(args ?? {}, toolContext);
+    }
+
+    // Patreon handlers remain inline (complex, references dynamic import)
     switch (name) {
-      case "get_swift_pattern": {
-        const topic = args?.topic as string;
-        const source = (args?.source as string) || "all";
-        const minQuality = (args?.minQuality as number) || 60;
-        
-        const results: any[] = [];
-        
-        // Get from free sources
-        if (source === "all" || source === "sundell") {
-          const sundell = new SundellSource();
-          const patterns = await sundell.searchPatterns(topic);
-          results.push(...patterns.filter(p => p.relevanceScore >= minQuality));
-        }
-        
-        if (source === "all" || source === "vanderlee") {
-          const vanderlee = new VanderLeeSource();
-          const patterns = await vanderlee.searchPatterns(topic);
-          results.push(...patterns.filter(p => p.relevanceScore >= minQuality));
-        }
-        
-        if (results.length === 0) {
-          return {
-            content: [{
-              type: "text",
-              text: `No patterns found for "${topic}" with quality ≥ ${minQuality}.
-
-Try:
-- Broader search terms
-- Lower minQuality
-- Different topic
-
-Available sources: Swift by Sundell, Antoine van der Lee
-${sourceManager.isSourceConfigured('patreon') ? '\n💡 Enable Patreon for more premium content!' : ''}`,
-            }],
-          };
-        }
-        
-        // Sort by relevance
-        results.sort((a, b) => b.relevanceScore - a.relevanceScore);
-        
-        const formatted = results.slice(0, 10).map(p => `
-## ${p.title}
-**Source**: ${p.id.split('-')[0]}
-**Quality**: ${p.relevanceScore}/100
-**Topics**: ${p.topics.join(', ')}
-${p.hasCode ? '**Has Code**: ✅' : ''}
-
-${p.excerpt}...
-
-**[Read full article](${p.url})**
-`).join('\n---\n');
-        
-        return {
-          content: [{
-            type: "text",
-            text: `# Swift Patterns: ${topic}
-
-Found ${results.length} patterns from free sources:
-
-${formatted}
-
-${results.length > 10 ? `\n*Showing top 10 of ${results.length} results*` : ''}
-`,
-          }],
-        };
-      }
-
-      case "search_swift_content": {
-        const query = args?.query as string;
-        const requireCode = args?.requireCode as boolean;
-        
-        const results: any[] = [];
-        
-        // Search all enabled free sources
-        const sundell = new SundellSource();
-        const sundellResults = await sundell.searchPatterns(query);
-        results.push(...sundellResults);
-        
-        const vanderlee = new VanderLeeSource();
-        const vanderLeeResults = await vanderlee.searchPatterns(query);
-        results.push(...vanderLeeResults);
-        
-        // Filter by code if requested
-        const filtered = requireCode 
-          ? results.filter(r => r.hasCode)
-          : results;
-        
-        if (filtered.length === 0) {
-          return {
-            content: [{
-              type: "text",
-              text: `No results found for "${query}"${requireCode ? ' with code examples' : ''}.`,
-            }],
-          };
-        }
-        
-        const formatted = filtered.slice(0, 10).map(r => `
-## ${r.title}
-**Source**: ${r.id.split('-')[0]}
-${r.hasCode ? '**Code**: ✅' : ''}
-${r.excerpt.substring(0, 200)}...
-[Read more](${r.url})
-`).join('\n---\n');
-        
-        return {
-          content: [{
-            type: "text",
-            text: `# Search Results: "${query}"
-
-${formatted}
-`,
-          }],
-        };
-      }
-
-      case "list_content_sources": {
-        const allSources = sourceManager.getAllSources();
-        
-        const freeList = allSources
-          .filter(s => s.type === 'free')
-          .map(s => `- ✅ **${s.name}** - ${s.description}`)
-          .join('\n');
-        
-        const premiumList = allSources
-          .filter(s => s.type === 'premium')
-          .map(s => {
-            const status = s.isConfigured && s.isEnabled ? '✅' : 
-                          s.isConfigured ? '⚙️' : '⬜';
-            return `- ${status} **${s.name}** - ${s.description}${s.isConfigured ? '' : ' (Setup required)'}`;
-          })
-          .join('\n');
-        
-        return {
-          content: [{
-            type: "text",
-            text: `# Content Sources
-
-## Free Sources (Always Available)
-${freeList}
-
-## Premium Sources (Optional)
-${premiumList}
-
-## Legend
-✅ Enabled | ⚙️ Configured but disabled | ⬜ Not configured
-
-To enable premium sources:
-\`\`\`
-swift-mcp setup --patreon
-\`\`\`
-`,
-          }],
-        };
-      }
-
-      case "enable_source": {
-        const sourceId = args?.source as string;
-        const source = sourceManager.getSource(sourceId);
-        
-        if (!source) {
-          return {
-            content: [{
-              type: "text",
-              text: `Unknown source: "${sourceId}"
-
-Available sources:
-${sourceManager.getAllSources().map(s => `- ${s.id}: ${s.name}`).join('\n')}`,
-            }],
-          };
-        }
-        
-        if (source.requiresAuth && !sourceManager.isSourceConfigured(sourceId)) {
-          return {
-            content: [{
-              type: "text",
-              text: `⚙️ ${source.name} requires setup first.
-
-Run: swift-mcp setup --${sourceId}
-
-This will guide you through:
-${sourceId === 'patreon' ? '- Patreon OAuth authentication\n- Connecting your subscriptions' : '- Authentication setup'}`,
-            }],
-          };
-        }
-        
-        sourceManager.enableSource(sourceId);
-        
-        return {
-          content: [{
-            type: "text",
-            text: `✅ ${source.name} enabled!
-
-You can now use patterns from this source.`,
-          }],
-        };
-      }
-
       case "setup_patreon": {
         if (!PatreonSource) {
           return {
@@ -378,15 +191,15 @@ Get credentials at: https://www.patreon.com/portal/registration/register-clients
             }],
           };
         }
-        
+
         const action = (args?.action as string) || "start";
-        
+
         if (action === "status") {
           const isConfigured = sourceManager.isSourceConfigured('patreon');
           return {
             content: [{
               type: "text",
-              text: isConfigured 
+              text: isConfigured
                 ? `✅ Patreon is configured and ready to use!`
                 : `⚙️ Patreon is not yet configured.
 
@@ -394,7 +207,7 @@ Run: swift-mcp setup --patreon`,
             }],
           };
         }
-        
+
         return {
           content: [{
             type: "text",
@@ -449,6 +262,7 @@ Set it up with: swift-mcp setup --patreon`,
           : await patreon.fetchPatterns();
 
         if (requireCode) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           patterns = patterns.filter((p: any) => p.hasCode);
         }
 
@@ -461,6 +275,7 @@ Set it up with: swift-mcp setup --patreon`,
           };
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const formatted = patterns.slice(0, 10).map((p: any) => `
 ## ${p.title}
 **Creator**: ${p.creator}

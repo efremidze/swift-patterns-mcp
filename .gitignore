@@ -39,13 +39,15 @@ npm-debug.log*
 coverage/
 .nyc_output/
 
+# Git keep files
+*.gitkeep
+
 # MCP
 .swift-mcp/
 
 # Claude Code
 .claude/
 .gsd/
-.planning/
 .worktrees/
 
 # Secrets
