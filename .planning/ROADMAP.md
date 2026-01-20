@@ -1,8 +1,8 @@
-# Roadmap: swift-mcp Improvements
+# Roadmap: swift-patterns-mcp Improvements
 
 ## Overview
 
-Improve swift-mcp from working prototype to production-ready MCP server. Focus on reliability (error handling, OAuth), maintainability (tests, refactoring), and usability (better responses).
+Improve swift-patterns-mcp from working prototype to production-ready MCP server. Focus on reliability (error handling, OAuth), maintainability (tests, refactoring), and usability (better responses).
 
 ## Domain Expertise
 

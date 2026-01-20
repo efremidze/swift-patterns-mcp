@@ -1,12 +1,12 @@
-# Project: swift-mcp Improvements
+# Project: swift-patterns-mcp Improvements
 
 ## Core Value
 
-Improve swift-mcp reliability, usability, and code quality to deliver a production-ready MCP server for Swift/SwiftUI learning content.
+Improve swift-patterns-mcp reliability, usability, and code quality to deliver a production-ready MCP server for Swift/SwiftUI learning content.
 
 ## Overview
 
-swift-mcp is an MCP server that provides AI assistants with curated Swift/SwiftUI patterns from top iOS developers. This improvement effort focuses on three areas:
+swift-patterns-mcp is an MCP server that provides AI assistants with curated Swift/SwiftUI patterns from top iOS developers. This improvement effort focuses on three areas:
 
 1. **MCP Usability** - Better search, responses, and tool organization
 2. **Patreon Integration** - More robust OAuth flow and content extraction
@@ -14,7 +14,7 @@ swift-mcp is an MCP server that provides AI assistants with curated Swift/SwiftU
 
 ## Current State
 
-- **Version**: 1.0.0 (published on npm as @efremidze/swift-mcp)
+- **Version**: 1.0.0 (published on npm as @efremidze/swift-patterns-mcp)
 - **Stack**: TypeScript, Node.js 18+, MCP SDK
 - **Sources**: Free (RSS-based) + Premium (Patreon, YouTube)
 - **Known Issues**: See `.planning/codebase/CONCERNS.md`

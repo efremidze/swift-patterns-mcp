@@ -93,7 +93,7 @@ Return to MCP handler
 ```
 
 **State Management:**
-- File-based: Source config in `~/.swift-mcp/config.json`
+- File-based: Source config in `~/.swift-patterns-mcp/config.json`
 - In-memory: Caches cleared on restart
 - No persistent in-memory state between requests
 

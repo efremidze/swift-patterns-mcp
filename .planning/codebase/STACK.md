@@ -53,7 +53,7 @@
 **Environment:**
 - `.env` files for secrets (gitignored)
 - `.env.example` documents required vars: `PATREON_CLIENT_ID`, `PATREON_CLIENT_SECRET`, `YOUTUBE_API_KEY`
-- Runtime config persisted to `~/.swift-mcp/config.json`
+- Runtime config persisted to `~/.swift-patterns-mcp/config.json`
 
 **Build:**
 - `tsconfig.json` - TypeScript compiler (ES2022 target, Node16 module resolution, strict mode)
@@ -66,9 +66,9 @@
 - Optional: Playwright browsers for Patreon session extraction
 
 **Production:**
-- Distributed as npm package (`@efremidze/swift-mcp`)
+- Distributed as npm package (`@efremidze/swift-patterns-mcp`)
 - Runs as MCP server via stdio transport
-- CLI command: `swift-mcp` pointing to `./build/index.js`
+- CLI command: `swift-patterns-mcp` pointing to `./build/index.js`
 
 ---
 

@@ -5,7 +5,7 @@
 ## Directory Layout
 
 ```
-swift-mcp/
+swift-patterns-mcp/
 ├── src/                    # TypeScript source code
 │   ├── index.ts           # MCP server entry point
 │   ├── cli/               # CLI commands
@@ -164,7 +164,7 @@ swift-mcp/
 
 ## Special Directories
 
-**~/.swift-mcp/ (User Home):**
+**~/.swift-patterns-mcp/ (User Home):**
 - Purpose: Runtime configuration and cache
 - Contents:
   - `config.json` - Source enable/disable state

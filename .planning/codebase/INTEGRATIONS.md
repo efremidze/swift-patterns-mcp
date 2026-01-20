@@ -27,17 +27,17 @@
 ## Data Storage
 
 **File-based Configuration:**
-- Location: `~/.swift-mcp/config.json`
+- Location: `~/.swift-patterns-mcp/config.json`
 - Purpose: Source enable/disable state, persistent settings
 - Managed by: `src/config/sources.ts` (SourceManager class)
 
 **Patreon Content Storage:**
-- Location: `~/.swift-mcp/patreon-content/`
+- Location: `~/.swift-patterns-mcp/patreon-content/`
 - Purpose: Downloaded Patreon posts and attachments
 - Managed by: `patreon-dl` CLI tool via `src/sources/premium/patreon-dl.ts`
 
 **File Cache:**
-- Location: `~/.swift-mcp/cache/` (namespaced: rss/, articles/)
+- Location: `~/.swift-patterns-mcp/cache/` (namespaced: rss/, articles/)
 - Purpose: RSS feeds (1h TTL), full articles (24h TTL)
 - Implementation: Dual-tier memory + file cache (`src/utils/cache.ts`)
 
@@ -84,8 +84,8 @@
 - Node version: 20 on ubuntu-latest
 
 **Distribution:**
-- npm package: `@efremidze/swift-mcp`
-- Binary command: `swift-mcp`
+- npm package: `@efremidze/swift-patterns-mcp`
+- Binary command: `swift-patterns-mcp`
 
 ## Environment Configuration
 

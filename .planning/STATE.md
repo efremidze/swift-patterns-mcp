@@ -4,7 +4,7 @@
 
 See: .planning/PROJECT.md (updated 2026-01-16)
 
-**Core value:** Improve swift-mcp reliability, usability, and code quality
+**Core value:** Improve swift-patterns-mcp reliability, usability, and code quality
 **Current focus:** Phase 3 — MCP Tool Refactoring
 
 ## Current Position
