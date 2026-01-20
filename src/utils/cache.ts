@@ -16,6 +16,7 @@ interface CacheEntry<T> {
 export class FileCache {
   private cacheDir: string;
   private memoryCache: Map<string, CacheEntry<unknown>> = new Map();
+  private inFlightFetches: Map<string, Promise<unknown>> = new Map();
 
   constructor(namespace: string = 'default') {
     this.cacheDir = getCacheDir(namespace);
@@ -44,8 +45,11 @@ export class FileCache {
   async get<T>(key: string): Promise<T | null> {
     // Check memory cache first
     const memEntry = this.memoryCache.get(key) as CacheEntry<T> | undefined;
-    if (memEntry && !this.isExpired(memEntry)) {
-      return memEntry.data;
+    if (memEntry) {
+      if (!this.isExpired(memEntry)) {
+        return memEntry.data;
+      }
+      this.memoryCache.delete(key);
     }
 
     // Check file cache
@@ -100,9 +104,24 @@ export class FileCache {
       return cached;
     }
 
-    const data = await fetcher();
-    await this.set(key, data, ttl);
-    return data;
+    const inFlight = this.inFlightFetches.get(key) as Promise<T> | undefined;
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const fetchPromise = (async () => {
+      const data = await fetcher();
+      await this.set(key, data, ttl);
+      return data;
+    })();
+
+    this.inFlightFetches.set(key, fetchPromise);
+
+    try {
+      return await fetchPromise;
+    } finally {
+      this.inFlightFetches.delete(key);
+    }
   }
 
   private isExpired(entry: CacheEntry<unknown>): boolean {
