@@ -13,7 +13,7 @@ What you expected to happen.
 **Environment**
 - OS: [e.g. macOS 14]
 - Node version: [e.g. 18.0.0]
-- swift-mcp version: [e.g. 1.0.0]
+- swift-patterns-mcp version: [e.g. 1.0.0]
 
 **Additional context**
 Any other context about the problem.
