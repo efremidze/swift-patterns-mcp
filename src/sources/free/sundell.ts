@@ -1,6 +1,6 @@
 // src/sources/free/sundell.ts
 
-import { RssPatternSource } from './rssPatternSource.js';
+import { RssPatternSource, type BasePattern } from './rssPatternSource.js';
 import { BASE_TOPIC_KEYWORDS, BASE_QUALITY_SIGNALS, mergeKeywords, mergeQualitySignals } from '../../config/swift-keywords.js';
 
 export interface SundellPattern extends BasePattern {}

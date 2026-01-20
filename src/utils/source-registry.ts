@@ -30,7 +30,8 @@ const SOURCE_CLASSES = {
  */
 export function getSource(name: FreeSourceName): FreeSource {
   const SourceClass = SOURCE_CLASSES[name];
-  return new SourceClass();
+  // Cast to FreeSource since all pattern types extend BasePattern
+  return new SourceClass() as FreeSource;
 }
 
 /**
