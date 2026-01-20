@@ -43,7 +43,7 @@ coverage/
 *.gitkeep
 
 # MCP
-.swift-mcp/
+.swift-patterns-mcp/
 
 # Claude Code
 .claude/
