@@ -43,6 +43,16 @@ export const AVAILABLE_SOURCES: ContentSource[] = [
     requiresAuth: false,
     status: 'enabled',
   },
+
+  {
+    id: 'nilcoalescing',
+    name: 'Nil Coalescing',
+    description: 'SwiftUI-focused Swift patterns and tutorials from Nil Coalescing',
+    type: 'free',
+    enabled: true,
+    requiresAuth: false,
+    status: 'enabled',
+  },
   
   {
     id: 'pointfree-oss',
@@ -111,6 +121,7 @@ export class SourceManager {
         sources: {
           sundell: { enabled: true, configured: true },
           vanderlee: { enabled: true, configured: true },
+          nilcoalescing: { enabled: true, configured: true },
           'pointfree-oss': { enabled: true, configured: true },
           patreon: { enabled: false, configured: false },
           'github-sponsors': { enabled: false, configured: false },

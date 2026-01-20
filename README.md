@@ -20,7 +20,7 @@
 
 ### Core Features
 
-- 🎓 **Expert Knowledge Base**: Provides patterns from Swift by Sundell, Antoine van der Lee, and more
+- 🎓 **Expert Knowledge Base**: Provides patterns from Swift by Sundell, Antoine van der Lee, Nil Coalescing, and more
 - 🔍 **Intelligent Search**: Query by topic, pattern, or specific iOS concepts
 - 🎯 **Quality Filtering**: Configurable quality thresholds ensure only the best content
 - 📚 **Multiple Sources**: Aggregates knowledge from various trusted educators
@@ -30,6 +30,7 @@
 ### Built-in Sources (Free)
 - ✅ **Swift by Sundell** - Articles, patterns, and best practices
 - ✅ **Antoine van der Lee** - Tutorials, tips, and deep dives
+- ✅ **Nil Coalescing** - SwiftUI patterns and practical Swift tips
 - ✅ **Point-Free** - Open source libraries and patterns
 
 ### Premium Sources (Optional)
@@ -220,6 +221,7 @@ Currently supported, no authentication needed:
 |--------|---------|--------------|------------------|
 | **Swift by Sundell** | John Sundell | Articles, patterns, best practices | Weekly |
 | **Antoine van der Lee** | Antoine van der Lee | Tutorials, tips, deep dives | Weekly |
+| **Nil Coalescing** | Nil Coalescing | SwiftUI patterns, Swift tips | Weekly |
 | **Point-Free** | Point-Free | Open source libraries, patterns | On release |
 
 ### Premium Sources
@@ -291,8 +293,9 @@ graph LR
     B --> D[Premium Sources]
     C --> E[Swift by Sundell RSS]
     C --> F[van der Lee RSS]
-    C --> G[Point-Free GitHub]
-    D --> H[Patreon API]
+    C --> G[Nil Coalescing RSS]
+    C --> H[Point-Free GitHub]
+    D --> I[Patreon API]
 ```
 
 1. **Query**: Receives a query through the MCP protocol
@@ -335,6 +338,7 @@ swift-patterns-mcp setup
 - [x] Core MCP server
 - [x] Swift by Sundell RSS
 - [x] Antoine van der Lee RSS
+- [x] Nil Coalescing RSS
 - [x] Patreon OAuth
 - [ ] Point-Free GitHub
 - [ ] Advanced filtering
@@ -360,6 +364,7 @@ MIT License - Copyright (c) 2026 Lasha Efremidze
 **Content Sources**
 - [John Sundell](https://swiftbysundell.com) - Swift by Sundell
 - [Antoine van der Lee](https://www.avanderlee.com) - SwiftLee
+- [Nil Coalescing](https://nilcoalescing.com) - SwiftUI patterns and Swift tips
 - [Point-Free](https://www.pointfree.co) - Advanced Swift education
 
 **Built with** [Model Context Protocol](https://modelcontextprotocol.io)

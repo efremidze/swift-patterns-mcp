@@ -35,7 +35,7 @@ const toolContext: ToolContext = { sourceManager, patreonSource };
 const CORE_TOOLS: Tool[] = [
   {
     name: "get_swift_pattern",
-    description: "Get Swift/SwiftUI patterns from curated free sources (Sundell, van der Lee, etc.)",
+    description: "Get Swift/SwiftUI patterns from curated free sources (Sundell, van der Lee, Nil Coalescing, etc.)",
     inputSchema: {
       type: "object",
       properties: {
@@ -45,7 +45,7 @@ const CORE_TOOLS: Tool[] = [
         },
         source: {
           type: "string",
-          enum: ["all", "sundell", "vanderlee"],
+          enum: ["all", "sundell", "vanderlee", "nilcoalescing"],
           description: "Specific source to search (default: all free sources)",
         },
         minQuality: {

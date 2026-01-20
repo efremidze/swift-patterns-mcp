@@ -44,11 +44,30 @@ vi.mock('../../sources/free/vanderlee.js', () => ({
   })),
 }));
 
+vi.mock('../../sources/free/nilcoalescing.js', () => ({
+  default: vi.fn().mockImplementation(() => ({
+    searchPatterns: vi.fn().mockResolvedValue([
+      {
+        id: 'nilcoalescing-1',
+        title: 'Nil Coalescing SwiftUI Guide',
+        url: 'https://example.com/nilcoalescing',
+        excerpt: 'SwiftUI guidance',
+        content: 'Full content here',
+        topics: ['swiftui'],
+        relevanceScore: 70,
+        hasCode: true,
+        publishDate: new Date().toISOString(),
+      },
+    ]),
+  })),
+}));
+
 // Create mock SourceManager
 function createMockSourceManager() {
   const sources = [
     { id: 'sundell', name: 'Swift by Sundell', type: 'free', requiresAuth: false, isEnabled: true, isConfigured: true, description: 'Swift articles' },
     { id: 'vanderlee', name: 'Antoine van der Lee', type: 'free', requiresAuth: false, isEnabled: true, isConfigured: true, description: 'iOS tips' },
+    { id: 'nilcoalescing', name: 'Nil Coalescing', type: 'free', requiresAuth: false, isEnabled: true, isConfigured: true, description: 'SwiftUI tips' },
     { id: 'patreon', name: 'Patreon', type: 'premium', requiresAuth: true, isEnabled: false, isConfigured: false, description: 'Premium content' },
   ];
 
@@ -184,6 +203,7 @@ describe('listContentSourcesHandler', () => {
 
     expect(result.content[0].text).toContain('Swift by Sundell');
     expect(result.content[0].text).toContain('Antoine van der Lee');
+    expect(result.content[0].text).toContain('Nil Coalescing');
   });
 
   it('should show setup instructions', async () => {
@@ -229,5 +249,6 @@ describe('enableSourceHandler', () => {
 
     expect(result.content[0].text).toContain('sundell');
     expect(result.content[0].text).toContain('vanderlee');
+    expect(result.content[0].text).toContain('nilcoalescing');
   });
 });
