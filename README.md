@@ -332,8 +332,8 @@ swift-patterns-mcp setup
 ### Getting Help
 
 - 📖 [Full Documentation](docs/)
-- 🐛 [Report Issues](https://github.com/efremidze/swift-patterns-mcp/issues)
-- 💬 [Discussions](https://github.com/efremidze/swift-patterns-mcp/discussions)
+- 🐛 [Report Issues](./issues)
+- 💬 [Discussions](./discussions)
 
 ## 🗺️ Roadmap
 
@@ -374,4 +374,4 @@ MIT License - Copyright (c) 2026 Lasha Efremidze
 
 **Made with ❤️ for the Swift community**
 
-[⭐ Star this repo](https://github.com/efremidze/swift-patterns-mcp) • [🐛 Report Bug](https://github.com/efremidze/swift-patterns-mcp/issues) • [✨ Request Feature](https://github.com/efremidze/swift-patterns-mcp/issues)
+[⭐ Star this repo](https://github.com/efremidze/swift-patterns-mcp) • [🐛 Report Bug](./issues) • [✨ Request Feature](./issues)

@@ -282,4 +282,4 @@ A: Content from that creator stops appearing immediately.
 
 ---
 
-Need help? [Open an issue](https://github.com/efremidze/swift-patterns-mcp/issues)
+Need help? [Open an issue](../issues)
