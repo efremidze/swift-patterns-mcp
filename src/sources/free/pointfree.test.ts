@@ -140,7 +140,6 @@ describe('PointFreeSource', () => {
   });
 
   it('handles individual file fetch failures gracefully', async () => {
-    let fileCallCount = 0;
     mockFetch.mockImplementation((url: string) => {
       if (url.includes('/repos/pointfreeco/pointfreeco')) {
         if (url.includes('/git/trees/')) {
@@ -155,15 +154,16 @@ describe('PointFreeSource', () => {
         return Promise.resolve(createResponse({ default_branch: 'main' }));
       }
       if (url.includes('raw.githubusercontent.com')) {
-        fileCallCount++;
-        if (fileCallCount === 2) {
-          // Fail the second file fetch
+        // Fail the middle file specifically
+        if (url.includes('Episodes/001.md')) {
           return Promise.reject(new Error('Network error'));
         }
         if (url.includes('README.md')) {
           return Promise.resolve(createResponse('# Point-Free\n\nArchitecture patterns.'));
         }
-        return Promise.resolve(createResponse('# Episode\n\nContent here.'));
+        if (url.includes('Episodes/002.md')) {
+          return Promise.resolve(createResponse('# Episode 2\n\nContent here.'));
+        }
       }
       return Promise.resolve(createResponse(''));
     });
@@ -173,8 +173,8 @@ describe('PointFreeSource', () => {
     
     // Should successfully return 2 patterns despite 1 file failing
     expect(patterns).toHaveLength(2);
-    expect(patterns[0].title).toBe('Point-Free');
-    expect(patterns[1].title).toContain('Episode');
+    expect(patterns.find(p => p.title === 'Point-Free')).toBeDefined();
+    expect(patterns.find(p => p.title.includes('Episode 2'))).toBeDefined();
   });
 
   it('uses cached data when available', async () => {
