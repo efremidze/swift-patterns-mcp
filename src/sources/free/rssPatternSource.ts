@@ -1,9 +1,8 @@
 // src/sources/free/rssPatternSource.ts
 
-import { createHash } from 'crypto';
 import Parser from 'rss-parser';
 import { rssCache, articleCache } from '../../utils/cache.js';
-import { SearchIndex, combineScores } from '../../utils/search.js';
+import { CachedSearchIndex } from '../../utils/search.js';
 import { detectTopics as detectTopicsUtil, hasCodeContent as hasCodeContentUtil, calculateRelevance as calculateRelevanceUtil } from '../../utils/swift-analysis.js';
 import { fetchText, buildHeaders } from '../../utils/http.js';
 import { logError } from '../../utils/errors.js';
@@ -34,8 +33,7 @@ export interface RssPatternSourceOptions {
 export abstract class RssPatternSource<T extends BasePattern> {
   protected parser = new Parser();
   protected options: RssPatternSourceOptions;
-  private searchIndex: SearchIndex<T> | null = null;
-  private indexedPatternsHash: string | null = null;
+  private cachedSearch = new CachedSearchIndex<T>(['title', 'content', 'topics']);
 
   constructor(options: RssPatternSourceOptions) {
     this.options = options;
@@ -56,8 +54,7 @@ export abstract class RssPatternSource<T extends BasePattern> {
       
       await rssCache.set(cacheKey, patterns, rssCacheTtl);
       // Invalidate search index after fetching new patterns
-      this.searchIndex = null;
-      this.indexedPatternsHash = null;
+      this.cachedSearch.invalidate();
       return patterns;
     } catch (error) {
       logError('RSS Pattern Source', error, { feedUrl: this.options.feedUrl });
@@ -138,29 +135,7 @@ export abstract class RssPatternSource<T extends BasePattern> {
 
   async searchPatterns(query: string): Promise<T[]> {
     const patterns = await this.fetchPatterns();
-    
-    // Create a hash to check if patterns changed
-    const patternsHash = createHash('md5')
-      .update(`${patterns.length}-${patterns.map(p => p.id).sort().join(',')}`)
-      .digest('hex');
-    
-    // Reuse search index if patterns haven't changed, otherwise create new one
-    if (!this.searchIndex || this.indexedPatternsHash !== patternsHash) {
-      this.searchIndex = new SearchIndex<T>(['title', 'content', 'topics']);
-      this.searchIndex.addDocuments(patterns);
-      this.indexedPatternsHash = patternsHash;
-    }
-    
-    const results = this.searchIndex.search(query, {
-      fuzzy: 0.2,
-      boost: { title: 2.5, topics: 1.8, content: 1 },
-    });
-    return results
-      .map(result => ({
-        ...result.item,
-        relevanceScore: combineScores(result.score, result.item.relevanceScore),
-      }))
-      .sort((a, b) => b.relevanceScore - a.relevanceScore);
+    return this.cachedSearch.search(patterns, query);
   }
 
   // Override in subclass if custom transformation is needed
