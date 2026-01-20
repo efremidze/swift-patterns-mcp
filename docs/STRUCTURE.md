@@ -1,7 +1,7 @@
-# swift-mcp - Complete Directory Structure
+# swift-patterns-mcp - Complete Directory Structure
 
 ```
-swift-mcp/
+swift-patterns-mcp/
 │
 ├── package.json                      # NPM package configuration
 ├── tsconfig.json                     # TypeScript compiler config
@@ -120,10 +120,10 @@ swift-mcp/
 
 ## Configuration Files
 
-### `~/.swift-mcp/` (User's Home Directory)
+### `~/.swift-patterns-mcp/` (User's Home Directory)
 
 ```
-~/.swift-mcp/
+~/.swift-patterns-mcp/
 ├── config.json              # User's source configuration
 ├── patreon-meta.json       # Patreon metadata (if enabled)
 └── patreon-code-cache/     # Cached extracted code

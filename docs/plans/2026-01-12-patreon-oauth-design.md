@@ -2,7 +2,7 @@
 
 ## Overview
 
-Full Patreon integration for swift-mcp, enabling users to access premium Swift/iOS content from creators they support.
+Full Patreon integration for swift-patterns-mcp, enabling users to access premium Swift/iOS content from creators they support.
 
 ## Files
 
@@ -17,8 +17,8 @@ Full Patreon integration for swift-mcp, enabling users to access premium Swift/i
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        swift-mcp CLI                            │
-│                    swift-mcp setup --patreon                    │
+│                        swift-patterns-mcp CLI                            │
+│                    swift-patterns-mcp setup --patreon                    │
 └─────────────────────┬───────────────────────────────────────────┘
                       │
                       ▼
@@ -43,7 +43,7 @@ Full Patreon integration for swift-mcp, enabling users to access premium Swift/i
        │                │
        ▼                ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    ~/.swift-mcp/                                │
+│                    ~/.swift-patterns-mcp/                                │
 │  ├── config.json      (enabled creators, preferences)          │
 │  ├── tokens.json      (encrypted via keytar master key)        │
 │  └── cache/                                                     │
@@ -56,7 +56,7 @@ Full Patreon integration for swift-mcp, enabling users to access premium Swift/i
 
 ### Sequence
 
-1. User runs: `swift-mcp setup --patreon`
+1. User runs: `swift-patterns-mcp setup --patreon`
 2. CLI starts local server on `localhost:9876`
 3. Opens browser to Patreon authorization URL:
    ```
@@ -68,7 +68,7 @@ Full Patreon integration for swift-mcp, enabling users to access premium Swift/i
    ```
 4. User authorizes, Patreon redirects to `localhost:9876/callback?code=XXX`
 5. CLI exchanges code for tokens via `POST /api/oauth2/token`
-6. Tokens stored encrypted in `~/.swift-mcp/tokens.json` (master key in system keychain via keytar)
+6. Tokens stored encrypted in `~/.swift-patterns-mcp/tokens.json` (master key in system keychain via keytar)
 7. Local server shuts down, CLI continues to creator selection
 
 ### Token Management
@@ -126,7 +126,7 @@ No relevance scoring - sort results by date (newest first).
 
 ### Caching
 
-- Posts cached in `~/.swift-mcp/cache/posts/<creator_id>/`
+- Posts cached in `~/.swift-patterns-mcp/cache/posts/<creator_id>/`
 - Cache expires after 24 hours
 - Force refresh with `--no-cache` flag
 
@@ -148,8 +148,8 @@ class PatreonZipExtractor {
 ### Extraction Flow
 
 1. Post has attachment with mime type `application/zip`
-   - Download to `~/.swift-mcp/cache/zips/<post_id>.zip`
-2. Extract zip contents to `~/.swift-mcp/cache/zips/<post_id>/`
+   - Download to `~/.swift-patterns-mcp/cache/zips/<post_id>.zip`
+2. Extract zip contents to `~/.swift-patterns-mcp/cache/zips/<post_id>/`
 3. Scan extracted files:
    - `*.swift` → Parse as code, extract to pattern
    - `*.md` → Parse as tutorial, extract code blocks
@@ -168,7 +168,7 @@ class PatreonZipExtractor {
 ### User Experience
 
 ```
-$ swift-mcp setup --patreon
+$ swift-patterns-mcp setup --patreon
 
 🔐 Patreon Setup
 ━━━━━━━━━━━━━━━━

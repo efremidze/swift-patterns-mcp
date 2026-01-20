@@ -13,7 +13,7 @@ Patreon integration is **completely optional** but unlocks premium content from 
 ### Step 1: Start Setup
 
 ```bash
-swift-mcp setup --patreon
+swift-patterns-mcp setup --patreon
 ```
 
 ### Step 2: Create Patreon OAuth App
@@ -41,7 +41,7 @@ export PATREON_CLIENT_ID="your_client_id_here"
 export PATREON_CLIENT_SECRET="your_client_secret_here"
 ```
 
-Or create `.env` file in `~/.swift-mcp/`:
+Or create `.env` file in `~/.swift-patterns-mcp/`:
 ```bash
 PATREON_CLIENT_ID=your_client_id_here
 PATREON_CLIENT_SECRET=your_client_secret_here
@@ -50,7 +50,7 @@ PATREON_CLIENT_SECRET=your_client_secret_here
 ### Step 4: Authenticate
 
 ```bash
-swift-mcp setup --patreon
+swift-patterns-mcp setup --patreon
 ```
 
 This will:
@@ -175,7 +175,7 @@ Key Files:
 ### "OAuth Failed"
 - Check Client ID and Secret are correct
 - Ensure Redirect URI is exactly: `http://localhost:3000/patreon/callback`
-- Try: `swift-mcp setup --patreon --reset`
+- Try: `swift-patterns-mcp setup --patreon --reset`
 
 ### "No Memberships Found"
 - Confirm you have active Patreon subscriptions
@@ -184,15 +184,15 @@ Key Files:
 
 ### "Content Not Loading"
 - Check internet connection
-- Verify tokens: `swift-mcp source status patreon`
-- Re-authenticate: `swift-mcp setup --patreon --reset`
+- Verify tokens: `swift-patterns-mcp source status patreon`
+- Re-authenticate: `swift-patterns-mcp setup --patreon --reset`
 
 ## 📊 Quality Report
 
 See what you're getting:
 
 ```bash
-swift-mcp patreon report
+swift-patterns-mcp patreon report
 ```
 
 Output:
@@ -221,22 +221,22 @@ Value: $0.17 per high-quality post
 
 ### Check Status
 ```bash
-swift-mcp source status patreon
+swift-patterns-mcp source status patreon
 ```
 
 ### Disable (Keep Configured)
 ```bash
-swift-mcp source disable patreon
+swift-patterns-mcp source disable patreon
 ```
 
 ### Re-enable
 ```bash
-swift-mcp source enable patreon
+swift-patterns-mcp source enable patreon
 ```
 
 ### Remove Connection
 ```bash
-swift-mcp setup --patreon --remove
+swift-patterns-mcp setup --patreon --remove
 ```
 
 This removes tokens and cached data.
@@ -249,7 +249,7 @@ A: No! Swift MCP works great with free sources only. Patreon is optional premium
 **Q: What creators should I subscribe to?**
 A: We don't recommend specific creators. Subscribe to whoever teaches content you want to learn!
 
-**Q: Can I share my Patreon content via swift-mcp?**
+**Q: Can I share my Patreon content via swift-patterns-mcp?**
 A: No. Content is only accessible to YOU, using YOUR Patreon login. It respects creator paywalls.
 
 **Q: How often does content update?**
@@ -263,7 +263,7 @@ A: Content from that creator stops appearing immediately.
 
 ## 🎁 Value Proposition
 
-**Without Patreon in swift-mcp**:
+**Without Patreon in swift-patterns-mcp**:
 - Visit Patreon
 - Browse through posts
 - Download code manually
@@ -271,7 +271,7 @@ A: Content from that creator stops appearing immediately.
 - Find what you need
 - Repeat for each creator
 
-**With Patreon in swift-mcp**:
+**With Patreon in swift-patterns-mcp**:
 - Ask: "Show me animation patterns"
 - Get curated results from ALL your creators
 - Code automatically extracted
@@ -282,4 +282,4 @@ A: Content from that creator stops appearing immediately.
 
 ---
 
-Need help? [Open an issue](https://github.com/efremidze/swift-mcp/issues)
+Need help? [Open an issue](https://github.com/efremidze/swift-patterns-mcp/issues)

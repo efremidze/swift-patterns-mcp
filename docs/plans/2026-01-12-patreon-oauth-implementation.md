@@ -4,7 +4,7 @@
 
 **Goal:** Implement full Patreon OAuth integration with local callback server, API client, zip extraction, and interactive setup wizard.
 
-**Architecture:** OAuth via local callback server on port 9876, tokens encrypted with keytar, content cached in ~/.swift-mcp/. Supports both API posts and zip file attachments.
+**Architecture:** OAuth via local callback server on port 9876, tokens encrypted with keytar, content cached in ~/.swift-patterns-mcp/. Supports both API posts and zip file attachments.
 
 **Tech Stack:** TypeScript, Node.js http module, keytar, adm-zip (all already in dependencies)
 
@@ -26,7 +26,7 @@ import keytar from 'keytar';
 import fs from 'fs';
 import path from 'path';
 
-const SERVICE_NAME = 'swift-mcp';
+const SERVICE_NAME = 'swift-patterns-mcp';
 const ACCOUNT_NAME = 'patreon-tokens';
 const CALLBACK_PORT = 9876;
 const PATREON_AUTH_URL = 'https://www.patreon.com/oauth2/authorize';
@@ -317,7 +317,7 @@ export interface ZipExtractionResult {
 
 function getSwiftMcpDir(): string {
   const home = process.env.HOME || process.env.USERPROFILE || '';
-  return path.join(home, '.swift-mcp');
+  return path.join(home, '.swift-patterns-mcp');
 }
 
 function getCacheDir(): string {
@@ -577,7 +577,7 @@ interface PatreonCampaign {
 
 function getSwiftMcpDir(): string {
   const home = process.env.HOME || process.env.USERPROFILE || '';
-  return path.join(home, '.swift-mcp');
+  return path.join(home, '.swift-patterns-mcp');
 }
 
 function getConfigPath(): string {
@@ -1001,16 +1001,16 @@ if (args.includes('--patreon') || args.includes('-p')) {
     process.exit(1);
   });
 } else if (args.includes('--help') || args.includes('-h')) {
-  print('swift-mcp setup\n');
+  print('swift-patterns-mcp setup\n');
   print('Usage:');
-  print('  swift-mcp setup --patreon    Set up Patreon integration');
-  print('  swift-mcp setup --help       Show this help');
+  print('  swift-patterns-mcp setup --patreon    Set up Patreon integration');
+  print('  swift-patterns-mcp setup --help       Show this help');
   process.exit(0);
 } else {
-  print('swift-mcp setup\n');
+  print('swift-patterns-mcp setup\n');
   print('Available options:');
   print('  --patreon    Set up Patreon integration');
-  print('\nRun: swift-mcp setup --patreon');
+  print('\nRun: swift-patterns-mcp setup --patreon');
   process.exit(0);
 }
 ```
@@ -1053,7 +1053,7 @@ case "get_patreon_patterns": {
         type: "text",
         text: `⚙️ Patreon not configured.
 
-Set it up with: swift-mcp setup --patreon`,
+Set it up with: swift-patterns-mcp setup --patreon`,
       }],
     };
   }

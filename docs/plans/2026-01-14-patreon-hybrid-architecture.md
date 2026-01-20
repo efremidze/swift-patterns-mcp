@@ -2,11 +2,11 @@
 
 **Date:** 2026-01-14
 **Status:** Accepted
-**Author:** swift-mcp team
+**Author:** swift-patterns-mcp team
 
 ## Context
 
-swift-mcp needs to provide users access to premium Swift/SwiftUI content from
+swift-patterns-mcp needs to provide users access to premium Swift/SwiftUI content from
 Patreon creators they already support (Kavsoft, etc.). The goal is to surface
 relevant code patterns and tutorials without requiring users to manually browse
 multiple platforms.
@@ -35,7 +35,7 @@ Use Patreon's official OAuth API to fetch posts and content.
 
 ### Option 2: Status Quo - Manual User Downloads
 
-Users manually download content from Patreon, swift-mcp indexes local files.
+Users manually download content from Patreon, swift-patterns-mcp indexes local files.
 
 **Why rejected:**
 - Poor user experience
@@ -92,7 +92,7 @@ Adopt a hybrid architecture combining three components:
    legitimate access to as a paying patron. Non-patrons cannot bypass the paywall.
 
 3. **Local-only storage** - OAuth tokens stored in system keychain (macOS Keychain,
-   etc.). Session cookies and downloaded content stored locally in `~/.swift-mcp/`.
+   etc.). Session cookies and downloaded content stored locally in `~/.swift-patterns-mcp/`.
    Nothing uploaded to external servers.
 
 ### Authentication Flow
@@ -106,7 +106,7 @@ Adopt a hybrid architecture combining three components:
 │ browser profile  │     │ consent page     │     │ download files   │
 │                  │     │                  │     │                  │
 │ Saves session_id │     │ Tokens stored    │     │ Content saved to │
-│ to .patreon-     │     │ in keychain      │     │ ~/.swift-mcp/    │
+│ to .patreon-     │     │ in keychain      │     │ ~/.swift-patterns-mcp/    │
 │ session          │     │                  │     │                  │
 └──────────────────┘     └──────────────────┘     └──────────────────┘
 ```
