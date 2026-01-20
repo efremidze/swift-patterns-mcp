@@ -39,6 +39,9 @@ describe('PointFreeSource', () => {
             tree: [
               { path: 'README.md', type: 'blob' },
               { path: 'Sources/PointFree/Episodes/001-Intro.md', type: 'blob' },
+              // Helper.swift is in Utilities/ directory, which is not a content directory
+              // (content directories are: /episodes/, /casestudies/, /guides/, /documentation/, /docs/)
+              // This file should be filtered out by isContentPath()
               { path: 'Sources/PointFree/Utilities/Helper.swift', type: 'blob' },
             ],
           }));
@@ -57,11 +60,16 @@ describe('PointFreeSource', () => {
     const source = new PointFreeSource();
     const patterns = await source.fetchPatterns();
 
+    // Verify only 2 patterns are returned (README.md and 001-Intro.md)
+    // Helper.swift should be filtered out because it's not in a content directory
     expect(patterns).toHaveLength(2);
     expect(patterns[0].title).toBe('Point-Free');
     expect(patterns[1].title).toContain('Episode 1');
     expect(patterns[1].topics).toContain('architecture');
     expect(patterns[1].hasCode).toBe(true);
+    
+    // Explicitly verify Helper.swift was filtered out
+    expect(patterns.every(p => !p.sourcePath.includes('Helper.swift'))).toBe(true);
   });
 
   it('searchPatterns returns relevant results', async () => {
