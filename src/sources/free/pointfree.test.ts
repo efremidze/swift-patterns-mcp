@@ -88,4 +88,142 @@ describe('PointFreeSource', () => {
     expect(results[0].title).toMatch(/Point-Free/i);
     expect(results[0].topics).toContain('swiftui');
   });
+
+  it('handles GitHub API failures gracefully', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/repos/pointfreeco/pointfreeco')) {
+        return Promise.resolve(createResponse({ error: 'Not Found' }, false));
+      }
+      return Promise.resolve(createResponse(''));
+    });
+
+    const source = new PointFreeSource();
+    const patterns = await source.fetchPatterns();
+    
+    // Should return empty array when API fails
+    expect(patterns).toEqual([]);
+  });
+
+  it('handles rate limiting (429 status)', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/repos/pointfreeco/pointfreeco')) {
+        return Promise.resolve({
+          ok: false,
+          status: 429,
+          json: async () => ({ message: 'API rate limit exceeded' }),
+          text: async () => 'API rate limit exceeded',
+        });
+      }
+      return Promise.resolve(createResponse(''));
+    });
+
+    const source = new PointFreeSource();
+    const patterns = await source.fetchPatterns();
+    
+    // Should return empty array when rate limited
+    expect(patterns).toEqual([]);
+  });
+
+  it('handles network timeouts', async () => {
+    mockFetch.mockImplementation(() => {
+      return new Promise((_, reject) => {
+        // Reject immediately to simulate abort
+        reject(new Error('Aborted'));
+      });
+    });
+
+    const source = new PointFreeSource();
+    const patterns = await source.fetchPatterns();
+    
+    // Should return empty array when network times out
+    expect(patterns).toEqual([]);
+  });
+
+  it('handles individual file fetch failures gracefully', async () => {
+    let fileCallCount = 0;
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/repos/pointfreeco/pointfreeco')) {
+        if (url.includes('/git/trees/')) {
+          return Promise.resolve(createResponse({
+            tree: [
+              { path: 'README.md', type: 'blob' },
+              { path: 'Episodes/001.md', type: 'blob' },
+              { path: 'Episodes/002.md', type: 'blob' },
+            ],
+          }));
+        }
+        return Promise.resolve(createResponse({ default_branch: 'main' }));
+      }
+      if (url.includes('raw.githubusercontent.com')) {
+        fileCallCount++;
+        if (fileCallCount === 2) {
+          // Fail the second file fetch
+          return Promise.reject(new Error('Network error'));
+        }
+        if (url.includes('README.md')) {
+          return Promise.resolve(createResponse('# Point-Free\n\nArchitecture patterns.'));
+        }
+        return Promise.resolve(createResponse('# Episode\n\nContent here.'));
+      }
+      return Promise.resolve(createResponse(''));
+    });
+
+    const source = new PointFreeSource();
+    const patterns = await source.fetchPatterns();
+    
+    // Should successfully return 2 patterns despite 1 file failing
+    expect(patterns).toHaveLength(2);
+    expect(patterns[0].title).toBe('Point-Free');
+    expect(patterns[1].title).toContain('Episode');
+  });
+
+  it('uses cached data when available', async () => {
+    const cachedPatterns = [
+      {
+        id: 'pointfree-patterns-cached.md',
+        title: 'Cached Pattern',
+        url: 'https://github.com/pointfreeco/pointfreeco/blob/main/cached.md',
+        publishDate: '',
+        excerpt: 'This is from cache',
+        content: '# Cached\n\nThis is cached content.',
+        topics: ['architecture'],
+        relevanceScore: 70,
+        hasCode: false,
+        sourcePath: 'cached.md',
+      },
+    ];
+
+    const { rssCache } = await import('../../utils/cache.js');
+    vi.mocked(rssCache.get).mockResolvedValueOnce(cachedPatterns);
+
+    mockFetch.mockImplementation(() => {
+      // Should not be called when cache is available
+      throw new Error('Fetch should not be called with cache');
+    });
+
+    const source = new PointFreeSource();
+    const patterns = await source.fetchPatterns();
+
+    expect(patterns).toEqual(cachedPatterns);
+    expect(patterns[0].title).toBe('Cached Pattern');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('fetches fresh data when cache is unavailable and API fails', async () => {
+    const { rssCache } = await import('../../utils/cache.js');
+    vi.mocked(rssCache.get).mockResolvedValueOnce(undefined);
+
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/repos/pointfreeco/pointfreeco')) {
+        return Promise.resolve(createResponse({ error: 'Service unavailable' }, false));
+      }
+      return Promise.resolve(createResponse(''));
+    });
+
+    const source = new PointFreeSource();
+    const patterns = await source.fetchPatterns();
+    
+    // Should return empty array when cache is unavailable and API fails
+    expect(patterns).toEqual([]);
+  });
 });

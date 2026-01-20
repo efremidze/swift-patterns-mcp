@@ -204,7 +204,7 @@ export class PointFreeSource {
     const branch = await this.getDefaultBranch();
     const { branch: resolvedBranch, files } = await this.fetchContentFiles(branch);
 
-    const patterns = await Promise.all(
+    const patternResults = await Promise.allSettled(
       files.map(async file => {
         const content = await this.fetchFileContent(resolvedBranch, file.path);
         const title = extractTitle(file.path, content);
@@ -229,6 +229,10 @@ export class PointFreeSource {
         };
       })
     );
+
+    const patterns = patternResults
+      .filter((result): result is PromiseFulfilledResult<PointFreePattern> => result.status === 'fulfilled')
+      .map(result => result.value);
 
     await rssCache.set(POINTFREE_CACHE_KEY, patterns, POINTFREE_CACHE_TTL);
     return patterns;
