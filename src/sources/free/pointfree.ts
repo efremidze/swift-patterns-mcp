@@ -179,17 +179,13 @@ export class PointFreeSource {
   }
 
   private async fetchContentFiles(branch: string): Promise<{ branch: string; files: GitHubTreeEntry[] }> {
-    const branchesToTry = branch === 'master' ? [branch] : [branch, 'master'];
-    for (const candidate of branchesToTry) {
-      try {
-        const tree = await this.getRepoTree(candidate);
-        const files = tree.filter(entry => entry.type === 'blob' && isContentPath(entry.path)).slice(0, MAX_FILES);
-        return { branch: candidate, files };
-      } catch {
-        continue;
-      }
+    try {
+      const tree = await this.getRepoTree(branch);
+      const files = tree.filter(entry => entry.type === 'blob' && isContentPath(entry.path)).slice(0, MAX_FILES);
+      return { branch, files };
+    } catch {
+      return { branch, files: [] };
     }
-    return { branch, files: [] };
   }
 
   private async fetchFileContent(branch: string, filePath: string): Promise<string> {
