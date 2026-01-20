@@ -6,7 +6,7 @@ import { scanDownloadedContent, DownloadedPost } from './patreon-dl.js';
 import { getByPatreonId } from '../../config/creators.js';
 import { getPatreonCreatorsPath } from '../../utils/paths.js';
 import { detectTopics, hasCodeContent, calculateRelevance } from '../../utils/swift-analysis.js';
-import { BASE_TOPIC_KEYWORDS, BASE_QUALITY_SIGNALS, mergeKeywords, mergeQualitySignals } from '../../config/swift-keywords.js';
+import { createSourceConfig } from '../../config/swift-keywords.js';
 import { logError } from '../../utils/errors.js';
 import fs from 'fs';
 import path from 'path';
@@ -62,21 +62,10 @@ interface PatreonIdentityResponse {
   included?: Array<PatreonMember | PatreonCampaign>;
 }
 
-// Patreon-specific keywords (extends base)
-const patreonSpecificTopics: Record<string, string[]> = {
-  'swiftui': ['@observable'], // Adds to base
-  'architecture': ['clean architecture'], // Adds to base
-};
-
-const patreonSpecificSignals: Record<string, number> = {
-  'swift': 10,
-  'ios': 8,
-  'pattern': 6,
-  'best practice': 8,
-};
-
-const patreonTopicKeywords = mergeKeywords(BASE_TOPIC_KEYWORDS, patreonSpecificTopics);
-const patreonQualitySignals = mergeQualitySignals(BASE_QUALITY_SIGNALS, patreonSpecificSignals);
+const { topicKeywords: patreonTopicKeywords, qualitySignals: patreonQualitySignals } = createSourceConfig(
+  { 'swiftui': ['@observable'], 'architecture': ['clean architecture'] },
+  { 'swift': 10, 'ios': 8, 'pattern': 6, 'best practice': 8 }
+);
 
 // Patreon-specific scoring constants
 const PATREON_CODE_BONUS = 15; // Higher bonus for code-heavy Patreon content

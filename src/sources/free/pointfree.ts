@@ -4,7 +4,7 @@ import path from 'path';
 import { rssCache, articleCache } from '../../utils/cache.js';
 import { CachedSearchIndex } from '../../utils/search.js';
 import { detectTopics, hasCodeContent, calculateRelevance } from '../../utils/swift-analysis.js';
-import { BASE_TOPIC_KEYWORDS, BASE_QUALITY_SIGNALS, mergeKeywords, mergeQualitySignals } from '../../config/swift-keywords.js';
+import { createSourceConfig } from '../../config/swift-keywords.js';
 import { fetchJson, fetchText, buildHeaders } from '../../utils/http.js';
 import { runWithConcurrency } from '../../utils/concurrency.js';
 import type { BasePattern } from './rssPatternSource.js';
@@ -54,26 +54,18 @@ const swiftContentDirectories = [
   '/docs/',
 ];
 
-const pointfreeSpecificTopics: Record<string, string[]> = {
-  'architecture': ['tca', 'composable architecture', 'reducer', 'store', 'dependency', 'effect'],
-  'testing': ['snapshot', 'test', 'xctest', 'deterministic', 'mock'],
-  'concurrency': ['async', 'await', 'actor', 'task', 'effect', 'scheduler'],
-  'swiftui': ['swiftui', 'view', 'viewstore', 'binding'],
-};
-
-const pointfreeSpecificSignals: Record<string, number> = {
-  'case study': 8,
-  'episode': 7,
-  'architecture': 9,
-  'reducer': 7,
-  'dependency': 6,
-  'effect': 6,
-  'testing': 7,
-  'swiftui': 6,
-};
-
-const pointfreeTopicKeywords = mergeKeywords(BASE_TOPIC_KEYWORDS, pointfreeSpecificTopics);
-const pointfreeQualitySignals = mergeQualitySignals(BASE_QUALITY_SIGNALS, pointfreeSpecificSignals);
+const { topicKeywords: pointfreeTopicKeywords, qualitySignals: pointfreeQualitySignals } = createSourceConfig(
+  {
+    'architecture': ['tca', 'composable architecture', 'reducer', 'store', 'dependency', 'effect'],
+    'testing': ['snapshot', 'test', 'xctest', 'deterministic', 'mock'],
+    'concurrency': ['async', 'await', 'actor', 'task', 'effect', 'scheduler'],
+    'swiftui': ['swiftui', 'view', 'viewstore', 'binding'],
+  },
+  {
+    'case study': 8, 'episode': 7, 'architecture': 9, 'reducer': 7,
+    'dependency': 6, 'effect': 6, 'testing': 7, 'swiftui': 6,
+  }
+);
 
 const GITHUB_HEADERS = buildHeaders(
   'swift-patterns-mcp/1.0 (GitHub Reader)',

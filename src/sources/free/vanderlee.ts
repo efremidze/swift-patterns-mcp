@@ -1,36 +1,23 @@
 // src/sources/free/vanderlee.ts
 
 import { RssPatternSource, type BasePattern } from './rssPatternSource.js';
-import { BASE_TOPIC_KEYWORDS, BASE_QUALITY_SIGNALS, mergeKeywords, mergeQualitySignals } from '../../config/swift-keywords.js';
+import { createSourceConfig } from '../../config/swift-keywords.js';
 
 export interface VanderLeePattern extends BasePattern {}
 
-// VanderLee-specific topic keywords (extends base)
-const vanderleeSpecificTopics: Record<string, string[]> = {
-  'debugging': ['debug', 'breakpoint', 'lldb', 'xcode'],
-  'combine': ['combine', 'publisher', 'subscriber'],
-  'tooling': ['xcode', 'git', 'ci', 'fastlane'],
-  'performance': ['leak', 'profiling'], // Adds to base performance keywords
-};
-
-// VanderLee-specific quality signals (extends base, emphasizes performance & debugging)
-const vanderleeSpecificSignals: Record<string, number> = {
-  'fix': 4,
-  'solve': 4,
-  'performance': 8, // Override base (was 7, now 8 for vanderlee specialization)
-  'memory': 7,
-  'debugging': 7,
-  'leak': 6,
-  'optimization': 7, // Add optimization signal
-  'profiling': 6,
-  'xcode': 5,
-  'instruments': 6,
-  'ci': 4,
-  'fastlane': 4,
-};
-
-const vanderleeTopicKeywords = mergeKeywords(BASE_TOPIC_KEYWORDS, vanderleeSpecificTopics);
-const vanderleeQualitySignals = mergeQualitySignals(BASE_QUALITY_SIGNALS, vanderleeSpecificSignals);
+const { topicKeywords, qualitySignals } = createSourceConfig(
+  {
+    'debugging': ['debug', 'breakpoint', 'lldb', 'xcode'],
+    'combine': ['combine', 'publisher', 'subscriber'],
+    'tooling': ['xcode', 'git', 'ci', 'fastlane'],
+    'performance': ['leak', 'profiling'],
+  },
+  {
+    'fix': 4, 'solve': 4, 'performance': 8, 'memory': 7,
+    'debugging': 7, 'leak': 6, 'optimization': 7, 'profiling': 6,
+    'xcode': 5, 'instruments': 6, 'ci': 4, 'fastlane': 4,
+  }
+);
 
 function extractPostContent(html: string): string {
   // Extract content from post-content div
@@ -66,8 +53,8 @@ export class VanderLeeSource extends RssPatternSource<VanderLeePattern> {
       cacheKey: 'vanderlee-patterns',
       rssCacheTtl: 3600,
       articleCacheTtl: 86400,
-      topicKeywords: vanderleeTopicKeywords,
-      qualitySignals: vanderleeQualitySignals,
+      topicKeywords,
+      qualitySignals,
       fetchFullArticle: true,
       extractContentFn: extractPostContent,
     });
