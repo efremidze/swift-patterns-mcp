@@ -1,13 +1,13 @@
-# Contributing to swift-mcp
+# Contributing to swift-patterns-mcp
 
-Thank you for your interest in contributing to swift-mcp! We welcome contributions from the community to help improve this project.
+Thank you for your interest in contributing to swift-patterns-mcp! We welcome contributions from the community to help improve this project.
 
 ## How to Contribute
 
 1. **Fork the repository**
    - Click the "Fork" button at the top right of the repository page.
 2. **Clone your fork**
-   - `git clone https://github.com/your-username/swift-mcp.git`
+   - `git clone https://github.com/your-username/swift-patterns-mcp.git`
 3. **Create a new branch**
    - `git checkout -b my-feature-branch`
 4. **Make your changes**
@@ -44,4 +44,4 @@ Please be respectful and considerate in all interactions. See [CODE_OF_CONDUCT.m
 
 ---
 
-Thank you for helping make swift-mcp better!
+Thank you for helping make swift-patterns-mcp better!

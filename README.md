@@ -1,14 +1,14 @@
-# swift-mcp
+# swift-patterns-mcp
 
 ### 🎯 Curated Swift/SwiftUI Patterns from Top iOS Developers
 
-**An MCP server that provides curated Swift and SwiftUI expertise from top iOS developers like John Sundell and Antoine van der Lee, including patterns, best practices, and real-world code examples.**
+**An MCP server providing curated Swift and SwiftUI best practices from leading iOS developers, including patterns and real-world code examples from Swift by Sundell, SwiftLee, and other trusted sources.**
 
 [Quick Start](#-quick-start) • [Features](#-features) • [Usage](#-usage-examples) • [Contributing](#-contributing)
 
 ---
 
-## Why swift-mcp?
+## Why swift-patterns-mcp?
 
 - ✅ **Curated Content**: Only high-quality patterns from trusted iOS developers
 - ✅ **Always Up-to-Date**: Automatically fetches the latest articles and patterns
@@ -118,7 +118,7 @@ See the Windsurf MCP documentation for more details.
 
 #### VS Code
 
-To configure MCP in VS Code with GitHub Copilot, add the swift-mcp server to your project's `.vscode/mcp.json` configuration file:
+To configure MCP in VS Code with GitHub Copilot, add the swift-patterns-mcp server to your project's `.vscode/mcp.json` configuration file:
 
 `.vscode/mcp.json`
 ```json
@@ -150,7 +150,7 @@ Try these queries:
 
 ## 🔧 Configuration
 
-The configuration file is automatically created at `~/.swift-mcp/config.json`:
+The configuration file is automatically created at `~/.swift-patterns-mcp/config.json`:
 
 ```json
 {
@@ -237,7 +237,7 @@ Requires authentication and active subscriptions:
 Access premium content from iOS creators you support:
 
 ```bash
-swift-mcp setup --patreon
+swift-patterns-mcp setup --patreon
 ```
 
 Follow the interactive wizard to:
@@ -269,24 +269,24 @@ Patreon requires OAuth apps to be registered by creators. You don't need to laun
 
 ```bash
 # Source management
-swift-mcp source list
-swift-mcp source enable <source-name>
-swift-mcp source disable <source-name>
+swift-patterns-mcp source list
+swift-patterns-mcp source enable <source-name>
+swift-patterns-mcp source disable <source-name>
 
 # Configuration
-swift-mcp setup
-swift-mcp setup --patreon
+swift-patterns-mcp setup
+swift-patterns-mcp setup --patreon
 
 # Authentication
-swift-mcp auth patreon
-swift-mcp auth status
+swift-patterns-mcp auth patreon
+swift-patterns-mcp auth status
 ```
 
 ## 🏗️ How It Works
 
 ```mermaid
 graph LR
-    A[AI Assistant] --> B[swift-mcp Server]
+    A[AI Assistant] --> B[swift-patterns-mcp Server]
     B --> C[Free Sources]
     B --> D[Premium Sources]
     C --> E[Swift by Sundell RSS]
@@ -312,9 +312,9 @@ node --version  # Should be >= 18.0.0
 
 **Sources not returning results**
 ```bash
-swift-mcp source list
-ls ~/.swift-mcp/config.json
-swift-mcp setup
+swift-patterns-mcp source list
+ls ~/.swift-patterns-mcp/config.json
+swift-patterns-mcp setup
 ```
 
 #### Patreon Integration Issues
@@ -326,14 +326,14 @@ swift-mcp setup
 
 **No premium content showing**
 - Confirm you have active Patreon subscriptions to iOS creators
-- Re-authenticate: `swift-mcp auth patreon`
-- Check Patreon source is enabled: `swift-mcp source list`
+- Re-authenticate: `swift-patterns-mcp auth patreon`
+- Check Patreon source is enabled: `swift-patterns-mcp source list`
 
 ### Getting Help
 
 - 📖 [Full Documentation](docs/)
-- 🐛 [Report Issues](https://github.com/efremidze/swift-mcp/issues)
-- 💬 [Discussions](https://github.com/efremidze/swift-mcp/discussions)
+- 🐛 [Report Issues](https://github.com/efremidze/swift-patterns-mcp/issues)
+- 💬 [Discussions](https://github.com/efremidze/swift-patterns-mcp/discussions)
 
 ## 🗺️ Roadmap
 
@@ -374,4 +374,4 @@ MIT License - Copyright (c) 2026 Lasha Efremidze
 
 **Made with ❤️ for the Swift community**
 
-[⭐ Star this repo](https://github.com/efremidze/swift-mcp) • [🐛 Report Bug](https://github.com/efremidze/swift-mcp/issues) • [✨ Request Feature](https://github.com/efremidze/swift-mcp/issues)
+[⭐ Star this repo](https://github.com/efremidze/swift-patterns-mcp) • [🐛 Report Bug](https://github.com/efremidze/swift-patterns-mcp/issues) • [✨ Request Feature](https://github.com/efremidze/swift-patterns-mcp/issues)
