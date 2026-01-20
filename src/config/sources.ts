@@ -115,10 +115,6 @@ export class SourceManager {
     try {
       const data = fs.readFileSync(this.configPath, 'utf-8');
       const parsed = JSON.parse(data) as SourceConfig;
-      if (parsed.sources['pointfree-oss'] && !parsed.sources.pointfree) {
-        parsed.sources.pointfree = parsed.sources['pointfree-oss'];
-        delete parsed.sources['pointfree-oss'];
-      }
       return parsed;
     } catch {
       // Default config
