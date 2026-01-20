@@ -62,12 +62,31 @@ vi.mock('../../sources/free/nilcoalescing.js', () => ({
   })),
 }));
 
+vi.mock('../../sources/free/pointfree.js', () => ({
+  default: vi.fn().mockImplementation(() => ({
+    searchPatterns: vi.fn().mockResolvedValue([
+      {
+        id: 'pointfree-1',
+        title: 'Composable Architecture Case Study',
+        url: 'https://example.com/pointfree',
+        excerpt: 'A case study on composable architecture',
+        content: 'Full content here',
+        topics: ['architecture'],
+        relevanceScore: 82,
+        hasCode: true,
+        publishDate: new Date().toISOString(),
+      },
+    ]),
+  })),
+}));
+
 // Create mock SourceManager
 function createMockSourceManager() {
   const sources = [
     { id: 'sundell', name: 'Swift by Sundell', type: 'free', requiresAuth: false, isEnabled: true, isConfigured: true, description: 'Swift articles' },
     { id: 'vanderlee', name: 'Antoine van der Lee', type: 'free', requiresAuth: false, isEnabled: true, isConfigured: true, description: 'iOS tips' },
     { id: 'nilcoalescing', name: 'Nil Coalescing', type: 'free', requiresAuth: false, isEnabled: true, isConfigured: true, description: 'SwiftUI tips' },
+    { id: 'pointfree', name: 'Point-Free', type: 'free', requiresAuth: false, isEnabled: true, isConfigured: true, description: 'Open source patterns' },
     { id: 'patreon', name: 'Patreon', type: 'premium', requiresAuth: true, isEnabled: false, isConfigured: false, description: 'Premium content' },
   ];
 
@@ -167,7 +186,7 @@ describe('searchSwiftContentHandler', () => {
       requireCode: true
     }, context);
 
-    // Only sundell mock has hasCode: true
+    // Sundell and Point-Free mocks have hasCode: true
     expect(result.content[0].text).toContain('SwiftUI');
   });
 
@@ -250,5 +269,6 @@ describe('enableSourceHandler', () => {
     expect(result.content[0].text).toContain('sundell');
     expect(result.content[0].text).toContain('vanderlee');
     expect(result.content[0].text).toContain('nilcoalescing');
+    expect(result.content[0].text).toContain('pointfree');
   });
 });

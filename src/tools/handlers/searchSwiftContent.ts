@@ -5,6 +5,7 @@ import type { BasePattern } from '../../sources/free/rssPatternSource.js';
 import SundellSource from '../../sources/free/sundell.js';
 import VanderLeeSource from '../../sources/free/vanderlee.js';
 import NilCoalescingSource from '../../sources/free/nilcoalescing.js';
+import PointFreeSource from '../../sources/free/pointfree.js';
 
 export const searchSwiftContentHandler: ToolHandler = async (args) => {
   const query = args?.query as string;
@@ -24,6 +25,10 @@ export const searchSwiftContentHandler: ToolHandler = async (args) => {
   const nilCoalescing = new NilCoalescingSource();
   const nilCoalescingResults = await nilCoalescing.searchPatterns(query);
   results.push(...nilCoalescingResults);
+
+  const pointFree = new PointFreeSource();
+  const pointFreeResults = await pointFree.searchPatterns(query);
+  results.push(...pointFreeResults);
 
   // Filter by code if requested
   const filtered = requireCode

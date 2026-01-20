@@ -45,7 +45,7 @@ const CORE_TOOLS: Tool[] = [
         },
         source: {
           type: "string",
-          enum: ["all", "sundell", "vanderlee", "nilcoalescing"],
+          enum: ["all", "sundell", "vanderlee", "nilcoalescing", "pointfree"],
           description: "Specific source to search (default: all free sources)",
         },
         minQuality: {

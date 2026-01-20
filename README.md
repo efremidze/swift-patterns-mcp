@@ -340,7 +340,7 @@ swift-patterns-mcp setup
 - [x] Antoine van der Lee RSS
 - [x] Nil Coalescing RSS
 - [x] Patreon OAuth
-- [ ] Point-Free GitHub
+- [x] Point-Free GitHub
 - [ ] Advanced filtering
 
 ### Future (v2.x)

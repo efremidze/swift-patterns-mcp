@@ -55,8 +55,8 @@ export const AVAILABLE_SOURCES: ContentSource[] = [
   },
   
   {
-    id: 'pointfree-oss',
-    name: 'Point-Free (Open Source)',
+    id: 'pointfree',
+    name: 'Point-Free',
     description: 'Open source Swift libraries and architecture patterns',
     type: 'free',
     enabled: true,
@@ -114,7 +114,12 @@ export class SourceManager {
   private loadConfig(): SourceConfig {
     try {
       const data = fs.readFileSync(this.configPath, 'utf-8');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data) as SourceConfig;
+      if (parsed.sources['pointfree-oss'] && !parsed.sources.pointfree) {
+        parsed.sources.pointfree = parsed.sources['pointfree-oss'];
+        delete parsed.sources['pointfree-oss'];
+      }
+      return parsed;
     } catch {
       // Default config
       return {
@@ -122,7 +127,7 @@ export class SourceManager {
           sundell: { enabled: true, configured: true },
           vanderlee: { enabled: true, configured: true },
           nilcoalescing: { enabled: true, configured: true },
-          'pointfree-oss': { enabled: true, configured: true },
+          pointfree: { enabled: true, configured: true },
           patreon: { enabled: false, configured: false },
           'github-sponsors': { enabled: false, configured: false },
         },
