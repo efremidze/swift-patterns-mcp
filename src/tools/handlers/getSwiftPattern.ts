@@ -4,6 +4,7 @@ import type { ToolHandler } from '../types.js';
 import type { BasePattern } from '../../sources/free/rssPatternSource.js';
 import SundellSource from '../../sources/free/sundell.js';
 import VanderLeeSource from '../../sources/free/vanderlee.js';
+import NilCoalescingSource from '../../sources/free/nilcoalescing.js';
 
 export const getSwiftPatternHandler: ToolHandler = async (args, context) => {
   const topic = args?.topic as string;
@@ -42,6 +43,12 @@ Example topics:
     results.push(...patterns.filter(p => p.relevanceScore >= minQuality));
   }
 
+  if (source === "all" || source === "nilcoalescing") {
+    const nilCoalescing = new NilCoalescingSource();
+    const patterns = await nilCoalescing.searchPatterns(topic);
+    results.push(...patterns.filter(p => p.relevanceScore >= minQuality));
+  }
+
   if (results.length === 0) {
     return {
       content: [{
@@ -53,7 +60,7 @@ Try:
 - Lower minQuality
 - Different topic
 
-Available sources: Swift by Sundell, Antoine van der Lee
+Available sources: Swift by Sundell, Antoine van der Lee, Nil Coalescing
 ${context.sourceManager.isSourceConfigured('patreon') ? '\n💡 Enable Patreon for more premium content!' : ''}`,
       }],
     };

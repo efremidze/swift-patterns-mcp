@@ -4,6 +4,7 @@ import type { ToolHandler } from '../types.js';
 import type { BasePattern } from '../../sources/free/rssPatternSource.js';
 import SundellSource from '../../sources/free/sundell.js';
 import VanderLeeSource from '../../sources/free/vanderlee.js';
+import NilCoalescingSource from '../../sources/free/nilcoalescing.js';
 
 export const searchSwiftContentHandler: ToolHandler = async (args) => {
   const query = args?.query as string;
@@ -19,6 +20,10 @@ export const searchSwiftContentHandler: ToolHandler = async (args) => {
   const vanderlee = new VanderLeeSource();
   const vanderLeeResults = await vanderlee.searchPatterns(query);
   results.push(...vanderLeeResults);
+
+  const nilCoalescing = new NilCoalescingSource();
+  const nilCoalescingResults = await nilCoalescing.searchPatterns(query);
+  results.push(...nilCoalescingResults);
 
   // Filter by code if requested
   const filtered = requireCode

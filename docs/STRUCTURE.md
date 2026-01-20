@@ -27,6 +27,7 @@ swift-patterns-mcp/
 │   │   ├── free/                    # Free sources (no auth)
 │   │   │   ├── sundell.ts           # Swift by Sundell RSS
 │   │   │   ├── vanderlee.ts         # Antoine van der Lee RSS
+│   │   │   ├── nilcoalescing.ts     # Nil Coalescing RSS
 │   │   │   └── pointfree.ts         # Point-Free OSS (TODO)
 │   │   │
 │   │   └── premium/                 # Premium sources (require auth)
@@ -91,6 +92,7 @@ swift-patterns-mcp/
 |------|---------|--------|
 | `sundell.ts` | Swift by Sundell RSS integration | ✅ Done |
 | `vanderlee.ts` | Antoine van der Lee RSS | ✅ Done |
+| `nilcoalescing.ts` | Nil Coalescing RSS | ✅ Done |
 | `pointfree.ts` | Point-Free GitHub integration | 📝 TODO |
 
 ### `/src/sources/premium`
@@ -153,7 +155,8 @@ build/
 ├── sources/
 │   ├── free/
 │   │   ├── sundell.js
-│   │   └── vanderlee.js
+│   │   ├── vanderlee.js
+│   │   └── nilcoalescing.js
 │   └── premium/
 │       └── patreon.js
 └── (other compiled files)
