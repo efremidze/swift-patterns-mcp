@@ -40,7 +40,7 @@ describeIntegration('Response Quality Validation', () => {
     it('should include actionable instructions', async () => {
       const response = await client.callToolText('list_content_sources');
 
-      expect(response).toContain('swift-mcp setup');
+      expect(response).toContain('swift-patterns-mcp setup');
     });
   });
 

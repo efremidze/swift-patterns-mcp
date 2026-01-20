@@ -139,7 +139,7 @@ const PATREON_TOOLS: Tool[] = [
 // Create server
 const server = new Server(
   {
-    name: "swift-mcp",
+    name: "swift-patterns-mcp",
     version: "1.0.0",
   },
   {
@@ -203,7 +203,7 @@ Get credentials at: https://www.patreon.com/portal/registration/register-clients
                 ? `✅ Patreon is configured and ready to use!`
                 : `⚙️ Patreon is not yet configured.
 
-Run: swift-mcp setup --patreon`,
+Run: swift-patterns-mcp setup --patreon`,
             }],
           };
         }
@@ -215,7 +215,7 @@ Run: swift-mcp setup --patreon`,
 
 To set up Patreon integration, run:
 \`\`\`bash
-swift-mcp setup --patreon
+swift-patterns-mcp setup --patreon
 \`\`\`
 
 This will:
@@ -239,7 +239,7 @@ After setup, you'll have access to:
               type: "text",
               text: `⚙️ Patreon not configured.
 
-Set it up with: swift-mcp setup --patreon`,
+Set it up with: swift-patterns-mcp setup --patreon`,
             }],
           };
         }

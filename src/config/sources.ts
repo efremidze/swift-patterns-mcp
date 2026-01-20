@@ -159,7 +159,7 @@ export class SourceManager {
     // Check if requires configuration
     if (source.requiresAuth && !this.isSourceConfigured(id)) {
       throw new Error(
-        `Source "${source.name}" requires configuration. Run: swift-mcp setup --${id}`
+        `Source "${source.name}" requires configuration. Run: swift-patterns-mcp setup --${id}`
       );
     }
     

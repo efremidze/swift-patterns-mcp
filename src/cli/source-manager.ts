@@ -15,12 +15,12 @@ function print(msg: string): void {
 }
 
 function printUsage(): void {
-  print('swift-mcp source\n');
+  print('swift-patterns-mcp source\n');
   print('Usage:');
-  print('  swift-mcp source list');
-  print('  swift-mcp source enable <source-id>');
-  print('  swift-mcp source disable <source-id>');
-  print('  swift-mcp source --help');
+  print('  swift-patterns-mcp source list');
+  print('  swift-patterns-mcp source enable <source-id>');
+  print('  swift-patterns-mcp source disable <source-id>');
+  print('  swift-patterns-mcp source --help');
 }
 
 function getStatusIcon(isEnabled: boolean, isConfigured: boolean): string {
@@ -64,7 +64,7 @@ function enableSource(sourceId?: string): void {
     const source = sourceManager.getSource(sourceId);
     if (!source) {
       print(`❌ Unknown source: "${sourceId}"`);
-      print('Run: swift-mcp source list');
+      print('Run: swift-patterns-mcp source list');
       process.exit(1);
     }
 
@@ -87,7 +87,7 @@ function disableSource(sourceId?: string): void {
   const source = sourceManager.getSource(sourceId);
   if (!source) {
     print(`❌ Unknown source: "${sourceId}"`);
-    print('Run: swift-mcp source list');
+    print('Run: swift-patterns-mcp source list');
     process.exit(1);
   }
 

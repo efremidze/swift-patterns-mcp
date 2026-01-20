@@ -166,15 +166,15 @@ if (args.includes('--patreon') || args.includes('-p')) {
     process.exit(1);
   });
 } else if (args.includes('--help') || args.includes('-h')) {
-  print('swift-mcp setup\n');
+  print('swift-patterns-mcp setup\n');
   print('Usage:');
-  print('  swift-mcp setup --patreon    Set up Patreon integration');
-  print('  swift-mcp setup --help       Show this help');
+  print('  swift-patterns-mcp setup --patreon    Set up Patreon integration');
+  print('  swift-patterns-mcp setup --help       Show this help');
   process.exit(0);
 } else {
-  print('swift-mcp setup\n');
+  print('swift-patterns-mcp setup\n');
   print('Available options:');
   print('  --patreon    Set up Patreon integration');
-  print('\nRun: swift-mcp setup --patreon');
+  print('\nRun: swift-patterns-mcp setup --patreon');
   process.exit(0);
 }

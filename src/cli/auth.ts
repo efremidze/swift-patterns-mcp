@@ -17,7 +17,7 @@ async function resetAuth(): Promise<void> {
   try {
     await clearPatreonAuth()
     print("✅ Authentication data cleared successfully!\n")
-    print("Run 'swift-mcp setup --patreon' to re-authenticate.\n")
+    print("Run 'swift-patterns-mcp setup --patreon' to re-authenticate.\n")
   } catch (err) {
     print(`❌ Failed to clear authentication: ${err instanceof Error ? err.message : String(err)}\n`)
     process.exit(1)
@@ -33,15 +33,15 @@ if (args.includes("reset") || args.includes("-r")) {
     process.exit(1)
   })
 } else if (args.includes("--help") || args.includes("-h")) {
-  print("swift-mcp auth\n")
+  print("swift-patterns-mcp auth\n")
   print("Usage:")
-  print("  swift-mcp auth reset    Clear all Patreon authentication data")
-  print("  swift-mcp auth --help   Show this help")
+  print("  swift-patterns-mcp auth reset    Clear all Patreon authentication data")
+  print("  swift-patterns-mcp auth --help   Show this help")
   process.exit(0)
 } else {
-  print("swift-mcp auth\n")
+  print("swift-patterns-mcp auth\n")
   print("Available commands:")
   print("  reset    Clear all Patreon authentication data")
-  print("\nRun: swift-mcp auth reset")
+  print("\nRun: swift-patterns-mcp auth reset")
   process.exit(0)
 }

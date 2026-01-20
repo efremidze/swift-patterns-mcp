@@ -65,7 +65,7 @@ describe('SourceManager', () => {
 
   beforeEach(() => {
     // Create a temp config path for testing
-    tempConfigPath = path.join(os.tmpdir(), `swift-mcp-test-${Date.now()}.json`);
+    tempConfigPath = path.join(os.tmpdir(), `swift-patterns-mcp-test-${Date.now()}.json`);
     manager = new SourceManager(tempConfigPath);
   });
 

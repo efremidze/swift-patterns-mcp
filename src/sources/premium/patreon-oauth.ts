@@ -8,7 +8,7 @@ import { homedir } from 'os';
 import fs from 'fs/promises';
 import keytar from 'keytar';
 
-const SERVICE_NAME = 'swift-mcp';
+const SERVICE_NAME = 'swift-patterns-mcp';
 const ACCOUNT_NAME = 'patreon-tokens';
 const CALLBACK_PORT = 9876;
 const PATREON_AUTH_URL = 'https://www.patreon.com/oauth2/authorize';
@@ -259,7 +259,7 @@ export async function clearPatreonAuth(): Promise<void> {
   await keytar.deletePassword(SERVICE_NAME, ACCOUNT_NAME)
   
   // Clear legacy tokens.json file
-  const tokensPath = join(homedir(), ".swift-mcp", "tokens.json")
+  const tokensPath = join(homedir(), ".swift-patterns-mcp", "tokens.json")
   try {
     await fs.rm(tokensPath, { force: true })
   } catch {

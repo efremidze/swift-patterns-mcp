@@ -197,7 +197,7 @@ export class PatreonSource {
       if (creators.length === 0) {
         console.warn(
           'No active Patreon memberships found. ' +
-          'You must be a paying patron of at least one creator to use Patreon with swift-mcp.'
+          'You must be a paying patron of at least one creator to use Patreon with swift-patterns-mcp.'
         );
       }
 

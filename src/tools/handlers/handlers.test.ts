@@ -189,7 +189,7 @@ describe('listContentSourcesHandler', () => {
   it('should show setup instructions', async () => {
     const result = await listContentSourcesHandler({}, context);
 
-    expect(result.content[0].text).toContain('swift-mcp setup');
+    expect(result.content[0].text).toContain('swift-patterns-mcp setup');
   });
 });
 
@@ -214,7 +214,7 @@ describe('enableSourceHandler', () => {
     const result = await enableSourceHandler({ source: 'patreon' }, context);
 
     expect(result.content[0].text).toContain('requires setup');
-    expect(result.content[0].text).toContain('swift-mcp setup');
+    expect(result.content[0].text).toContain('swift-patterns-mcp setup');
   });
 
   it('should enable configured free sources', async () => {

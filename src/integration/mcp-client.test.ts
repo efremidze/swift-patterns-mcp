@@ -28,7 +28,7 @@ describeIntegration('MCP Server Integration', () => {
 
       const result = response.result as { protocolVersion: string; serverInfo: { name: string } };
       expect(result.protocolVersion).toBe('2024-11-05');
-      expect(result.serverInfo.name).toBe('swift-mcp');
+      expect(result.serverInfo.name).toBe('swift-patterns-mcp');
     });
 
     it('should list available tools', async () => {

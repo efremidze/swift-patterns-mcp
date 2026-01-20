@@ -111,7 +111,7 @@ export abstract class RssPatternSource<T extends BasePattern> {
     try {
       const response = await fetch(url, {
         signal: controller.signal,
-        headers: { 'User-Agent': 'swift-mcp/1.0 (RSS Reader)' },
+        headers: { 'User-Agent': 'swift-patterns-mcp/1.0 (RSS Reader)' },
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const html = await response.text();

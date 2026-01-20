@@ -35,7 +35,7 @@ ${premiumList}
 
 To enable premium sources:
 \`\`\`
-swift-mcp setup --patreon
+swift-patterns-mcp setup --patreon
 \`\`\`
 `,
     }],

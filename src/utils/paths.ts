@@ -3,12 +3,12 @@
 import path from 'path';
 
 /**
- * Get the base directory for swift-mcp configuration and data
- * @returns The absolute path to ~/.swift-mcp directory
+ * Get the base directory for swift-patterns-mcp configuration and data
+ * @returns The absolute path to ~/.swift-patterns-mcp directory
  */
 export function getSwiftMcpDir(): string {
   const home = process.env.HOME || process.env.USERPROFILE || '';
-  return path.join(home, '.swift-mcp');
+  return path.join(home, '.swift-patterns-mcp');
 }
 
 /**
