@@ -283,18 +283,27 @@ export function truncateAtSentence(text: string, maxLength: number): string {
     return text;
   }
 
-  // Find sentence boundaries within reasonable range
-  const minLength = Math.floor(maxLength * 0.8);
-  const searchText = text.substring(0, maxLength);
+  // Find sentence boundaries within reasonable range (60% allows more flexibility)
+  const minLength = Math.floor(maxLength * 0.6);
 
-  // Look for sentence endings (. ! ?)
-  const sentenceEndings = ['. ', '! ', '? '];
+  // Look for sentence endings (. ! ?) - check both with and without space
   let bestPos = -1;
 
-  for (const ending of sentenceEndings) {
-    const pos = searchText.lastIndexOf(ending);
+  // Try to find sentence ending with space after (cleaner break)
+  for (const punct of ['. ', '! ', '? ']) {
+    const pos = text.lastIndexOf(punct, maxLength);
     if (pos >= minLength && pos > bestPos) {
-      bestPos = pos + 1; // Include the punctuation
+      bestPos = pos + punct.length - 1; // Include punctuation, exclude trailing space
+    }
+  }
+
+  // If no sentence ending with space, try just the punctuation
+  if (bestPos === -1) {
+    for (const punct of ['.', '!', '?']) {
+      const pos = text.lastIndexOf(punct, maxLength);
+      if (pos >= minLength && pos > bestPos) {
+        bestPos = pos + 1; // Include the punctuation
+      }
     }
   }
 
@@ -303,7 +312,7 @@ export function truncateAtSentence(text: string, maxLength: number): string {
   }
 
   // Fall back to word boundary
-  const wordBoundary = searchText.lastIndexOf(' ');
+  const wordBoundary = text.lastIndexOf(' ', maxLength);
   if (wordBoundary > minLength) {
     return text.substring(0, wordBoundary).trim();
   }
