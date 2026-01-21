@@ -26,12 +26,22 @@ const SOURCE_CLASSES = {
 } as const;
 
 /**
- * Get a source instance by name
+ * Singleton cache for source instances
+ * Keeps search indexes warm across calls
+ */
+const sourceInstanceCache = new Map<FreeSourceName, FreeSource>();
+
+/**
+ * Get a source instance by name (singleton)
  */
 export function getSource(name: FreeSourceName): FreeSource {
+  const cached = sourceInstanceCache.get(name);
+  if (cached) return cached;
+
   const SourceClass = SOURCE_CLASSES[name];
-  // Cast to FreeSource since all pattern types extend BasePattern
-  return new SourceClass() as FreeSource;
+  const instance = new SourceClass() as FreeSource;
+  sourceInstanceCache.set(name, instance);
+  return instance;
 }
 
 /**
@@ -85,9 +95,20 @@ export async function searchMultipleSources(
   const results = await Promise.allSettled(
     sources.map(source => source.searchPatterns(query))
   );
-  
+
   // Collect successful results, skip failed sources
   return results
     .filter((result): result is PromiseFulfilledResult<BasePattern[]> => result.status === 'fulfilled')
     .flatMap(result => result.value);
+}
+
+/**
+ * Prefetch all sources to warm up caches and search indexes
+ * Call this on startup when prefetchSources is enabled
+ */
+export async function prefetchAllSources(): Promise<void> {
+  const sources = getAllFreeSources();
+  await Promise.allSettled(
+    sources.map(source => source.fetchPatterns())
+  );
 }

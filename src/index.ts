@@ -15,6 +15,7 @@ import {
 import SourceManager from "./config/sources.js";
 import { getHandler, ToolContext, PatreonSourceConstructor } from './tools/index.js';
 import { createErrorResponseFromError } from './utils/response-helpers.js';
+import { prefetchAllSources } from './utils/source-registry.js';
 import logger from './utils/logger.js';
 
 // Premium sources (imported conditionally)
@@ -184,6 +185,15 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   logger.info("Swift MCP Server running on stdio");
+
+  // Prefetch sources in background if enabled
+  if (sourceManager.isPrefetchEnabled()) {
+    prefetchAllSources().then(() => {
+      logger.info("Sources prefetched successfully");
+    }).catch((error) => {
+      logger.warn({ err: error }, "Failed to prefetch sources");
+    });
+  }
 }
 
 main().catch((error) => {
