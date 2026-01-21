@@ -14,6 +14,7 @@ describe('AVAILABLE_SOURCES', () => {
     expect(freeSources.some(s => s.id === 'sundell')).toBe(true);
     expect(freeSources.some(s => s.id === 'vanderlee')).toBe(true);
     expect(freeSources.some(s => s.id === 'nilcoalescing')).toBe(true);
+    expect(freeSources.some(s => s.id === 'pointfree')).toBe(true);
   });
 
   it('should have premium sources', () => {
@@ -132,6 +133,7 @@ describe('SourceManager', () => {
       expect(ids).toContain('sundell');
       expect(ids).toContain('vanderlee');
       expect(ids).toContain('nilcoalescing');
+      expect(ids).toContain('pointfree');
     });
   });
 
