@@ -15,6 +15,7 @@ import {
 import SourceManager from "./config/sources.js";
 import { getHandler, ToolContext, PatreonSourceConstructor } from './tools/index.js';
 import { createErrorResponseFromError } from './utils/response-helpers.js';
+import logger from './utils/logger.js';
 
 // Premium sources (imported conditionally)
 let patreonSource: PatreonSourceConstructor | null = null;
@@ -182,10 +183,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Swift MCP Server running on stdio");
+  logger.info("Swift MCP Server running on stdio");
 }
 
 main().catch((error) => {
-  console.error("Fatal error:", error);
+  logger.error({ err: error }, "Fatal error");
   process.exit(1);
 });

@@ -6,6 +6,7 @@ import readline from 'readline';
 import { startOAuthFlow, loadTokens } from '../sources/premium/patreon-oauth.js';
 import PatreonSource from '../sources/premium/patreon.js';
 import SourceManager from '../config/sources.js';
+import logger from '../utils/logger.js';
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -162,7 +163,7 @@ const args = process.argv.slice(2);
 
 if (args.includes('--patreon') || args.includes('-p')) {
   setupPatreon().catch(err => {
-    console.error('Setup failed:', err);
+    logger.error({ err }, 'Setup failed');
     process.exit(1);
   });
 } else if (args.includes('--help') || args.includes('-h')) {

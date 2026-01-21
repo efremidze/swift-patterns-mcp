@@ -1,8 +1,9 @@
 /**
  * Error handling utilities for consistent error logging across the codebase.
- * Uses console.error with structured context - no external dependencies.
+ * Uses structured logger to keep output consistent.
  */
 
+import logger from './logger.js';
 /**
  * Type guard to check if a value is an Error instance.
  */
@@ -31,9 +32,10 @@ export function logError(
   details?: Record<string, unknown>
 ): void {
   const message = toErrorMessage(error);
-  if (details) {
-    console.error(`[${context}]`, message, details);
-  } else {
-    console.error(`[${context}]`, message);
+  const payload = { context, ...(details ?? {}) };
+  if (isError(error)) {
+    logger.error({ ...payload, err: error }, message);
+    return;
   }
+  logger.error(payload, message);
 }
