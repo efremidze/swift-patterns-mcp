@@ -70,8 +70,11 @@ export class IntentCache {
   private hits = 0;
   private misses = 0;
 
-  constructor(maxMemoryEntries: number = DEFAULT_MAX_MEMORY_ENTRIES) {
-    this.cache = new FileCache('intent', maxMemoryEntries);
+  constructor(
+    maxMemoryEntries: number = DEFAULT_MAX_MEMORY_ENTRIES,
+    namespace: string = 'intent'
+  ) {
+    this.cache = new FileCache(namespace, maxMemoryEntries);
   }
 
   /**

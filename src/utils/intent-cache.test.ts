@@ -7,7 +7,8 @@ describe('IntentCache', () => {
   let cache: IntentCache;
 
   beforeEach(() => {
-    cache = new IntentCache(50);
+    // Use test-specific namespace to avoid cache pollution from build/ tests
+    cache = new IntentCache(50, `test-${Date.now()}-${Math.random()}`);
     cache.clear();
   });
 

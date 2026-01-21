@@ -132,6 +132,7 @@ describeIntegration('Response Quality Validation', () => {
             url.includes('swiftbysundell.com') ||
             url.includes('avanderlee.com') ||
             url.includes('nilcoalescing.com') ||
+            url.includes('pointfree.co') ||
             url.includes('github.com/pointfreeco');
           expect(isValidSource).toBe(true);
         }
