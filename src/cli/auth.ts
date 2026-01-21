@@ -5,6 +5,7 @@
 import 'dotenv/config';
 
 import { clearPatreonAuth } from "../sources/premium/patreon-oauth.js"
+import logger from "../utils/logger.js"
 
 function print(msg: string): void {
   console.log(msg)
@@ -29,7 +30,7 @@ const args = process.argv.slice(2)
 
 if (args.includes("reset") || args.includes("-r")) {
   resetAuth().catch((err) => {
-    console.error("Reset failed:", err)
+    logger.error({ err }, "Reset failed")
     process.exit(1)
   })
 } else if (args.includes("--help") || args.includes("-h")) {

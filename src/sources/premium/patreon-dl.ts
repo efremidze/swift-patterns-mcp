@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import { CREATORS } from '../../config/creators.js';
 import { getPatreonContentDir } from '../../utils/paths.js';
+import logger from '../../utils/logger.js';
 
 const execAsync = promisify(exec);
 
@@ -93,9 +94,9 @@ export async function downloadAllCreators(): Promise<void> {
     const result = await downloadCreatorContent(patreonUrl, creator.name);
 
     if (result.success) {
-      console.log(`Downloaded content for ${creator.name}`);
+      logger.info({ creator: creator.name }, 'Downloaded content for creator');
     } else {
-      console.error(`Failed to download ${creator.name}: ${result.error}`);
+      logger.error({ creator: creator.name, error: result.error }, 'Failed to download creator content');
     }
   }
 }

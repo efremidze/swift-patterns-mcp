@@ -7,6 +7,7 @@ import { detectTopics, hasCodeContent, calculateRelevance } from '../../utils/sw
 import { createSourceConfig } from '../../config/swift-keywords.js';
 import { fetchJson, fetchText, buildHeaders } from '../../utils/http.js';
 import { runWithConcurrency } from '../../utils/concurrency.js';
+import logger from '../../utils/logger.js';
 import type { BasePattern } from './rssPatternSource.js';
 
 export interface PointFreePattern extends BasePattern {
@@ -200,7 +201,10 @@ export class PointFreeSource {
         };
       } catch (error) {
         // Log error but continue processing other files
-        console.error(`Failed to fetch PointFree file ${file.path}:`, error instanceof Error ? error.message : String(error));
+        logger.error(
+          { err: error, filePath: file.path },
+          'Failed to fetch PointFree file'
+        );
         return null;
       }
     });
