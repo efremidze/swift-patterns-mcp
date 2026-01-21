@@ -74,7 +74,7 @@ const MOCK_PATTERNS = {
     {
       id: 'pointfree-1',
       title: 'Composable Architecture Case Study',
-      url: 'https://pointfree.co/tca',
+      url: 'https://github.com/pointfreeco/pointfreeco/blob/main/Sources/Models/Episodes/0001-functions.md',
       excerpt: 'Build apps with TCA',
       content: 'TCA reducer and store patterns',
       topics: ['architecture', 'tca'],
