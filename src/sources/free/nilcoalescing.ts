@@ -22,7 +22,7 @@ const { topicKeywords, qualitySignals } = createSourceConfig(
 export class NilCoalescingSource extends RssPatternSource<NilCoalescingPattern> {
   constructor() {
     super({
-      feedUrl: 'https://nilcoalescing.com/feed.xml',
+      feedUrl: 'https://nilcoalescing.com/feed.rss',
       cacheKey: 'nilcoalescing-patterns',
       rssCacheTtl: 3600,
       topicKeywords,

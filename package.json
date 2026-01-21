@@ -19,6 +19,7 @@
     "auth": "node build/cli/auth.js",
     "source": "node build/cli/source-manager.js",
     "lint": "tsc --noEmit",
+    "pretest": "npm run build",
     "test": "vitest run"
   },
   "keywords": [
