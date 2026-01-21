@@ -1,7 +1,7 @@
 // src/tools/handlers/getSwiftPattern.ts
 
 import type { ToolHandler } from '../types.js';
-import { getSources, getSourceNames, type FreeSourceName } from '../../utils/source-registry.js';
+import { getSourceNames, searchMultipleSources, type FreeSourceName } from '../../utils/source-registry.js';
 import { formatTopicPatterns } from '../../utils/pattern-formatter.js';
 import { createTextResponse } from '../../utils/response-helpers.js';
 import { intentCache, type IntentKey, type StorableCachedSearchResult } from '../../utils/intent-cache.js';
@@ -41,17 +41,11 @@ Example topics:
     // Cache hit - use cached patterns
     results = (cached.patterns as BasePattern[]) || [];
   } else {
-    // Cache miss - fetch from sources
-    const sources = getSources(source as FreeSourceName | 'all');
+    // Cache miss - fetch from sources using centralized search
+    const allResults = await searchMultipleSources(topic, source as FreeSourceName | 'all');
 
-    // Search all requested sources in parallel
-    const allResults = await Promise.all(
-      sources.map(s => s.searchPatterns(topic))
-    );
-
-    // Filter by quality and flatten
+    // Filter by quality
     results = allResults
-      .flat()
       .filter(p => p.relevanceScore >= minQuality);
 
     // Sort by relevance

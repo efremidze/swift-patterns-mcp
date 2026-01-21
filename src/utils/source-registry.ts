@@ -75,14 +75,19 @@ export function getSourceNames(sourceNames: FreeSourceName | 'all' | FreeSourceN
 
 /**
  * Search multiple sources and combine results
+ * Uses Promise.allSettled to collect partial results even if some sources fail
  */
 export async function searchMultipleSources(
   query: string,
   sourceNames: FreeSourceName | 'all' | FreeSourceName[] = 'all'
 ): Promise<BasePattern[]> {
   const sources = getSources(sourceNames);
-  const results = await Promise.all(
+  const results = await Promise.allSettled(
     sources.map(source => source.searchPatterns(query))
   );
-  return results.flat();
+  
+  // Collect successful results, skip failed sources
+  return results
+    .filter((result): result is PromiseFulfilledResult<BasePattern[]> => result.status === 'fulfilled')
+    .flatMap(result => result.value);
 }
