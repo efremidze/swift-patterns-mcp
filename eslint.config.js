@@ -4,18 +4,16 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   { ignores: ["build/**", "node_modules/**", ".claude/**", "dist/**"] },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
   {
     files: ["src/**/*.ts"],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.node,
-      parser: tseslint.parser,
       parserOptions: {
         project: true,
       },
-    },
-    plugins: {
-      "@typescript-eslint": tseslint.plugin,
     },
     rules: {
       "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
