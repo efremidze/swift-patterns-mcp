@@ -3,6 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { createHash } from 'crypto';
+import QuickLRU from 'quick-lru';
 import { getCacheDir } from './paths.js';
 
 const DEFAULT_TTL = 86400; // 24 hours in seconds
@@ -13,18 +14,16 @@ interface CacheEntry<T> {
   data: T;
   timestamp: number;
   ttl: number;
-  lastAccessed: number;
 }
 
 export class FileCache {
   private cacheDir: string;
-  private memoryCache: Map<string, CacheEntry<unknown>> = new Map();
-  private maxMemoryEntries: number;
+  private memoryCache: QuickLRU<string, CacheEntry<unknown>>;
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(namespace: string = 'default', maxMemoryEntries: number = DEFAULT_MAX_MEMORY_ENTRIES) {
     this.cacheDir = getCacheDir(namespace);
-    this.maxMemoryEntries = maxMemoryEntries;
+    this.memoryCache = new QuickLRU({ maxSize: maxMemoryEntries });
     this.ensureCacheDir();
     // Clean expired entries on startup
     this.clearExpired();
@@ -65,8 +64,6 @@ export class FileCache {
     // Check memory cache first
     const memEntry = this.memoryCache.get(key) as CacheEntry<T> | undefined;
     if (memEntry && !this.isExpired(memEntry)) {
-      // Update last accessed time for LRU
-      memEntry.lastAccessed = Date.now();
       return memEntry.data;
     }
 
@@ -78,9 +75,8 @@ export class FileCache {
         const entry = JSON.parse(content) as CacheEntry<T>;
 
         if (!this.isExpired(entry)) {
-          // Populate memory cache with LRU tracking
-          entry.lastAccessed = Date.now();
-          this.addToMemoryCache(key, entry);
+          // Populate memory cache
+          this.memoryCache.set(key, entry);
           return entry.data;
         } else {
           // Clean up expired entry
@@ -100,11 +96,10 @@ export class FileCache {
       data,
       timestamp: now,
       ttl,
-      lastAccessed: now,
     };
 
-    // Set in memory cache with LRU eviction
-    this.addToMemoryCache(key, entry);
+    // Set in memory cache
+    this.memoryCache.set(key, entry);
 
     // Set in file cache
     const cachePath = this.getCachePath(key);
@@ -113,52 +108,6 @@ export class FileCache {
     } catch {
       // Cache write failed, continue without caching
     }
-  }
-
-  private addToMemoryCache(key: string, entry: CacheEntry<unknown>): void {
-    // If key already exists, just update it
-    if (this.memoryCache.has(key)) {
-      this.memoryCache.set(key, entry);
-      return;
-    }
-
-    // Evict LRU entries if at capacity
-    while (this.memoryCache.size >= this.maxMemoryEntries) {
-      this.evictLRU();
-    }
-
-    this.memoryCache.set(key, entry);
-  }
-
-  private evictLRU(): void {
-    let oldestKey: string | null = null;
-    let oldestTime = Infinity;
-
-    for (const [key, entry] of this.memoryCache.entries()) {
-      if (entry.lastAccessed < oldestTime) {
-        oldestTime = entry.lastAccessed;
-        oldestKey = key;
-      }
-    }
-
-    if (oldestKey) {
-      this.memoryCache.delete(oldestKey);
-    }
-  }
-
-  async getOrFetch<T>(
-    key: string,
-    fetcher: () => Promise<T>,
-    ttl: number = DEFAULT_TTL
-  ): Promise<T> {
-    const cached = await this.get<T>(key);
-    if (cached !== null) {
-      return cached;
-    }
-
-    const data = await fetcher();
-    await this.set(key, data, ttl);
-    return data;
   }
 
   private isExpired(entry: CacheEntry<unknown>): boolean {
@@ -187,7 +136,7 @@ export class FileCache {
     let cleared = 0;
 
     // Clear expired from memory
-    for (const [key, entry] of this.memoryCache.entries()) {
+    for (const [key, entry] of this.memoryCache) {
       if (this.isExpired(entry)) {
         this.memoryCache.delete(key);
         cleared++;
