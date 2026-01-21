@@ -50,6 +50,7 @@ coverage/
 .gsd/
 .worktrees/
 .planning/
+.planning/intel/
 
 # Secrets
 *.pem
