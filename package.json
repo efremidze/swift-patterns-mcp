@@ -53,6 +53,7 @@
     "adm-zip": "^0.5.10",
     "dotenv": "^17.2.3",
     "keytar": "^7.9.0",
+    "lru-cache": "^11.2.4",
     "minisearch": "^7.2.0",
     "natural": "^8.1.0",
     "node-fetch": "^3.3.2",
