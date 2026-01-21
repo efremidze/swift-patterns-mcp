@@ -348,7 +348,7 @@ describe('listContentSourcesHandler', () => {
     const text = result.content[0].text;
 
     // Should have status indicators (enabled/disabled/needs setup)
-    expect(text).toMatch(/[✅⚙️⬜]/);
+    expect(text).toMatch(/✅|⚙️|⬜/);
   });
 
   it('should show setup instructions for premium sources', async () => {

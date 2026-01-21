@@ -1,7 +1,7 @@
 // src/sources/free/rssPatternSource.test.ts
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { RssPatternSource, BasePattern, RssPatternSourceOptions } from './rssPatternSource.js';
+import { RssPatternSource, BasePattern } from './rssPatternSource.js';
 
 // Mock dependencies
 vi.mock('../../utils/cache.js', () => ({
@@ -18,7 +18,7 @@ vi.mock('../../utils/cache.js', () => ({
 vi.mock('rss-parser', () => {
   return {
     default: class Parser {
-      async parseURL(url: string) {
+      async parseURL(_url: string) {
         return {
           items: [
             {
@@ -54,6 +54,7 @@ const testQualitySignals = {
   'swiftui': 6,
 };
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface TestPattern extends BasePattern {}
 
 class TestSource extends RssPatternSource<TestPattern> {

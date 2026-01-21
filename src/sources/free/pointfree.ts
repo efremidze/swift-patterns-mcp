@@ -111,7 +111,7 @@ function stripFormatting(content: string): string {
   // Single-pass regex for better performance
   return content
     .replace(/```[\s\S]*?```|<[^>]+>|\[[^\]]+]\([^)]+\)|`[^`]+`/g, ' ')
-    .replace(/[#>*_\-]/g, ' ')
+    .replace(/[#>*_-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }

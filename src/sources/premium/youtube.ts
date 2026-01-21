@@ -19,12 +19,12 @@ export interface Video {
 }
 
 function extractPatreonLink(text: string): string | undefined {
-  const match = text.match(/https?:\/\/(www\.)?patreon\.com\/[^\s\)]+/i);
+  const match = text.match(/https?:\/\/(www\.)?patreon\.com\/[^\s)]+/i);
   return match?.[0];
 }
 
 function extractCodeLinks(text: string): string[] {
-  const matches = text.match(/https?:\/\/(github\.com|gist\.github\.com)[^\s\)]+/gi);
+  const matches = text.match(/https?:\/\/(github\.com|gist\.github\.com)[^\s)]+/gi);
   return matches || [];
 }
 

@@ -1,6 +1,6 @@
 // src/tools/registry.test.ts
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // We need to test the registry in isolation, so we'll create a fresh module
 // Since the registry uses module-level state, we test the exported functions

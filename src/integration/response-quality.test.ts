@@ -43,7 +43,7 @@ describeIntegration('Response Quality Validation', () => {
       const response = await client.callToolText('list_content_sources');
 
       // Each source should have a status indicator
-      expect(response).toMatch(/[✅⚙️⬜]/);
+      expect(response).toMatch(/✅|⚙️|⬜/);
     });
 
     it('should include actionable setup instructions', async () => {
@@ -122,7 +122,7 @@ describeIntegration('Response Quality Validation', () => {
 
       if (!response.includes('No patterns found')) {
         // Should have clickable markdown links
-        const urlMatch = response.match(/\[.+\]\((https?:\/\/[^\)]+)\)/);
+        const urlMatch = response.match(/\[.+\]\((https?:\/\/[^)]+)\)/);
         expect(urlMatch).not.toBeNull();
 
         // URL should be from a known source

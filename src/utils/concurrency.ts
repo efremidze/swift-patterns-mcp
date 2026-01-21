@@ -32,13 +32,8 @@ export async function runWithConcurrency<T, R>(
   const runWorker = async (): Promise<void> => {
     while (nextIndex < items.length) {
       const currentIndex = nextIndex++;
-      try {
-        results[currentIndex] = await worker(items[currentIndex]);
-      } catch (error) {
-        // Store error in results - worker function should handle errors appropriately
-        // but we don't want to break the entire batch
-        throw error;
-      }
+      // Worker function should handle errors appropriately
+      results[currentIndex] = await worker(items[currentIndex]);
     }
   };
 

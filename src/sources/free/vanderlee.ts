@@ -3,6 +3,7 @@
 import { RssPatternSource, type BasePattern } from './rssPatternSource.js';
 import { createSourceConfig } from '../../config/swift-keywords.js';
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface VanderLeePattern extends BasePattern {}
 
 const { topicKeywords, qualitySignals } = createSourceConfig(
