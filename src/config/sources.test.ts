@@ -1,6 +1,6 @@
 // src/config/sources.test.ts
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import SourceManager, { AVAILABLE_SOURCES } from './sources.js';
 import * as fs from 'fs';
 import * as path from 'path';

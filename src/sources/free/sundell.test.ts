@@ -6,7 +6,7 @@ import SundellSource from './sundell.js';
 vi.mock('rss-parser', () => {
   return {
     default: class Parser {
-      async parseURL(url: string) {
+      async parseURL(_url: string) {
         return {
           items: [
             {
