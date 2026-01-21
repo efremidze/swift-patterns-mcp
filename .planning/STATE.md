@@ -38,6 +38,11 @@ See: .planning/PROJECT.md (updated 2026-01-20)
   - Added stampede prevention tests
   - Added cross-handler isolation tests
   - Total test count: 393 tests (all passing)
+- [x] Quick Task 002: Improve MCP response format for AI agents
+  - Added 5 content extraction utilities (extractCodeSnippets, extractTechniques, detectComplexity, truncateAtSentence, extractDescriptiveTitle)
+  - Enhanced formatPattern to show actual code snippets, techniques, complexity levels
+  - Added 45 comprehensive tests for extraction utilities
+  - Total test count: 455 tests (454 passing, 1 pre-existing failure)
 
 ### In Progress
 None
@@ -55,6 +60,9 @@ None
 | Reuse search.ts tokenization | Consistency, proven code | 2026-01-21 | Adapted |
 | In-flight deduplication | Prevent cache stampede | 2026-01-21 | Implemented |
 | Combined Tasks 1&2 (quick-001) | Both add tests to same file, more efficient | 2026-01-21 | Implemented |
+| Truncate excerpts at sentence boundaries (60%) | Cleaner output for AI agents | 2026-01-21 | Implemented |
+| Cap techniques at 5, default 1 code snippet | Balance detail vs response length | 2026-01-21 | Implemented |
+| Extract descriptive titles from H1/H2 | Better than generic newsletter titles | 2026-01-21 | Implemented |
 
 ## Blockers
 
@@ -65,15 +73,17 @@ None.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 001 | Improve integration tests (caching and performance) | 2026-01-21 | 3f3f7c2 | [001-improve-integration-tests](./quick/001-improve-integration-tests-i-want-to-cove/) |
+| 002 | Improve MCP response format for AI agents | 2026-01-21 | e3c4f80 | [002-improve-mcp-response-format-for-ai-agent](./quick/002-improve-mcp-response-format-for-ai-agent/) |
 
 ## Notes
 
 - All v1 requirements implemented
-- Test coverage: 393 tests total (32 IntentCache unit + 24 handler + 17 cache integration + others)
+- Test coverage: 455 tests total (32 IntentCache unit + 24 handler + 17 cache integration + 45 extraction utilities + others)
 - Cache stampede prevention implemented and validated via integration tests
 - Selective invalidation on source changes deferred to v2
 - Integration tests validate real-world cache behavior without mocks
+- MCP response format enhanced with code snippets, techniques, complexity levels for better AI agent consumption
 
 ---
-*Last activity: 2026-01-21 - Completed quick task 001: Improve integration tests*
-*Status: v1 Complete + Integration Tests*
+*Last activity: 2026-01-21 - Completed quick task 002: Improve MCP response format for AI agents*
+*Status: v1 Complete + Enhanced Response Format*
