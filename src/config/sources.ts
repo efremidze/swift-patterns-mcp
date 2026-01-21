@@ -104,7 +104,7 @@ export interface SourceConfig {
 }
 
 const sourceConfigSchema = z.object({
-  sources: z.record(z.object({
+  sources: z.record(z.string(), z.object({
     enabled: z.boolean(),
     configured: z.boolean(),
     lastSync: z.string().optional(),
