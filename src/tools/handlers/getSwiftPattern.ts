@@ -4,14 +4,8 @@ import type { ToolHandler } from '../types.js';
 import { getSources, getSourceNames, type FreeSourceName } from '../../utils/source-registry.js';
 import { formatTopicPatterns } from '../../utils/pattern-formatter.js';
 import { createTextResponse } from '../../utils/response-helpers.js';
-import { intentCache, type IntentKey } from '../../utils/intent-cache.js';
+import { intentCache, type IntentKey, type CachedIntentResultWithPatterns } from '../../utils/intent-cache.js';
 import type { BasePattern } from '../../sources/free/rssPatternSource.js';
-
-// Cached result type for this handler
-interface CachedPatternResult {
-  patterns: BasePattern[];
-  topic: string;
-}
 
 export const getSwiftPatternHandler: ToolHandler = async (args, context) => {
   const topic = args?.topic as string;
@@ -45,9 +39,8 @@ Example topics:
 
   if (cached) {
     // Cache hit - use cached patterns
-    // The cached data stores patterns with their scores
-    const cachedData = cached as unknown as { patterns?: BasePattern[] };
-    results = cachedData.patterns || [];
+    const cachedWithPatterns = cached as CachedIntentResultWithPatterns;
+    results = (cachedWithPatterns.patterns as BasePattern[]) || [];
   } else {
     // Cache miss - fetch from sources
     const sources = getSources(source as FreeSourceName | 'all');
@@ -71,9 +64,8 @@ Example topics:
         patternIds: results.map(p => p.id),
         scores: Object.fromEntries(results.map(p => [p.id, p.relevanceScore])),
         totalCount: results.length,
-        // Store patterns for reconstruction on cache hit
         patterns: results,
-      } as CachedPatternResult & { patternIds: string[]; scores: Record<string, number>; totalCount: number });
+      });
     }
   }
 

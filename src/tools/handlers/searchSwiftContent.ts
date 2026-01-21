@@ -4,7 +4,7 @@ import type { ToolHandler } from '../types.js';
 import { searchMultipleSources, getSourceNames } from '../../utils/source-registry.js';
 import { formatSearchPatterns } from '../../utils/pattern-formatter.js';
 import { createTextResponse } from '../../utils/response-helpers.js';
-import { intentCache, type IntentKey } from '../../utils/intent-cache.js';
+import { intentCache, type IntentKey, type CachedIntentResultWithPatterns } from '../../utils/intent-cache.js';
 import type { BasePattern } from '../../sources/free/rssPatternSource.js';
 
 export const searchSwiftContentHandler: ToolHandler = async (args) => {
@@ -34,8 +34,8 @@ Usage: search_swift_content({ query: "async await" })`);
 
   if (cached) {
     // Cache hit - use cached patterns
-    const cachedData = cached as unknown as { patterns?: BasePattern[] };
-    filtered = cachedData.patterns || [];
+    const cachedWithPatterns = cached as CachedIntentResultWithPatterns;
+    filtered = (cachedWithPatterns.patterns as BasePattern[]) || [];
   } else {
     // Cache miss - fetch from sources
     const results = await searchMultipleSources(query);
@@ -52,7 +52,7 @@ Usage: search_swift_content({ query: "async await" })`);
         scores: Object.fromEntries(filtered.map(p => [p.id, p.relevanceScore])),
         totalCount: filtered.length,
         patterns: filtered,
-      } as { patternIds: string[]; scores: Record<string, number>; totalCount: number; patterns: BasePattern[] });
+      });
     }
   }
 

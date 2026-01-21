@@ -54,6 +54,14 @@ export interface CachedIntentResult {
 }
 
 /**
+ * Extended cached result with full pattern data
+ * Used by handlers that need to reconstruct full patterns from cache
+ */
+export interface CachedIntentResultWithPatterns extends CachedIntentResult {
+  patterns: unknown[]; // Full pattern objects - type determined by caller
+}
+
+/**
  * IntentCache - Caches tool handler results by normalized query intent
  *
  * Key features:
@@ -179,16 +187,17 @@ export class IntentCache {
 
   /**
    * Store result in cache
+   * Accepts both basic CachedIntentResult and extended CachedIntentResultWithPatterns
    */
   async set(
     intent: IntentKey,
-    result: Omit<CachedIntentResult, 'sourceFingerprint' | 'timestamp'>,
+    result: Omit<CachedIntentResult, 'sourceFingerprint' | 'timestamp'> | Omit<CachedIntentResultWithPatterns, 'sourceFingerprint' | 'timestamp'>,
     ttl: number = DEFAULT_INTENT_TTL
   ): Promise<void> {
     const key = this.buildCacheKey(intent);
     const fingerprint = this.getSourceFingerprint(intent.sources);
 
-    const entry: CachedIntentResult = {
+    const entry = {
       ...result,
       sourceFingerprint: fingerprint,
       timestamp: Date.now(),
@@ -203,9 +212,9 @@ export class IntentCache {
    */
   async getOrFetch(
     intent: IntentKey,
-    fetcher: () => Promise<Omit<CachedIntentResult, 'sourceFingerprint' | 'timestamp'>>,
+    fetcher: () => Promise<Omit<CachedIntentResult, 'sourceFingerprint' | 'timestamp'> | Omit<CachedIntentResultWithPatterns, 'sourceFingerprint' | 'timestamp'>>,
     ttl: number = DEFAULT_INTENT_TTL
-  ): Promise<CachedIntentResult> {
+  ): Promise<CachedIntentResult | CachedIntentResultWithPatterns> {
     // Check cache first
     const cached = await this.get(intent);
     if (cached) {
