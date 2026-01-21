@@ -78,3 +78,20 @@ export function mergeQualitySignals(
 ): Record<string, number> {
   return { ...base, ...specific };
 }
+
+/**
+ * Create merged source configuration from source-specific overrides.
+ * Simplifies the common pattern of extending base keywords/signals.
+ */
+export function createSourceConfig(
+  specificTopics: Record<string, string[]>,
+  specificSignals: Record<string, number>
+): {
+  topicKeywords: Record<string, string[]>;
+  qualitySignals: Record<string, number>;
+} {
+  return {
+    topicKeywords: mergeKeywords(BASE_TOPIC_KEYWORDS, specificTopics),
+    qualitySignals: mergeQualitySignals(BASE_QUALITY_SIGNALS, specificSignals),
+  };
+}
