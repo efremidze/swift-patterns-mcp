@@ -43,7 +43,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Bump version
-        run: npm version "${{ inputs.bump }}" -m "chore(release): %s"
+        run: |
+          npm version "${{ inputs.bump }}" -m "chore(release): %s"
 
       - name: Push tags
         run: git push --follow-tags
