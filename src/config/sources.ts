@@ -101,6 +101,7 @@ export interface SourceConfig {
     configured: boolean;
     lastSync?: string;
   }>;
+  prefetchSources?: boolean;
 }
 
 const sourceConfigSchema = z.object({
@@ -109,6 +110,7 @@ const sourceConfigSchema = z.object({
     configured: z.boolean(),
     lastSync: z.string().optional(),
   })),
+  prefetchSources: z.boolean().optional(),
 });
 
 const DEFAULT_CONFIG: SourceConfig = {
@@ -120,6 +122,7 @@ const DEFAULT_CONFIG: SourceConfig = {
     patreon: { enabled: false, configured: false },
     'github-sponsors': { enabled: false, configured: false },
   },
+  prefetchSources: true,
 };
 
 export class SourceManager {
@@ -257,6 +260,21 @@ export class SourceManager {
    */
   getSourcesByType(type: SourceType): ContentSource[] {
     return AVAILABLE_SOURCES.filter(s => s.type === type);
+  }
+
+  /**
+   * Check if prefetching is enabled
+   */
+  isPrefetchEnabled(): boolean {
+    return this.config.prefetchSources ?? true;
+  }
+
+  /**
+   * Enable or disable prefetching
+   */
+  setPrefetchEnabled(enabled: boolean): void {
+    this.config.prefetchSources = enabled;
+    this.saveConfig();
   }
 }
 
