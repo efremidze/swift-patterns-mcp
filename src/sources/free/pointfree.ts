@@ -176,6 +176,7 @@ export class PointFreeSource {
     const { branch: resolvedBranch, files } = await this.fetchContentFiles(branch);
 
     const patterns = await runWithConcurrency(files, MAX_CONCURRENT_FETCHES, async file => {
+      try {
         const content = await this.fetchFileContent(resolvedBranch, file.path);
         const title = extractTitle(file.path, content);
         const stripped = stripFormatting(content);
@@ -197,12 +198,20 @@ export class PointFreeSource {
           hasCode,
           sourcePath: file.path,
         };
+      } catch (error) {
+        // Log error but continue processing other files
+        console.error(`Failed to fetch PointFree file ${file.path}:`, error instanceof Error ? error.message : String(error));
+        return null;
+      }
     });
 
-    await rssCache.set(POINTFREE_CACHE_KEY, patterns, POINTFREE_CACHE_TTL);
+    // Filter out null results from failed fetches
+    const validPatterns = patterns.filter((pattern): pattern is PointFreePattern => pattern !== null);
+
+    await rssCache.set(POINTFREE_CACHE_KEY, validPatterns, POINTFREE_CACHE_TTL);
     // Invalidate search index after fetching new patterns
     this.cachedSearch.invalidate();
-    return patterns;
+    return validPatterns;
   }
 
   async searchPatterns(query: string): Promise<PointFreePattern[]> {
