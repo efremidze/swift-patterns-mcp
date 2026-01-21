@@ -229,4 +229,60 @@ export function suggestSimilar(
   return suggestions;
 }
 
+/**
+ * CachedSearchIndex - Manages a SearchIndex with automatic invalidation based on document changes.
+ * Eliminates duplicated search caching logic across pattern sources.
+ */
+export class CachedSearchIndex<T extends SearchableDocument> {
+  private searchIndex: SearchIndex<T> | null = null;
+  private indexedPatternsHash: string | null = null;
+  private fields: string[];
+
+  constructor(fields: string[] = ['title', 'content', 'topics']) {
+    this.fields = fields;
+  }
+
+  /**
+   * Search patterns with automatic index caching.
+   * Index is rebuilt only when patterns change (detected via hash).
+   */
+  search(
+    patterns: T[],
+    query: string,
+    options: SearchOptions = {}
+  ): T[] {
+    const {
+      fuzzy = 0.2,
+      boost = { title: 2.5, topics: 1.8, content: 1 },
+    } = options;
+
+    // Simple hash based on length and sorted IDs
+    const patternsHash = `${patterns.length}-${patterns.map(p => p.id).sort().join(',')}`;
+
+    // Rebuild index only if patterns changed
+    if (!this.searchIndex || this.indexedPatternsHash !== patternsHash) {
+      this.searchIndex = new SearchIndex<T>(this.fields);
+      this.searchIndex.addDocuments(patterns);
+      this.indexedPatternsHash = patternsHash;
+    }
+
+    const results = this.searchIndex.search(query, { fuzzy, boost });
+
+    return results
+      .map(result => ({
+        ...result.item,
+        relevanceScore: combineScores(result.score, (result.item as T & { relevanceScore: number }).relevanceScore),
+      }))
+      .sort((a, b) => b.relevanceScore - a.relevanceScore);
+  }
+
+  /**
+   * Invalidate the cached index (call after fetching new patterns)
+   */
+  invalidate(): void {
+    this.searchIndex = null;
+    this.indexedPatternsHash = null;
+  }
+}
+
 export default SearchIndex;
