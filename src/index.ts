@@ -188,8 +188,10 @@ async function main() {
 
   // Prefetch sources in background if enabled
   if (sourceManager.isPrefetchEnabled()) {
-    prefetchAllSources().then(() => {
-      logger.info("Sources prefetched successfully");
+    prefetchAllSources().then((results) => {
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      logger.info(`Sources prefetch complete: ${successful} succeeded, ${failed} failed`);
     }).catch((error) => {
       logger.warn({ err: error }, "Failed to prefetch sources");
     });

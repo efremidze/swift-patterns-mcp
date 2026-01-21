@@ -105,10 +105,28 @@ export async function searchMultipleSources(
 /**
  * Prefetch all sources to warm up caches and search indexes
  * Call this on startup when prefetchSources is enabled
+ * @returns Results of prefetch operations for all sources
  */
-export async function prefetchAllSources(): Promise<void> {
+export async function prefetchAllSources(): Promise<PromiseSettledResult<BasePattern[]>[]> {
   const sources = getAllFreeSources();
-  await Promise.allSettled(
+  const sourceNames = Object.keys(SOURCE_CLASSES);
+  
+  const results = await Promise.allSettled(
     sources.map(source => source.fetchPatterns())
   );
+
+  // Log summary of results
+  const successful = results.filter(r => r.status === 'fulfilled').length;
+  const failed = results.filter(r => r.status === 'rejected').length;
+  
+  console.log(`Prefetch complete: ${successful} succeeded, ${failed} failed`);
+  
+  // Log failed sources for debugging
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      console.error(`Failed to prefetch ${sourceNames[index]}:`, result.reason);
+    }
+  });
+
+  return results;
 }
