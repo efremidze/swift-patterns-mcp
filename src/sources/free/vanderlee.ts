@@ -1,5 +1,6 @@
 // src/sources/free/vanderlee.ts
 
+import { parseHTML } from 'linkedom';
 import { stripHtml as stripHtmlLib } from 'string-strip-html';
 import { RssPatternSource, type BasePattern } from './rssPatternSource.js';
 import { createSourceConfig } from '../../config/swift-keywords.js';
@@ -22,16 +23,31 @@ const { topicKeywords, qualitySignals } = createSourceConfig(
 );
 
 function extractPostContent(html: string): string {
-  // Extract content from post-content div
-  const postContentMatch = html.match(/<div[^>]*class="[^"]*post-content[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<div/i);
-  if (postContentMatch) {
-    return stripHtml(postContentMatch[1]);
+  const { document } = parseHTML(html);
+  
+  // Try multiple selectors in order of preference
+  const selectors = [
+    '.post-content',
+    'article .entry-content',
+    'article',
+    'main',
+    '.content',
+  ];
+  
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      // Remove unwanted elements before extracting text
+      const unwantedElements = element.querySelectorAll('script, style, nav, footer, .sidebar, .comments');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      unwantedElements.forEach((el: any) => {
+        el.parentNode?.removeChild(el);
+      });
+      
+      return stripHtml(element.innerHTML);
+    }
   }
-  // Fallback: extract from article tag
-  const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
-  if (articleMatch) {
-    return stripHtml(articleMatch[1]);
-  }
+  
   return '';
 }
 

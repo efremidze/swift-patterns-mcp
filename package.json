@@ -55,6 +55,7 @@
     "adm-zip": "^0.5.10",
     "dotenv": "^17.2.3",
     "keytar": "^7.9.0",
+    "linkedom": "^0.18.12",
     "minisearch": "^7.2.0",
     "ml-distance": "^4.0.1",
     "natural": "^8.1.0",
