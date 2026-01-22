@@ -80,19 +80,6 @@ export const AVAILABLE_SOURCES: ContentSource[] = [
     setupFunction: 'setupPatreon',
     configKeys: ['PATREON_CLIENT_ID', 'PATREON_CLIENT_SECRET'],
   },
-  
-  // Future premium sources
-  {
-    id: 'github-sponsors',
-    name: 'GitHub Sponsors',
-    description: 'Access content from developers you sponsor on GitHub (Coming soon)',
-    type: 'premium',
-    enabled: false,
-    requiresAuth: true,
-    status: 'not-configured',
-    setupFunction: 'setupGitHubSponsors',
-    configKeys: ['GITHUB_TOKEN'],
-  },
 ];
 
 export interface SourceConfig {
@@ -130,7 +117,6 @@ const DEFAULT_CONFIG: SourceConfig = {
     nilcoalescing: { enabled: true, configured: true },
     pointfree: { enabled: true, configured: true },
     patreon: { enabled: false, configured: false },
-    'github-sponsors': { enabled: false, configured: false },
   },
   prefetchSources: true,
   semanticRecall: {

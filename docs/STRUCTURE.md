@@ -33,8 +33,7 @@ swift-patterns-mcp/
 │   │   └── premium/                 # Premium sources (require auth)
 │   │       ├── patreon.ts           # Patreon OAuth integration (TODO)
 │   │       ├── patreon-oauth.ts     # OAuth handler (TODO)
-│   │       ├── patreon-zip.ts       # Zip extraction (TODO)
-│   │       └── github-sponsors.ts   # GitHub Sponsors (TODO)
+│   │       └── patreon-zip.ts       # Zip extraction (TODO)
 │   │
 │   ├── tools/                        # MCP tool handlers (TODO)
 │   │   ├── get-pattern.ts           # Pattern retrieval
@@ -102,7 +101,6 @@ swift-patterns-mcp/
 | `patreon.ts` | Main Patreon integration | 📝 TODO |
 | `patreon-oauth.ts` | OAuth 2.0 flow handler | 📝 TODO |
 | `patreon-zip.ts` | Zip file extraction | 📝 TODO |
-| `github-sponsors.ts` | GitHub Sponsors API | 📝 TODO |
 
 ### `/src/tools` (TODO)
 

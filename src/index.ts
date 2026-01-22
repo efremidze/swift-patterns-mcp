@@ -92,7 +92,7 @@ const CORE_TOOLS: Tool[] = [
       properties: {
         source: {
           type: "string",
-          description: "Source ID (e.g., 'patreon', 'github-sponsors')",
+          description: "Source ID (e.g., 'patreon')",
         },
       },
       required: ["source"],
