@@ -22,7 +22,7 @@ Example topics:
   }
 
   const source = (args?.source as string) || "all";
-  const minQuality = (args?.minQuality as number) || 70;
+  const minQuality = (args?.minQuality as number) || 65;
   const wantsCode = detectCodeIntent(args, topic);
 
   // Build intent key for caching

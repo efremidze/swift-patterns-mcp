@@ -28,7 +28,7 @@ const MOCK_PATTERNS = {
       excerpt: 'Simple tips for Swift developers',
       content: 'Basic content without code examples',
       topics: ['swift'],
-      relevanceScore: 55, // Below default minQuality of 60
+      relevanceScore: 55, // Below default minQuality of 65
       hasCode: false,
       publishDate: '2024-01-10T00:00:00Z',
     },
@@ -187,15 +187,18 @@ describe('getSwiftPatternHandler', () => {
     expect(text).not.toContain('Debugging Tips'); // score 65
   });
 
-  it('should use default minQuality of 60 when not specified', async () => {
+  it('should use default minQuality of 65 when not specified', async () => {
     const result = await getSwiftPatternHandler({ topic: 'swift' }, context);
     const text = result.content[0].text;
 
-    // sundell-2 has score 55, below default minQuality of 60
+    // sundell-2 has score 55, below default minQuality of 65
     expect(text).not.toContain('Basic Swift Tips');
 
-    // vanderlee-2 has score 65, above default minQuality of 60
-    expect(text).toContain('Debugging Tips');
+    // vanderlee-2 has score 65, meets minQuality threshold
+    // Note: Due to maxResults=4 default, only top 4 patterns are shown
+    // So vanderlee-2 (score 65, ranked 5th) won't appear in output
+    expect(text).toContain('Found 5 results'); // 5 patterns pass the threshold
+    expect(text).toContain('Showing top 4 of 5 results'); // But only 4 are displayed
   });
 
   it('should filter by specific source when provided', async () => {
