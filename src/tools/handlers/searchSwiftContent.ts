@@ -101,30 +101,36 @@ Usage: search_swift_content({ query: "async await" })`);
 
     if (noLexicalResults || weakLexicalResults) {
       // Lexical results are absent or weak - try semantic recall
-      const index = getSemanticIndex(semanticConfig);
+      // Wrapped in try-catch: semantic recall is a fallback, failures shouldn't break the handler
+      try {
+        const index = getSemanticIndex(semanticConfig);
 
-      // Index all high-quality patterns from enabled sources (cached, so cheap after first call)
-      const allPatterns = await getAllPatternsForSemanticIndex(sourceManager);
-      await index.index(allPatterns);
+        // Index all high-quality patterns from enabled sources (cached, so cheap after first call)
+        const allPatterns = await getAllPatternsForSemanticIndex(sourceManager);
+        await index.index(allPatterns);
 
-      // Search semantically
-      const semanticResultsRaw = await index.search(query, 5);
-      const semanticResults = requireCode
-        ? semanticResultsRaw.filter(p => p.hasCode)
-        : semanticResultsRaw;
+        // Search semantically
+        const semanticResultsRaw = await index.search(query, 5);
+        const semanticResults = requireCode
+          ? semanticResultsRaw.filter(p => p.hasCode)
+          : semanticResultsRaw;
 
-      // Merge conservatively: semantic results as supplement, not replacement
-      // Add semantic results not already in filtered
-      const existingIds = new Set(filtered.map(p => p.id));
-      const newSemanticResults = semanticResults.filter(p => !existingIds.has(p.id));
+        // Merge conservatively: semantic results as supplement, not replacement
+        // Add semantic results not already in filtered
+        const existingIds = new Set(filtered.map(p => p.id));
+        const newSemanticResults = semanticResults.filter(p => !existingIds.has(p.id));
 
-      // Append semantic results after lexical results
-      finalResults = [...filtered, ...newSemanticResults];
+        // Append semantic results after lexical results
+        finalResults = [...filtered, ...newSemanticResults];
 
-      // Re-apply relevance filter and re-sort
-      finalResults = finalResults
-        .filter(p => p.relevanceScore >= semanticConfig.minRelevanceScore)
-        .sort((a, b) => b.relevanceScore - a.relevanceScore);
+        // Re-apply relevance filter and re-sort
+        finalResults = finalResults
+          .filter(p => p.relevanceScore >= semanticConfig.minRelevanceScore)
+          .sort((a, b) => b.relevanceScore - a.relevanceScore);
+      } catch {
+        // Semantic recall failed - fall back to lexical results only
+        // finalResults already equals filtered, so no action needed
+      }
     }
   }
 
