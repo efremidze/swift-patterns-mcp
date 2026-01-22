@@ -110,6 +110,18 @@ vi.mock('../../sources/free/pointfree.js', () => ({
   })),
 }));
 
+// Mock SourceManager to ensure semantic recall is disabled in tests
+vi.mock('../../config/sources.js', () => ({
+  default: vi.fn().mockImplementation(() => ({
+    getSemanticRecallConfig: vi.fn().mockReturnValue({
+      enabled: false,
+      minLexicalScore: 0.35,
+      minRelevanceScore: 70,
+    }),
+    isSemanticRecallEnabled: vi.fn().mockReturnValue(false),
+  })),
+}));
+
 // Create mock SourceManager
 function createMockSourceManager() {
   const sources = [
