@@ -3,33 +3,11 @@
 
 import { createHash } from 'crypto';
 import { FileCache } from './cache.js';
+import { PRESERVE_TERMS, STOPWORDS } from './search-terms.js';
 
 // 12 hours in seconds (longer than RSS cache, shorter than article cache)
 const DEFAULT_INTENT_TTL = 43200;
 const DEFAULT_MAX_MEMORY_ENTRIES = 200;
-
-// Stopwords for query normalization (subset of search.ts STOPWORDS)
-const STOPWORDS = new Set([
-  'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-  'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
-  'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
-  'should', 'may', 'might', 'must', 'shall', 'can', 'this', 'that', 'these',
-  'those', 'it', 'its', 'they', 'them', 'their', 'we', 'our', 'you', 'your',
-  'i', 'my', 'me', 'he', 'she', 'him', 'her', 'his', 'who', 'what', 'which',
-  'when', 'where', 'why', 'how', 'all', 'each', 'every', 'both', 'few',
-  'more', 'most', 'other', 'some', 'such', 'no', 'not', 'only', 'same',
-  'so', 'than', 'too', 'very', 'just', 'also', 'now', 'here', 'there'
-]);
-
-// Swift-specific terms that should be preserved during normalization
-const PRESERVE_TERMS = new Set([
-  'swift', 'swiftui', 'uikit', 'combine', 'async', 'await', 'actor',
-  'struct', 'class', 'enum', 'protocol', 'extension', 'func', 'var', 'let',
-  'mvvm', 'viper', 'mvc', 'tca', 'xctest', 'xcode', 'ios', 'macos',
-  'watchos', 'tvos', 'ipados', 'appkit', 'foundation', 'coredata',
-  'cloudkit', 'urlsession', 'codable', 'observable', 'published',
-  'stateobject', 'observedobject', 'environmentobject', 'binding', 'state'
-]);
 
 /**
  * Components used to build a cache key
