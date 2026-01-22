@@ -42,10 +42,11 @@ function getContentHash(pattern: BasePattern): string {
 interface IndexedPattern {
   pattern: BasePattern;
   embedding: Float32Array;
+  cacheKey: string;
 }
 
 export class SemanticRecallIndex {
-  private indexed: IndexedPattern[] = [];
+  private indexedMap: Map<string, IndexedPattern> = new Map();
   private cache: FileCache;
   private pipeline: any = null; // Lazy-loaded transformer pipeline
   private config: SemanticRecallConfig;
@@ -79,42 +80,61 @@ export class SemanticRecallIndex {
   /**
    * Index patterns for semantic search.
    * Filters patterns by minRelevanceScore and caches embeddings.
+   * Uses incremental indexing - only processes new/changed patterns.
    */
   async index(patterns: BasePattern[]): Promise<void> {
-    // Clear existing index
-    this.indexed = [];
-
     // Filter patterns by relevance score
     const highQualityPatterns = patterns.filter(
       p => p.relevanceScore >= this.config.minRelevanceScore
     );
 
-    // Index each pattern
+    // Build set of current cache keys to track what should remain
+    const currentKeys = new Set<string>();
+
+    // Index each pattern (incremental - skip unchanged patterns)
     for (const pattern of highQualityPatterns) {
       const contentHash = getContentHash(pattern);
       const cacheKey = `embedding::${pattern.id}::${contentHash}`;
+      currentKeys.add(cacheKey);
 
-      // Try to load from cache
+      // Skip if already indexed with same content hash
+      if (this.indexedMap.has(cacheKey)) {
+        // Update pattern reference in case metadata changed (but content hash same)
+        const existing = this.indexedMap.get(cacheKey)!;
+        existing.pattern = pattern;
+        continue;
+      }
+
+      // Try to load from file cache
       const embedding = await this.cache.get<number[]>(cacheKey);
 
       if (embedding) {
-        // Cache hit - use cached embedding
-        this.indexed.push({
+        // File cache hit - use cached embedding
+        this.indexedMap.set(cacheKey, {
           pattern,
           embedding: new Float32Array(embedding),
+          cacheKey,
         });
       } else {
         // Cache miss - compute embedding
         const content = extractIndexableContent(pattern);
         const embeddingArray = await this.embed(content);
 
-        // Store in cache (convert Float32Array to regular array for JSON serialization)
+        // Store in file cache (convert Float32Array to regular array for JSON serialization)
         await this.cache.set(cacheKey, Array.from(embeddingArray), 86400 * 7); // 7 days TTL
 
-        this.indexed.push({
+        this.indexedMap.set(cacheKey, {
           pattern,
           embedding: embeddingArray,
+          cacheKey,
         });
+      }
+    }
+
+    // Remove patterns no longer in the input set
+    for (const key of this.indexedMap.keys()) {
+      if (!currentKeys.has(key)) {
+        this.indexedMap.delete(key);
       }
     }
   }
@@ -124,7 +144,7 @@ export class SemanticRecallIndex {
    * Returns top-K patterns sorted by cosine similarity.
    */
   async search(query: string, limit: number): Promise<BasePattern[]> {
-    if (this.indexed.length === 0) {
+    if (this.indexedMap.size === 0) {
       return [];
     }
 
@@ -134,7 +154,7 @@ export class SemanticRecallIndex {
     // Calculate cosine similarity for each indexed pattern
     const { similarity } = await import('ml-distance');
 
-    const scored = this.indexed.map(({ pattern, embedding }) => ({
+    const scored = Array.from(this.indexedMap.values()).map(({ pattern, embedding }) => ({
       pattern,
       similarity: similarity.cosine(queryEmbedding, embedding),
     }));
@@ -143,5 +163,12 @@ export class SemanticRecallIndex {
     scored.sort((a, b) => b.similarity - a.similarity);
 
     return scored.slice(0, limit).map(s => s.pattern);
+  }
+
+  /**
+   * Get the number of indexed patterns (for testing/debugging)
+   */
+  get size(): number {
+    return this.indexedMap.size;
   }
 }

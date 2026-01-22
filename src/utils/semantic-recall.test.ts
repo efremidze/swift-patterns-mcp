@@ -257,6 +257,82 @@ describe('SemanticRecallIndex', () => {
       // Should not throw - different cache keys
       expect(true).toBe(true);
     });
+
+    it('should use incremental indexing (skip unchanged patterns)', async () => {
+      const index = new SemanticRecallIndex({
+        enabled: true,
+        minLexicalScore: 0.35,
+        minRelevanceScore: 70,
+      });
+
+      const pattern1 = createMockPattern({
+        id: 'pattern-1',
+        title: 'Unchanged Pattern',
+        excerpt: 'This will stay the same',
+        relevanceScore: 75,
+      });
+
+      const pattern2 = createMockPattern({
+        id: 'pattern-2',
+        title: 'Another Pattern',
+        excerpt: 'Different content',
+        relevanceScore: 80,
+      });
+
+      // First index - both patterns added
+      await index.index([pattern1, pattern2]);
+      expect(index.size).toBe(2);
+
+      // Second index with same patterns - should skip recomputing
+      await index.index([pattern1, pattern2]);
+      expect(index.size).toBe(2);
+
+      // Third index with only pattern1 - pattern2 should be removed
+      await index.index([pattern1]);
+      expect(index.size).toBe(1);
+
+      // Verify correct pattern remains
+      const results = await index.search('unchanged', 10);
+      expect(results.length).toBe(1);
+      expect(results[0].id).toBe('pattern-1');
+    });
+
+    it('should update pattern metadata while keeping same embedding', async () => {
+      const index = new SemanticRecallIndex({
+        enabled: true,
+        minLexicalScore: 0.35,
+        minRelevanceScore: 70,
+      });
+
+      const pattern = createMockPattern({
+        id: 'update-test',
+        title: 'Same Title',
+        excerpt: 'Same Excerpt',
+        relevanceScore: 75,
+        topics: ['original'],
+      });
+
+      await index.index([pattern]);
+
+      // Update pattern with different metadata but same title/excerpt (same content hash)
+      const updatedPattern = createMockPattern({
+        id: 'update-test',
+        title: 'Same Title',
+        excerpt: 'Same Excerpt',
+        relevanceScore: 85,
+        topics: ['updated', 'new-topic'],
+      });
+
+      await index.index([updatedPattern]);
+
+      // Should still have only 1 indexed pattern
+      expect(index.size).toBe(1);
+
+      // Pattern reference should be updated
+      const results = await index.search('same', 10);
+      expect(results[0].relevanceScore).toBe(85);
+      expect(results[0].topics).toEqual(['updated', 'new-topic']);
+    });
   });
 });
 
