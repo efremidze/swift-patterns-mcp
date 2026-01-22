@@ -95,7 +95,7 @@ export class SemanticRecallIndex {
       const cacheKey = `embedding::${pattern.id}::${contentHash}`;
 
       // Try to load from cache
-      let embedding = await this.cache.get<number[]>(cacheKey);
+      const embedding = await this.cache.get<number[]>(cacheKey);
 
       if (embedding) {
         // Cache hit - use cached embedding

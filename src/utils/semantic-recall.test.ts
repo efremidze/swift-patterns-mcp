@@ -1,6 +1,6 @@
 // src/utils/semantic-recall.test.ts
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { SemanticRecallIndex, DEFAULT_CONFIG } from './semantic-recall.js';
 import type { BasePattern } from '../sources/free/rssPatternSource.js';
 
