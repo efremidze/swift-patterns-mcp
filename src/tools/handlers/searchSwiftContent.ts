@@ -102,7 +102,10 @@ Usage: search_swift_content({ query: "async await" })`);
       await index.index(allPatterns);
 
       // Search semantically
-      const semanticResults = await index.search(query, 5);
+      const semanticResultsRaw = await index.search(query, 5);
+      const semanticResults = requireCode
+        ? semanticResultsRaw.filter(p => p.hasCode)
+        : semanticResultsRaw;
 
       // Merge conservatively: semantic results as supplement, not replacement
       // Add semantic results not already in filtered
