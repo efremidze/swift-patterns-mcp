@@ -102,6 +102,11 @@ export interface SourceConfig {
     lastSync?: string;
   }>;
   prefetchSources?: boolean;
+  semanticRecall?: {
+    enabled: boolean;
+    minLexicalScore: number;  // MiniSearch score threshold below which semantic recall activates
+    minRelevanceScore: number; // Minimum pattern relevanceScore to index (quality filter)
+  };
 }
 
 const sourceConfigSchema = z.object({
@@ -111,6 +116,11 @@ const sourceConfigSchema = z.object({
     lastSync: z.string().optional(),
   })),
   prefetchSources: z.boolean().optional(),
+  semanticRecall: z.object({
+    enabled: z.boolean(),
+    minLexicalScore: z.number(),
+    minRelevanceScore: z.number(),
+  }).optional(),
 });
 
 const DEFAULT_CONFIG: SourceConfig = {
@@ -123,6 +133,11 @@ const DEFAULT_CONFIG: SourceConfig = {
     'github-sponsors': { enabled: false, configured: false },
   },
   prefetchSources: true,
+  semanticRecall: {
+    enabled: false,
+    minLexicalScore: 0.35,
+    minRelevanceScore: 70,
+  },
 };
 
 export class SourceManager {
@@ -275,6 +290,20 @@ export class SourceManager {
   setPrefetchEnabled(enabled: boolean): void {
     this.config.prefetchSources = enabled;
     this.saveConfig();
+  }
+
+  /**
+   * Get semantic recall configuration
+   */
+  getSemanticRecallConfig() {
+    return this.config.semanticRecall || DEFAULT_CONFIG.semanticRecall!;
+  }
+
+  /**
+   * Check if semantic recall is enabled
+   */
+  isSemanticRecallEnabled(): boolean {
+    return this.config.semanticRecall?.enabled ?? false;
   }
 }
 
