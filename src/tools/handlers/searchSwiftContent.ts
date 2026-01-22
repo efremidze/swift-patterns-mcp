@@ -80,17 +80,21 @@ Usage: search_swift_content({ query: "async await" })`);
 
   let finalResults = filtered;
 
-  // Semantic recall fallback: only if enabled AND lexical results are weak AND not a cache hit
-  // (Cache hits already include semantic results from the original search)
-  if (!wasCacheHit && semanticConfig.enabled && filtered.length > 0) {
-    // Calculate max lexical score
-    const maxScore = Math.max(...filtered.map(p => p.relevanceScore));
-
-    // Normalize to 0-1 scale (relevanceScore is 0-100)
+  // Semantic recall fallback: activates when enabled AND not a cache hit AND either:
+  // (1) No lexical results at all, OR
+  // (2) Lexical results are weak (max score below threshold)
+  // Cache hits already include semantic results from the original search
+  if (!wasCacheHit && semanticConfig.enabled) {
+    // Determine if semantic recall should activate
+    const noLexicalResults = filtered.length === 0;
+    const maxScore = filtered.length > 0
+      ? Math.max(...filtered.map(p => p.relevanceScore))
+      : 0;
     const normalizedMaxScore = maxScore / 100;
+    const weakLexicalResults = filtered.length > 0 && normalizedMaxScore < semanticConfig.minLexicalScore;
 
-    if (normalizedMaxScore < semanticConfig.minLexicalScore) {
-      // Lexical results are weak - try semantic recall
+    if (noLexicalResults || weakLexicalResults) {
+      // Lexical results are absent or weak - try semantic recall
       const index = getSemanticIndex(semanticConfig);
 
       // Index all high-quality patterns (this is cached, so cheap after first call)
