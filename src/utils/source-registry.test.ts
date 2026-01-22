@@ -1,6 +1,6 @@
 // src/utils/source-registry.test.ts
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { 
   getSource, 
   getAllFreeSources, 
@@ -10,8 +10,34 @@ import {
   prefetchAllSources,
   type FreeSourceName 
 } from './source-registry.js';
+import type { BasePattern } from '../sources/free/rssPatternSource.js';
+
+// Mock pattern data for tests
+const mockPattern: BasePattern = {
+  id: 'test-1',
+  title: 'Test Pattern',
+  url: 'https://example.com/test',
+  publishDate: '2024-01-01',
+  excerpt: 'Test excerpt',
+  content: 'Test content',
+  topics: ['swift'],
+  relevanceScore: 80,
+  hasCode: true,
+};
 
 describe('source-registry', () => {
+  // Mock the searchPatterns and fetchPatterns methods before each test
+  beforeEach(() => {
+    const sources = getAllFreeSources();
+    sources.forEach(source => {
+      vi.spyOn(source, 'searchPatterns').mockResolvedValue([mockPattern]);
+      vi.spyOn(source, 'fetchPatterns').mockResolvedValue([mockPattern]);
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   describe('getSource singleton caching', () => {
     it('should return the same instance for multiple calls with the same source name', () => {
       const source1 = getSource('sundell');
