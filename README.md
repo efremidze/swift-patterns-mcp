@@ -6,6 +6,8 @@
 
 [Quick Start](#-quick-start) • [Features](#-features) • [Usage](#-usage-examples) • [Contributing](#-contributing)
 
+[![MCP Badge](https://lobehub.com/badge/mcp/efremidze-swift-patterns-mcp)](https://lobehub.com/mcp/efremidze-swift-patterns-mcp)
+
 ---
 
 ## Why swift-patterns-mcp?
