@@ -1,7 +1,7 @@
 // src/utils/memvid-memory.ts
 // Memvid integration for persistent semantic memory and caching
 
-import { create, use, type Memvid } from '@memvid/sdk';
+import { use, type Memvid } from '@memvid/sdk';
 import { join, dirname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { getSwiftMcpDir } from './paths.js';
