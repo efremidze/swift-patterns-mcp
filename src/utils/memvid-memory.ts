@@ -72,8 +72,20 @@ export class MemvidMemoryManager {
     }
 
     try {
+      // Ensure the directory exists
+      const dir = this.memoryPath.substring(0, this.memoryPath.lastIndexOf('/'));
+      if (!require('fs').existsSync(dir)) {
+        require('fs').mkdirSync(dir, { recursive: true });
+      }
+
       // Try to open existing memory, or create if it doesn't exist
-      this.memory = await use('basic', this.memoryPath, { mode: 'auto' });
+      if (require('fs').existsSync(this.memoryPath)) {
+        this.memory = await use('basic', this.memoryPath, { mode: 'open' });
+      } else {
+        const { create } = await import('@memvid/sdk');
+        this.memory = await create(this.memoryPath);
+      }
+      
       this.initialized = true;
       logger.info({ path: this.memoryPath }, 'Memvid memory initialized');
     } catch (error) {
