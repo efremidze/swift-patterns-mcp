@@ -38,6 +38,37 @@ In short:
 
 ---
 
+## Who is this for?
+
+**swift-patterns-mcp** is for developers who want a **tooling-driven experience** for Swift/SwiftUI best practices — not just static guidance.
+
+### Use this MCP if you want:
+
+- 🔎 **Search across multiple sources**
+  Query Swift/SwiftUI patterns from curated creators in one place.
+
+- ⚡ **Fast, token-efficient retrieval**
+  Uses indexing + caching to keep responses concise and repeatable.
+
+- 🔄 **Always-fresh content**
+  Automatically fetches and refreshes free sources like RSS feeds and GitHub repos.
+
+- 🧩 **Runtime tooling inside an AI assistant**
+  You want “tools” the agent can call (not just documentation).
+
+- 🔐 **Premium features**
+  You want authenticated / gated content via OAuth integrations (e.g. Patreon).
+
+### This repo is especially useful for:
+
+- iOS engineers who want **real-time lookup** during development
+- interview prep when you want **quick pattern recall**
+- teams standardizing SwiftUI architecture decisions
+- building your own internal “Swift best practices search engine”
+- agents that need **repeatable, structured answers** from trusted sources
+
+---
+
 ## 🌟 Features
 
 ### Core Features
