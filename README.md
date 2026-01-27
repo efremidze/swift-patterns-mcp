@@ -2,8 +2,6 @@
 
 An MCP server providing curated Swift and SwiftUI best practices from leading iOS developers — with intelligent search, persistent memory, and optional premium integrations.
 
----
-
 ## Want an Agent Skill?
 
 If you want a **lightweight, portable Swift/SwiftUI best-practices package** without runtime tooling, check out:
@@ -13,8 +11,6 @@ If you want a **lightweight, portable Swift/SwiftUI best-practices package** wit
 **Key difference:**
 - **swift-patterns-skill** = Static guidance (portable, no runtime)
 - **swift-patterns-mcp** = Dynamic tooling (search, retrieval, premium features)
-
----
 
 ## What does this MCP provide?
 
@@ -33,7 +29,6 @@ If you want a **lightweight, portable Swift/SwiftUI best-practices package** wit
 - **Staying Current**: Access the latest patterns and best practices as they're published by leading iOS developers
 - **Team Standards**: Build a searchable reference of approved patterns for your organization
 - **AI-Powered Workflows**: Enable agents to query "Show me Sundell's approach to dependency injection" with consistent, quality responses
----
 
 ## 🌟 Features
 
@@ -62,14 +57,11 @@ If you want a **lightweight, portable Swift/SwiftUI best-practices package** wit
 |--------|--------------|-------|
 | **Patreon** | Premium content from supported creators | OAuth 2.0 |
 
----
 
 ## 📋 Prerequisites
 
 - **Node.js** 18.0.0 or higher
 - **MCP-Compatible AI Assistant**: Claude Desktop, Cursor, Windsurf, VS Code with Copilot, or Claude Code
-
----
 
 ## 🚀 Quick Start
 
@@ -169,8 +161,6 @@ Try these queries:
 "What does Sundell say about testing?"
 "Explain navigation patterns in SwiftUI"
 ```
-
----
 
 ## 🔧 Configuration
 
@@ -282,8 +272,6 @@ For premium features, add to your MCP client config:
 }
 ```
 
----
-
 ## 💡 Usage Examples
 
 ### Basic Queries
@@ -309,8 +297,6 @@ For premium features, add to your MCP client config:
 "Show me how to build a photo editor flow: PhotosPicker -> crop -> filters -> export/share"
 "Give me 5 advanced SwiftUI micro-interactions (toasts, sheets, draggable cards, haptics) with production-ready code"
 ```
-
----
 
 ## 🔐 Premium Integration (Optional)
 
@@ -347,8 +333,6 @@ Patreon requires OAuth apps to be registered by creators. You don't need to laun
 - ✅ Multi-creator support
 - ✅ Private, secure authentication
 
----
-
 ## ⚙️ Commands
 
 ```bash
@@ -365,8 +349,6 @@ swift-patterns-mcp setup --patreon
 swift-patterns-mcp auth patreon
 swift-patterns-mcp auth status
 ```
-
----
 
 ## 🗃️ How It Works
 
@@ -387,8 +369,6 @@ graph LR
 3. **Content Retrieval**: Fetches and parses content from RSS feeds, APIs, and cached data
 4. **Quality Filtering**: Applies configurable quality thresholds
 5. **Response**: Returns formatted, relevant patterns and examples
-
----
 
 ## 🔧 Troubleshooting
 
@@ -418,8 +398,6 @@ swift-patterns-mcp setup
 - Re-authenticate: `swift-patterns-mcp auth patreon`
 - Check Patreon source is enabled: `swift-patterns-mcp source list`
 
----
-
 ## 🗺️ Roadmap
 
 ### Current (v1.x)
@@ -436,19 +414,13 @@ swift-patterns-mcp setup
 - [ ] More free sources
 - [ ] Code validation
 
----
-
 ## 🤝 Contributing
 
 We welcome contributions! See our [contributing guidelines](CONTRIBUTING.md).
 
----
-
 ## 📄 License
 
 MIT License - Copyright (c) 2026 Lasha Efremidze
-
----
 
 ## 🙏 Credits
 
@@ -461,8 +433,6 @@ MIT License - Copyright (c) 2026 Lasha Efremidze
 - [Point-Free](https://www.pointfree.co) - Advanced Swift education
 
 **Built with** [Model Context Protocol](https://modelcontextprotocol.io)
-
----
 
 **Made with ❤️ for the Swift community**
 
