@@ -1,22 +1,18 @@
 # swift-patterns-mcp
 
-An MCP server providing curated Swift and SwiftUI best practices from leading iOS developers — with search, indexing, and optional premium integrations.
+An MCP server providing curated Swift and SwiftUI best practices from leading iOS developers — with intelligent search, persistent memory, and optional premium integrations.
 
 ---
 
-## Want Swift/SwiftUI best practices as an Agent Skill?
+## Looking for static guidance instead?
 
-If you're mainly looking for a **lightweight, portable Swift/SwiftUI best-practices package**, use:
+If you want a **lightweight, portable Swift/SwiftUI best-practices package** without runtime tooling, check out:
 
-**swift-patterns-skill**: [https://github.com/efremidze/swift-patterns-skill](https://github.com/efremidze/swift-patterns-skill)
+**[swift-patterns-skill](https://github.com/efremidze/swift-patterns-skill)** — Designed as a portable Agent Skill focused on Swift/SwiftUI patterns, architecture guidance, and decision-making frameworks.
 
-That repo is designed to be loaded directly as an **Agent Skill** (via `SKILL.md`) and focuses on:
-
-* Swift + SwiftUI patterns
-* architecture guidance
-* decision-making frameworks
-* practical do/don’t rules
-* reusable references
+**Key difference:**
+- **swift-patterns-skill** = Static guidance (portable, no runtime)
+- **swift-patterns-mcp** = Dynamic tooling (search, retrieval, premium features)
 
 ---
 
