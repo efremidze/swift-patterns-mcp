@@ -44,6 +44,8 @@ If you want a **lightweight, portable Swift/SwiftUI best-practices package** wit
 
 ### Free Sources
 
+These sources are publicly available but benefit from MCP's fetching, caching, and search capabilities:
+
 | Source | Content Type | Updates |
 |--------|--------------|---------|
 | **Swift by Sundell** | Articles, patterns, best practices | Weekly |
@@ -53,7 +55,9 @@ If you want a **lightweight, portable Swift/SwiftUI best-practices package** wit
 
 ### Premium Sources
 
-| Source | What You Get | Setup |
+Premium content requires OAuth authentication and active subscriptions:
+
+| Source | What You Get | Authentication |
 |--------|--------------|-------|
 | **Patreon** | Premium content from supported creators | OAuth 2.0 |
 
