@@ -289,24 +289,25 @@ For premium features, add to your MCP client config:
 ### Basic Queries
 
 ```
-"Show me best practices for SwiftUI animations"
-"What does Sundell say about testing?"
-"Explain navigation patterns in SwiftUI"
+"How can I use lazy var in @Observable classes?"
+"Show me modern SwiftUI animation best practices using symbolEffect (with button + state examples)"
+"Explain common SwiftUI navigation patterns (NavigationStack, NavigationPath, enum routing) and when to use each"
 ```
 
 ### Advanced Queries
 
 ```
-"Show me performance tips from van der Lee"
-"Find iOS architecture patterns for MVVM + coordinator"
-"Give me examples for SwiftUI infinite scrolling"
+"Build a coordinator-style architecture for SwiftUI: MVVM + dependency injection + type-safe routing"
+"Give me a clean infinite scrolling implementation: pagination, dedupe, cancellation, and loading states"
+"Explain how @Observable improves SwiftUI performance vs ObservableObject, then refactor my view model to @Observable"
 ```
 
 ### With Patreon Integration
 
 ```
-"Show me advanced SwiftUI patterns"
-"How do I build a photo editor app?"
+"Build a SwiftUI parallax + sticky header screen like a profile page (include reusable component version)"
+"Show me how to build a photo editor flow: PhotosPicker -> crop -> filters -> export/share"
+"Give me 5 advanced SwiftUI micro-interactions (toasts, sheets, draggable cards, haptics) with production-ready code"
 ```
 
 ---
