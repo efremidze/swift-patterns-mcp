@@ -6,7 +6,7 @@ An MCP server providing curated Swift and SwiftUI best practices from leading iO
 
 ## ✅ Want Swift/SwiftUI best practices as an Agent Skill?
 
-If you're mainly looking for a **lightweight, portable Swift/SwiftUI best-practices package** (no server required), use:
+If you're mainly looking for a **lightweight, portable Swift/SwiftUI best-practices package**, use:
 
 ➡️ **swift-patterns-skill**: [https://github.com/efremidze/swift-patterns-skill](https://github.com/efremidze/swift-patterns-skill)
 
