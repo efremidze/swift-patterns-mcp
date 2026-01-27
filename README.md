@@ -1,22 +1,42 @@
 # swift-patterns-mcp
 
-### 🎯 Curated Swift/SwiftUI Patterns from Top iOS Developers
-
-**An MCP server providing curated Swift and SwiftUI best practices from leading iOS developers, including patterns and real-world code examples from Swift by Sundell, SwiftLee, and other trusted sources.**
-
-[Quick Start](#-quick-start) • [Features](#-features) • [Usage](#-usage-examples) • [Contributing](#-contributing)
-
-[![MCP Badge](https://lobehub.com/badge/mcp/efremidze-swift-patterns-mcp)](https://lobehub.com/mcp/efremidze-swift-patterns-mcp)
+An MCP server providing curated Swift and SwiftUI best practices from leading iOS developers — with search, indexing, and optional premium integrations.
 
 ---
 
-## Why swift-patterns-mcp?
+## ✅ Want Swift/SwiftUI best practices as an Agent Skill?
 
-- ✅ **Curated Content**: Only high-quality patterns from trusted iOS developers
-- ✅ **Always Up-to-Date**: Automatically fetches the latest articles and patterns
-- ✅ **MCP Native**: Works seamlessly with Claude, Cursor, Windsurf, and other MCP-compatible tools
-- ✅ **Privacy First**: Free sources require no authentication
-- ✅ **Extensible**: Optional Patreon integration for premium content
+If you're mainly looking for a **lightweight, portable Swift/SwiftUI best-practices package** (no server required), use:
+
+➡️ **swift-patterns-skill**: [https://github.com/efremidze/swift-patterns-skill](https://github.com/efremidze/swift-patterns-skill)
+
+That repo is designed to be loaded directly as an **Agent Skill** (via `SKILL.md`) and focuses on:
+
+* Swift + SwiftUI patterns
+* architecture guidance
+* decision-making frameworks
+* practical do/don’t rules
+* reusable references
+
+---
+
+## What is this repo?
+
+**swift-patterns-mcp** is the **runtime/tooling layer**.
+
+Use this when you want:
+
+* 🔎 **Search + retrieval** across curated Swift/SwiftUI sources
+* 🧠 **Indexing + caching** for fast, token-efficient answers
+* 🌐 **Fetching external sources** (RSS / GitHub)
+* 🔐 **Premium integrations** (OAuth / Patreon) *(optional)*
+
+In short:
+
+* **Skill repo** = best practices + guidance (portable)
+* **MCP repo** = tools + fetching + premium features (runtime)
+
+---
 
 ## 🌟 Features
 
@@ -29,14 +49,21 @@
 - 🔄 **Auto-Updates**: Content automatically refreshes from RSS feeds
 - ⚡ **Fast Performance**: Efficient caching and indexed search
 
-### Built-in Sources (Free)
-- ✅ **Swift by Sundell** - Articles, patterns, and best practices
-- ✅ **Antoine van der Lee** - Tutorials, tips, and deep dives
-- ✅ **Nil Coalescing** - SwiftUI patterns and practical Swift tips
-- ✅ **Point-Free** - Open source libraries and patterns
+## Sources
+
+This MCP server can index both free and premium sources.
+
+### Free Sources
+
+- Swift by Sundell (RSS)
+- SwiftLee (RSS)
+- Nil Coalescing (RSS)
+- Point-Free open-source repos on GitHub
+
+> Note: Some sources are “free” but still benefit from MCP fetching + indexing (e.g. GitHub repos), since the MCP provides search, caching, and consistent formatting.
 
 ### Premium Sources (Optional)
-- 🔐 **Patreon Integration** - Access premium content from creators you support
+- **Patreon Integration** - Access premium content from creators you support
 
 ## 📋 Prerequisites
 
