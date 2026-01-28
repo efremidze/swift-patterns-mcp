@@ -10,6 +10,8 @@ import { getPatreonContentDir } from '../../utils/paths.js';
 import logger from '../../utils/logger.js';
 
 const execAsync = promisify(exec);
+const PATREON_DL_PACKAGE = 'patreon-dl@3.6.0';
+const PATREON_DL_COMMAND = `npx --yes ${PATREON_DL_PACKAGE}`;
 
 function getCookiePath(): string {
   // Use .patreon-session in project root (created by extract-cookie.ts)
@@ -36,7 +38,7 @@ export interface DownloadedFile {
  */
 export async function isPatreonDlAvailable(): Promise<boolean> {
   try {
-    await execAsync('npx patreon-dl --version');
+    await execAsync(`${PATREON_DL_COMMAND} --version`);
     return true;
   } catch {
     return false;
@@ -76,7 +78,7 @@ export async function downloadCreatorContent(
 
   try {
     // Run patreon-dl with session_id cookie format
-    const cmd = `npx patreon-dl -c "session_id=${cookie}" -o "${outDir}" "${creatorUrl}"`;
+    const cmd = `${PATREON_DL_COMMAND} -c "session_id=${cookie}" -o "${outDir}" "${creatorUrl}"`;
     await execAsync(cmd, { timeout: 300000 }); // 5 min timeout
 
     return { success: true };
