@@ -168,10 +168,7 @@ PATREON_CLIENT_ID=your_client_id
 PATREON_CLIENT_SECRET=your_client_secret
 PATREON_REDIRECT_URI=http://localhost:3000/patreon/callback
 
-# Optional - for GitHub Sponsors (future)
-GITHUB_TOKEN=your_github_token
-
-# Optional - for YouTube API (future)
+# Optional - for YouTube API
 YOUTUBE_API_KEY=your_youtube_key
 ```
 
