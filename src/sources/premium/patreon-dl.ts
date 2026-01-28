@@ -25,6 +25,7 @@ export interface DownloadedPost {
   publishDate: string;
   creator: string;
   files: DownloadedFile[];
+  dirName?: string; // Directory name (e.g., "148144034 - Title") for matching against directory-based lookups
 }
 
 export interface DownloadedFile {
@@ -89,7 +90,8 @@ export function isPostDownloaded(postId: string): boolean {
     if (!fs.existsSync(postsPath)) continue;
 
     const postDirs = fs.readdirSync(postsPath);
-    if (postDirs.some(dir => dir.includes(postId))) {
+    // Directory names are in format "POSTID - Title", so check for exact match at start
+    if (postDirs.some(dir => dir === postId || dir.startsWith(`${postId} -`) || dir.startsWith(`${postId}-`))) {
       return true;
     }
   }
@@ -116,7 +118,13 @@ export async function downloadPost(
   // Check if already downloaded
   if (isPostDownloaded(postId)) {
     const posts = scanDownloadedContent();
-    const post = posts.find(p => p.postId === postId || p.postId.includes(postId));
+    // Match by postId OR by directory name (handles case where metadata postId differs from directory name)
+    const post = posts.find(p => 
+      p.postId === postId || 
+      p.dirName === postId ||
+      p.dirName?.startsWith(`${postId} -`) ||
+      p.dirName?.startsWith(`${postId}-`)
+    );
     if (post) {
       return { success: true, files: post.files };
     }
@@ -134,7 +142,13 @@ export async function downloadPost(
 
     // Scan for downloaded files
     const posts = scanDownloadedContent();
-    const post = posts.find(p => p.postId === postId || p.postId.includes(postId));
+    // Match by postId OR by directory name (handles case where metadata postId differs from directory name)
+    const post = posts.find(p => 
+      p.postId === postId || 
+      p.dirName === postId ||
+      p.dirName?.startsWith(`${postId} -`) ||
+      p.dirName?.startsWith(`${postId}-`)
+    );
 
     if (post) {
       return { success: true, files: post.files };
@@ -299,6 +313,7 @@ function scanPost(postPath: string, creatorName: string): DownloadedPost | null 
     publishDate,
     creator: creatorName,
     files,
+    dirName: path.basename(postPath),
   };
 }
 
