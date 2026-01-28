@@ -12,6 +12,8 @@ If you want a **lightweight, portable Swift/SwiftUI best-practices package** wit
 - **swift-patterns-skill** = Static guidance (portable, no runtime)
 - **swift-patterns-mcp** = Dynamic tooling (search, retrieval, premium features)
 
+**Note:** This repo is an MCP server only. It does **not** ship an Agent Skill (`SKILL.md`) or skill references.
+
 ## What does this MCP provide?
 
 **swift-patterns-mcp** delivers runtime tools for accessing Swift/SwiftUI best practices:
