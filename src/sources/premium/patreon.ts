@@ -217,32 +217,13 @@ export class PatreonSource {
    * Convert downloaded post to patterns
    */
   private downloadedPostToPatterns(post: DownloadedPost): PatreonPattern[] {
-    const patterns: PatreonPattern[] = [];
-
-    for (const file of post.files) {
-      if (file.type === 'other') continue;
-
-      const content = file.content || '';
-      const text = `${file.filename} ${content}`;
-      const topics = detectTopics(text, patreonTopicKeywords);
-      const hasCode = file.type === 'swift' || hasCodeContent(content);
-      const relevanceScore = calculateRelevance(text, hasCode, patreonQualitySignals, PATREON_BASE_SCORE, PATREON_CODE_BONUS);
-
-      patterns.push({
-        id: `dl-${post.postId}-${file.filename}`,
-        title: `${post.title} - ${file.filename}`,
-        url: `file://${file.filepath}`,
-        publishDate: post.publishDate || new Date().toISOString(),
-        excerpt: content.substring(0, 300),
-        content,
-        creator: post.creator,
-        topics,
-        relevanceScore,
-        hasCode,
-      });
-    }
-
-    return patterns;
+    return this.filesToPatterns(post.files, {
+      id: `dl-${post.postId}`,
+      title: post.title,
+      publishDate: post.publishDate || new Date().toISOString(),
+      creator: post.creator,
+      excerptLength: 300,
+    });
   }
 
 
@@ -305,8 +286,17 @@ export class PatreonSource {
 
         if (result.success && result.files && result.files.length > 0) {
           // Create patterns from downloaded files
-          const filePatterns = this.filesToPatterns(result.files, pattern);
-          enriched.push(...filePatterns);
+          const filePatterns = this.filesToPatterns(result.files, {
+            id: pattern.id,
+            title: pattern.title,
+            publishDate: pattern.publishDate,
+            creator: pattern.creator,
+          });
+          if (filePatterns.length > 0) {
+            enriched.push(...filePatterns);
+          } else {
+            enriched.push(pattern);
+          }
         } else {
           // Keep original pattern if download failed or no files
           enriched.push(pattern);
@@ -323,8 +313,12 @@ export class PatreonSource {
   /**
    * Convert downloaded files to patterns
    */
-  private filesToPatterns(files: DownloadedFile[], sourcePattern: PatreonPattern): PatreonPattern[] {
+  private filesToPatterns(
+    files: DownloadedFile[],
+    source: Pick<PatreonPattern, 'id' | 'title' | 'publishDate' | 'creator'> & { excerptLength?: number }
+  ): PatreonPattern[] {
     const patterns: PatreonPattern[] = [];
+    const excerptLength = source.excerptLength ?? 500;
 
     for (const file of files) {
       if (file.type === 'other') continue;
@@ -336,22 +330,17 @@ export class PatreonSource {
       const relevanceScore = calculateRelevance(text, hasCode, patreonQualitySignals, PATREON_BASE_SCORE, PATREON_CODE_BONUS);
 
       patterns.push({
-        id: `${sourcePattern.id}-${file.filename}`,
-        title: `${sourcePattern.title} - ${file.filename}`,
+        id: `${source.id}-${file.filename}`,
+        title: `${source.title} - ${file.filename}`,
         url: `file://${file.filepath}`,
-        publishDate: sourcePattern.publishDate,
-        excerpt: content.substring(0, 500),
+        publishDate: source.publishDate,
+        excerpt: content.substring(0, excerptLength),
         content,
-        creator: sourcePattern.creator,
+        creator: source.creator,
         topics,
         relevanceScore,
         hasCode,
       });
-    }
-
-    // If no code files found, return original pattern
-    if (patterns.length === 0) {
-      return [sourcePattern];
     }
 
     return patterns;
