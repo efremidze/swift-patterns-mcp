@@ -89,7 +89,8 @@ export function isPostDownloaded(postId: string): boolean {
     if (!fs.existsSync(postsPath)) continue;
 
     const postDirs = fs.readdirSync(postsPath);
-    if (postDirs.some(dir => dir.includes(postId))) {
+    // Directory names are in format "POSTID - Title", so check for exact match at start
+    if (postDirs.some(dir => dir === postId || dir.startsWith(`${postId} -`) || dir.startsWith(`${postId}-`))) {
       return true;
     }
   }
@@ -116,7 +117,7 @@ export async function downloadPost(
   // Check if already downloaded
   if (isPostDownloaded(postId)) {
     const posts = scanDownloadedContent();
-    const post = posts.find(p => p.postId === postId || p.postId.includes(postId));
+    const post = posts.find(p => p.postId === postId);
     if (post) {
       return { success: true, files: post.files };
     }
@@ -134,7 +135,7 @@ export async function downloadPost(
 
     // Scan for downloaded files
     const posts = scanDownloadedContent();
-    const post = posts.find(p => p.postId === postId || p.postId.includes(postId));
+    const post = posts.find(p => p.postId === postId);
 
     if (post) {
       return { success: true, files: post.files };
