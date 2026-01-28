@@ -2,7 +2,7 @@
 // Tests for shared normalization logic
 
 import { describe, it, expect } from 'vitest';
-import { normalizeTokens, PRESERVE_TERMS, STOPWORDS } from './search-terms.js';
+import { normalizeTokens } from './search-terms.js';
 
 describe('normalizeTokens', () => {
   describe('basic normalization', () => {
