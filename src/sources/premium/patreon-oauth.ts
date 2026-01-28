@@ -6,7 +6,6 @@ import { URL } from 'url';
 import { join } from 'path';
 import { homedir } from 'os';
 import fs from 'fs/promises';
-import keytar from 'keytar';
 import { fetch } from '../../utils/fetch.js';
 
 const SERVICE_NAME = 'swift-patterns-mcp';
@@ -14,6 +13,16 @@ const ACCOUNT_NAME = 'patreon-tokens';
 const CALLBACK_PORT = 9876;
 const PATREON_AUTH_URL = 'https://www.patreon.com/oauth2/authorize';
 const PATREON_TOKEN_URL = 'https://www.patreon.com/api/oauth2/token';
+
+// Lazy-load keytar to handle missing system library gracefully
+async function getKeytar(): Promise<any> {
+  try {
+    return await import('keytar').then(m => m.default);
+  } catch (e) {
+    // keytar not available (libsecret not installed on Linux, etc.)
+    return null;
+  }
+}
 
 // Scopes explained:
 // - identity: Basic user info
@@ -41,12 +50,22 @@ export interface OAuthResult {
 }
 
 export async function saveTokens(tokens: PatreonTokens): Promise<void> {
+  const keytar = await getKeytar();
+  if (!keytar) {
+    // Keytar not available, fall back to no-op (tokens won't persist)
+    return;
+  }
   const encrypted = JSON.stringify(tokens);
   await keytar.setPassword(SERVICE_NAME, ACCOUNT_NAME, encrypted);
 }
 
 export async function loadTokens(): Promise<PatreonTokens | null> {
   try {
+    const keytar = await getKeytar();
+    if (!keytar) {
+      // Keytar not available, no tokens can be loaded
+      return null;
+    }
     const encrypted = await keytar.getPassword(SERVICE_NAME, ACCOUNT_NAME);
     if (!encrypted) return null;
     return JSON.parse(encrypted) as PatreonTokens;
@@ -56,6 +75,11 @@ export async function loadTokens(): Promise<PatreonTokens | null> {
 }
 
 export async function clearTokens(): Promise<void> {
+  const keytar = await getKeytar();
+  if (!keytar) {
+    // Keytar not available, nothing to clear
+    return;
+  }
   await keytar.deletePassword(SERVICE_NAME, ACCOUNT_NAME);
 }
 
@@ -256,8 +280,11 @@ export async function getValidAccessToken(
  */
 export async function clearPatreonAuth(): Promise<void> {
   // Clear from keytar
-  await keytar.deletePassword(SERVICE_NAME, "patreon")
-  await keytar.deletePassword(SERVICE_NAME, ACCOUNT_NAME)
+  const keytar = await getKeytar();
+  if (keytar) {
+    await keytar.deletePassword(SERVICE_NAME, "patreon")
+    await keytar.deletePassword(SERVICE_NAME, ACCOUNT_NAME)
+  }
   
   // Clear legacy tokens.json file
   const tokensPath = join(homedir(), ".swift-patterns-mcp", "tokens.json")
