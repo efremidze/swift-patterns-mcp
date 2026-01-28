@@ -387,10 +387,3 @@ function extractZipContents(zipPath: string): DownloadedFile[] {
 
   return files;
 }
-
-/**
- * Get download directory path
- */
-export function getContentDir(): string {
-  return getPatreonContentDir();
-}
