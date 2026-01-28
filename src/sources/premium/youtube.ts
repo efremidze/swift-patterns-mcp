@@ -28,6 +28,54 @@ function extractCodeLinks(text: string): string[] {
   return matches || [];
 }
 
+function toVideo(id: string, snippet: {
+  title: string;
+  description: string;
+  publishedAt: string;
+  channelId: string;
+  channelTitle: string;
+  tags?: string[];
+}): Video {
+  return {
+    id,
+    title: snippet.title,
+    description: snippet.description,
+    publishedAt: snippet.publishedAt,
+    channelId: snippet.channelId,
+    channelTitle: snippet.channelTitle,
+    tags: snippet.tags,
+    patreonLink: extractPatreonLink(snippet.description),
+    codeLinks: extractCodeLinks(snippet.description),
+  };
+}
+
+function mapSearchItems(items: Array<{
+  id: { videoId: string };
+  snippet: {
+    title: string;
+    description: string;
+    publishedAt: string;
+    channelId: string;
+    channelTitle: string;
+  };
+}>): Video[] {
+  return items.map(item => toVideo(item.id.videoId, item.snippet));
+}
+
+function mapVideoItems(items: Array<{
+  id: string;
+  snippet: {
+    title: string;
+    description: string;
+    publishedAt: string;
+    channelId: string;
+    channelTitle: string;
+    tags?: string[];
+  };
+}>): Video[] {
+  return items.map(item => toVideo(item.id, item.snippet));
+}
+
 export async function getChannelVideos(
   channelId: string,
   maxResults = 50
@@ -67,16 +115,7 @@ export async function getChannelVideos(
 
     if (!videosRes.ok) {
       // Fallback to search results
-      return searchData.items.map(i => ({
-        id: i.id.videoId,
-        title: i.snippet.title,
-        description: i.snippet.description,
-        publishedAt: i.snippet.publishedAt,
-        channelId: i.snippet.channelId,
-        channelTitle: i.snippet.channelTitle,
-        patreonLink: extractPatreonLink(i.snippet.description),
-        codeLinks: extractCodeLinks(i.snippet.description),
-      }));
+      return mapSearchItems(searchData.items);
     }
 
     const videosData = await videosRes.json() as {
@@ -93,17 +132,7 @@ export async function getChannelVideos(
       }>;
     };
 
-    return videosData.items.map(i => ({
-      id: i.id,
-      title: i.snippet.title,
-      description: i.snippet.description,
-      publishedAt: i.snippet.publishedAt,
-      channelId: i.snippet.channelId,
-      channelTitle: i.snippet.channelTitle,
-      tags: i.snippet.tags,
-      patreonLink: extractPatreonLink(i.snippet.description),
-      codeLinks: extractCodeLinks(i.snippet.description),
-    }));
+    return mapVideoItems(videosData.items);
   } catch (error) {
     logError('YouTube', error, { channelId });
     return [];
@@ -149,16 +178,7 @@ export async function searchVideos(
 
     if (!videosRes.ok) {
       // Fallback to search results (truncated descriptions)
-      return searchData.items.map(i => ({
-        id: i.id.videoId,
-        title: i.snippet.title,
-        description: i.snippet.description,
-        publishedAt: i.snippet.publishedAt,
-        channelId: i.snippet.channelId,
-        channelTitle: i.snippet.channelTitle,
-        patreonLink: extractPatreonLink(i.snippet.description),
-        codeLinks: extractCodeLinks(i.snippet.description),
-      }));
+      return mapSearchItems(searchData.items);
     }
 
     const videosData = await videosRes.json() as {
@@ -175,17 +195,7 @@ export async function searchVideos(
       }>;
     };
 
-    return videosData.items.map(i => ({
-      id: i.id,
-      title: i.snippet.title,
-      description: i.snippet.description,
-      publishedAt: i.snippet.publishedAt,
-      channelId: i.snippet.channelId,
-      channelTitle: i.snippet.channelTitle,
-      tags: i.snippet.tags,
-      patreonLink: extractPatreonLink(i.snippet.description),
-      codeLinks: extractCodeLinks(i.snippet.description),
-    }));
+    return mapVideoItems(videosData.items);
   } catch {
     return [];
   }
