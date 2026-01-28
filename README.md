@@ -81,7 +81,7 @@ npm install -g swift-patterns-mcp
 
 #### Cursor
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=swift-patterns-mcp&config=eyJjb21tYW5kIjoibnB4IC15IHN3aWZ0LXBhdHRlcm5zLW1jcEBsYXRlc3QifQ%3D%3D)
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=swift-patterns&config=eyJjb21tYW5kIjoibnB4IC15IHN3aWZ0LXBhdHRlcm5zLW1jcEBsYXRlc3QifQ%3D%3D)
 
 Or manually add to **Cursor Settings** → **Tools** → **MCP Servers**:
 
@@ -89,7 +89,7 @@ Or manually add to **Cursor Settings** → **Tools** → **MCP Servers**:
 ```json
 {
   "mcpServers": {
-    "swift-patterns-mcp": {
+    "swift-patterns": {
       "command": "npx",
       "args": ["-y", "swift-patterns-mcp@latest"]
     }
@@ -104,7 +104,7 @@ Alternatively, add to `~/.cursor/mcp.json`. See [Cursor documentation](https://d
 Run in your terminal:
 
 ```bash
-claude mcp add swift-patterns-mcp -- npx -y swift-patterns-mcp@latest
+claude mcp add swift-patterns -- npx -y swift-patterns-mcp@latest
 ```
 
 Or manually add to `.mcp.json`:
@@ -112,7 +112,7 @@ Or manually add to `.mcp.json`:
 ```json
 {
   "mcpServers": {
-    "swift-patterns-mcp": {
+    "swift-patterns": {
       "command": "npx",
       "args": ["-y", "swift-patterns-mcp@latest"]
     }
@@ -129,7 +129,7 @@ Add to `.windsurf/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "swift-patterns-mcp": {
+    "swift-patterns": {
       "command": "npx",
       "args": ["-y", "swift-patterns-mcp@latest"]
     }
@@ -147,7 +147,7 @@ Add to `.vscode/mcp.json`:
 {
   "mcp": {
     "servers": {
-      "swift-patterns-mcp": {
+      "swift-patterns": {
         "command": "npx",
         "args": ["-y", "swift-patterns-mcp@latest"]
       }
@@ -156,7 +156,7 @@ Add to `.vscode/mcp.json`:
 }
 ```
 
-Open `.vscode/mcp.json` and click **Start** next to the swift-patterns-mcp server. See [VS Code MCP documentation](https://code.visualstudio.com/docs/copilot/mcp) for details.
+Open `.vscode/mcp.json` and click **Start** next to the swift-patterns server. See [VS Code MCP documentation](https://code.visualstudio.com/docs/copilot/mcp) for details.
 
 ### Test It Out
 
@@ -276,7 +276,7 @@ Add to your MCP client config:
 ```json
 {
   "mcpServers": {
-    "swift-patterns-mcp": {
+    "swift-patterns": {
       "command": "npx",
       "args": ["-y", "swift-patterns-mcp@latest"],
       "env": {
