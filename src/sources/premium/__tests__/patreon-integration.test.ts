@@ -34,7 +34,10 @@ const hasPatreonCredentials = !!process.env.PATREON_CLIENT_ID && !!process.env.P
 const describeWithYouTube = hasYouTubeKey ? describe : describe.skip;
 const describeWithPatreon = hasPatreonCredentials ? describe : describe.skip;
 
-describe('Patreon Integration', () => {
+// Skip entire suite in CI/CD without Patreon credentials
+const describePatreonIntegration = hasPatreonCredentials ? describe : describe.skip;
+
+describePatreonIntegration('Patreon Integration', () => {
 
   // ============================================================================
   // 1. CONFIGURATION TESTS
