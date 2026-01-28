@@ -1,14 +1,14 @@
 {
-  "name": "",
+  "name": "swift-patterns-mcp",
   "owner": {
-    "name": ""
+    "name": "Lasha Efremidze"
   },
   "plugins": [
     {
-      "name": "",
+      "name": "swift-patterns-mcp",
       "source": "./",
-      "description": "",
-      "version": "1.0.0"
+      "description": "MCP server providing curated Swift/SwiftUI best practices from leading iOS developers, including patterns and real-world code examples from Swift by Sundell, SwiftLee, and other trusted sources.",
+      "version": "1.0.10"
     }
   ]
 }
