@@ -97,7 +97,6 @@ swift-mcp/
   - `patreon-oauth.ts` - OAuth 2.0 token management
   - `patreon-dl.ts` - Downloaded content scanning
   - `patreon-zip.ts` - ZIP file extraction for attachments
-  - `patreon-fetch.ts` - API fetching utilities
   - `youtube.ts` - YouTube Data API integration
 
 **src/utils/**
