@@ -78,7 +78,7 @@ export const AVAILABLE_SOURCES: ContentSource[] = [
     requiresAuth: true,
     status: 'not-configured',
     setupFunction: 'setupPatreon',
-    configKeys: ['PATREON_CLIENT_ID', 'PATREON_CLIENT_SECRET'],
+    configKeys: ['YOUTUBE_API_KEY', 'PATREON_CLIENT_ID', 'PATREON_CLIENT_SECRET'],
   },
 ];
 
