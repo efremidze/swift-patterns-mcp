@@ -71,6 +71,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@pyroscope/nodejs": "^0.4.8",
     "@types/adm-zip": "^0.5.7",
     "@types/natural": "^5.1.5",
     "@types/node": "^25.0.9",
