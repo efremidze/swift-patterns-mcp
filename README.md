@@ -261,7 +261,17 @@ Semantic recall provides AI-powered semantic search as a fallback when keyword s
 
 ### Environment Variables (Optional)
 
-For premium features, add to your MCP client config:
+#### Patreon
+
+All three variables are required for Patreon content fetching:
+
+| Variable | Description |
+|----------|-------------|
+| `PATREON_CLIENT_ID` | OAuth client ID from your Patreon app |
+| `PATREON_CLIENT_SECRET` | OAuth client secret from your Patreon app |
+| `YOUTUBE_API_KEY` | Enables searching YouTube videos from Patreon creators. [Get API key](https://console.cloud.google.com/apis/credentials) |
+
+Add to your MCP client config:
 
 ```json
 {
@@ -277,13 +287,6 @@ For premium features, add to your MCP client config:
     }
   }
 }
-```
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `PATREON_CLIENT_ID` | For Patreon | OAuth client ID from your Patreon app |
-| `PATREON_CLIENT_SECRET` | For Patreon | OAuth client secret from your Patreon app |
-| `YOUTUBE_API_KEY` | For YouTube | Enables searching YouTube videos from Patreon creators. [Get API key](https://console.cloud.google.com/apis/credentials) |
 
 ## 💡 Usage Examples
 
