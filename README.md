@@ -266,17 +266,24 @@ For premium features, add to your MCP client config:
 ```json
 {
   "mcpServers": {
-    "swift-patterns": {
+    "swift-patterns-mcp": {
       "command": "npx",
       "args": ["-y", "swift-patterns-mcp@latest"],
       "env": {
         "PATREON_CLIENT_ID": "your_client_id",
-        "PATREON_CLIENT_SECRET": "your_client_secret"
+        "PATREON_CLIENT_SECRET": "your_client_secret",
+        "YOUTUBE_API_KEY": "your_youtube_api_key"
       }
     }
   }
 }
 ```
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `PATREON_CLIENT_ID` | For Patreon | OAuth client ID from your Patreon app |
+| `PATREON_CLIENT_SECRET` | For Patreon | OAuth client secret from your Patreon app |
+| `YOUTUBE_API_KEY` | For YouTube | Enables searching YouTube videos from Patreon creators. [Get API key](https://console.cloud.google.com/apis/credentials) |
 
 ## 💡 Usage Examples
 
