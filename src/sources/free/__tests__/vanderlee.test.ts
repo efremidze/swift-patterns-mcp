@@ -1,11 +1,11 @@
 // src/sources/free/vanderlee.test.ts
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import VanderLeeSource from './vanderlee.js';
+import VanderLeeSource from '../vanderlee.js';
 
 const mockFetch = vi.hoisted(() => vi.fn());
 
-vi.mock('../../utils/fetch.js', () => ({
+vi.mock('../../../utils/fetch.js', () => ({
   fetch: (...args: unknown[]) => mockFetch(...args),
 }));
 
@@ -38,7 +38,7 @@ vi.mock('rss-parser', () => {
   };
 });
 
-vi.mock('../../utils/cache.js', () => ({
+vi.mock('../../../utils/cache.js', () => ({
   rssCache: {
     get: vi.fn(async () => undefined),
     set: vi.fn(async () => undefined),

@@ -1,10 +1,10 @@
 // src/utils/memvid-memory.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { MemvidMemoryManager } from './memvid-memory.js';
-import type { BasePattern } from '../sources/free/rssPatternSource.js';
+import { MemvidMemoryManager } from '../memvid-memory.js';
+import type { BasePattern } from '../../sources/free/rssPatternSource.js';
 import { unlinkSync } from 'fs';
 import { join } from 'path';
-import { getSwiftMcpDir } from './paths.js';
+import { getSwiftMcpDir } from '../paths.js';
 
 const TEST_MEMORY_FILE = 'test-memory.mv2';
 

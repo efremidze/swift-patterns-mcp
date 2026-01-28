@@ -1,10 +1,10 @@
 // src/sources/free/rssPatternSource.test.ts
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { RssPatternSource, BasePattern } from './rssPatternSource.js';
+import { RssPatternSource, BasePattern } from '../rssPatternSource.js';
 
 // Mock dependencies
-vi.mock('../../utils/cache.js', () => ({
+vi.mock('../../../utils/cache.js', () => ({
   rssCache: {
     get: vi.fn(async () => undefined),
     set: vi.fn(async () => undefined),

@@ -3,7 +3,7 @@
 // Skipped on CI due to native dependency issues (keytar)
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { MCPTestClient, isCI } from './test-client.js';
+import { MCPTestClient, isCI } from '../test-client.js';
 
 const describeIntegration = isCI ? describe.skip : describe;
 

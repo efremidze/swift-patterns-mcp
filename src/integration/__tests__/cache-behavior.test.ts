@@ -2,8 +2,8 @@
 // Integration tests for IntentCache behavior and performance metrics
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { intentCache } from '../utils/intent-cache.js';
-import type { IntentKey, StorableCachedSearchResult } from '../utils/intent-cache.js';
+import { intentCache } from '../../utils/intent-cache.js';
+import type { IntentKey, StorableCachedSearchResult } from '../../utils/intent-cache.js';
 
 // Test fixtures - known patterns with specific properties for testing
 const MOCK_PATTERNS = [

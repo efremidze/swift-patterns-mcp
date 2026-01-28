@@ -1,8 +1,8 @@
 // src/utils/semantic-recall.test.ts
 
 import { describe, it, expect, vi } from 'vitest';
-import { SemanticRecallIndex, DEFAULT_CONFIG } from './semantic-recall.js';
-import type { BasePattern } from '../sources/free/rssPatternSource.js';
+import { SemanticRecallIndex, DEFAULT_CONFIG } from '../semantic-recall.js';
+import type { BasePattern } from '../../sources/free/rssPatternSource.js';
 
 // Mock the transformer pipeline to avoid slow model loading in tests
 vi.mock('@xenova/transformers', () => ({

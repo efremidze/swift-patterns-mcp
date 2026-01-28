@@ -1,15 +1,15 @@
 // src/sources/free/pointfree.test.ts
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import PointFreeSource from './pointfree.js';
+import PointFreeSource from '../pointfree.js';
 
 const mockFetch = vi.hoisted(() => vi.fn());
 
-vi.mock('../../utils/fetch.js', () => ({
+vi.mock('../../../utils/fetch.js', () => ({
   fetch: (...args: unknown[]) => mockFetch(...args),
 }));
 
-vi.mock('../../utils/cache.js', () => ({
+vi.mock('../../../utils/cache.js', () => ({
   rssCache: {
     get: vi.fn(async () => undefined),
     set: vi.fn(async () => undefined),

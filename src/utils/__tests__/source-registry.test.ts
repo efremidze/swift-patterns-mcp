@@ -9,8 +9,8 @@ import {
   searchMultipleSources,
   prefetchAllSources,
   type FreeSourceName 
-} from './source-registry.js';
-import type { BasePattern } from '../sources/free/rssPatternSource.js';
+} from '../source-registry.js';
+import type { BasePattern } from '../../sources/free/rssPatternSource.js';
 
 // Mock pattern data for tests
 const mockPattern: BasePattern = {

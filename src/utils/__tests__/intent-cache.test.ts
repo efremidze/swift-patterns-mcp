@@ -1,7 +1,7 @@
 // src/utils/intent-cache.test.ts
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { IntentCache, IntentKey } from './intent-cache.js';
+import { IntentCache, IntentKey } from '../intent-cache.js';
 
 describe('IntentCache', () => {
   let cache: IntentCache;

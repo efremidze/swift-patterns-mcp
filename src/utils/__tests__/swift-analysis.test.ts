@@ -10,7 +10,7 @@ import {
   detectComplexity,
   truncateAtSentence,
   extractDescriptiveTitle
-} from './swift-analysis.js';
+} from '../swift-analysis.js';
 
 describe('detectTopics', () => {
   const keywords = {
