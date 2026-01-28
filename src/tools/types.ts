@@ -34,8 +34,6 @@ export interface CreatorInfo {
 export interface PatreonSourceInstance {
   isConfigured(): Promise<boolean>;
   isAvailable(): boolean;
-  getSubscribedCreators(): Promise<CreatorInfo[]>;
-  detectSwiftCreators(): Promise<CreatorInfo[]>;
   fetchPatterns(creatorId?: string): Promise<PatreonPattern[]>;
   searchPatterns(query: string): Promise<PatreonPattern[]>;
 }
