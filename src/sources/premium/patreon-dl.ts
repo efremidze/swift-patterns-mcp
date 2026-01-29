@@ -88,25 +88,17 @@ export function extractPostId(url: string): string | null {
 }
 
 /**
- * Check if a post is already downloaded
+ * Check if a post is already downloaded.
+ * Uses the cached scanDownloadedContent() to avoid redundant directory traversals.
  */
 export function isPostDownloaded(postId: string): boolean {
-  const contentDir = getPatreonContentDir();
-  if (!fs.existsSync(contentDir)) return false;
-
-  // Search through creator directories for this post
-  const creatorDirs = fs.readdirSync(contentDir);
-  for (const creatorDir of creatorDirs) {
-    const postsPath = path.join(contentDir, creatorDir, 'posts');
-    if (!fs.existsSync(postsPath)) continue;
-
-    const postDirs = fs.readdirSync(postsPath);
-    // Directory names are in format "POSTID - Title", so check for exact match at start
-    if (postDirs.some(dir => dir === postId || dir.startsWith(`${postId} -`) || dir.startsWith(`${postId}-`))) {
-      return true;
-    }
-  }
-  return false;
+  const posts = scanDownloadedContent();
+  return posts.some(p =>
+    p.postId === postId ||
+    p.dirName === postId ||
+    p.dirName?.startsWith(`${postId} -`) ||
+    p.dirName?.startsWith(`${postId}-`)
+  );
 }
 
 /**
