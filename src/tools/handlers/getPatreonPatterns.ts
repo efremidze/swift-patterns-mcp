@@ -2,6 +2,7 @@
 
 import type { ToolHandler, PatreonPattern } from '../types.js';
 import { createTextResponse } from '../../utils/response-helpers.js';
+import { getYouTubeStatus } from '../../sources/premium/youtube.js';
 
 function getMissingEnvVars(): string[] {
   const required = ['YOUTUBE_API_KEY', 'PATREON_CLIENT_ID', 'PATREON_CLIENT_SECRET'];
@@ -54,8 +55,15 @@ ${p.excerpt}...
 **[Read full post](${p.url})**
 `).join('\n---\n');
 
-  return createTextResponse(`# Patreon Patterns${topic ? `: ${topic}` : ''}
+  // Surface YouTube API issues if recent
+  const ytStatus = getYouTubeStatus();
+  const ytWarning = ytStatus.lastError && ytStatus.lastErrorTime &&
+    (Date.now() - ytStatus.lastErrorTime < 300_000)
+      ? `\n> **Note:** YouTube API error: ${ytStatus.lastError}. Some results may be missing.\n`
+      : '';
 
+  return createTextResponse(`# Patreon Patterns${topic ? `: ${topic}` : ''}
+${ytWarning}
 Found ${patterns.length} posts from your subscriptions:
 
 ${formatted}

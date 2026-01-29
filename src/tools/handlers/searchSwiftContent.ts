@@ -29,12 +29,27 @@ interface SemanticRecallOptions {
   requireCode: boolean;
 }
 
+const SEMANTIC_TIMEOUT_MS = 5_000;
+
+/**
+ * Attempt semantic recall with a timeout.
+ * Returns empty array if semantic recall takes too long or fails.
+ */
+async function trySemanticRecall(options: SemanticRecallOptions): Promise<BasePattern[]> {
+  return Promise.race([
+    trySemanticRecallInner(options),
+    new Promise<BasePattern[]>(resolve =>
+      setTimeout(() => resolve([]), SEMANTIC_TIMEOUT_MS)
+    ),
+  ]);
+}
+
 /**
  * Attempt semantic recall to supplement lexical results.
  * Returns additional patterns not in lexicalResults, or empty array on failure.
  * Handles all errors internally - never throws.
  */
-async function trySemanticRecall(options: SemanticRecallOptions): Promise<BasePattern[]> {
+async function trySemanticRecallInner(options: SemanticRecallOptions): Promise<BasePattern[]> {
   const { query, lexicalResults, config, sourceManager, requireCode } = options;
 
   try {

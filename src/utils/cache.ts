@@ -27,8 +27,8 @@ export class FileCache {
     this.cacheDir = getCacheDir(namespace);
     this.memoryCache = new QuickLRU({ maxSize: maxMemoryEntries });
     this.ensureCacheDir();
-    // Clean expired entries on startup
-    this.clearExpired();
+    // Clean expired entries on startup (fire-and-forget)
+    this.clearExpired().catch(() => {});
     // Start periodic cleanup
     this.startPeriodicCleanup();
   }
@@ -37,7 +37,7 @@ export class FileCache {
     // Avoid multiple intervals if constructor is called multiple times
     if (this.cleanupInterval) return;
     this.cleanupInterval = setInterval(() => {
-      this.clearExpired();
+      this.clearExpired().catch(() => {});
     }, CLEANUP_INTERVAL_MS);
     // Don't keep the process alive just for cleanup
     this.cleanupInterval.unref();
@@ -148,24 +148,19 @@ export class FileCache {
     return age > entry.ttl;
   }
 
-  clear(): void {
-    // Clear memory cache
+  async clear(): Promise<void> {
     this.memoryCache.clear();
-
-    // Clear file cache
     try {
-      if (fs.existsSync(this.cacheDir)) {
-        const files = fs.readdirSync(this.cacheDir);
-        for (const file of files) {
-          fs.unlinkSync(path.join(this.cacheDir, file));
-        }
-      }
+      const files = await fsp.readdir(this.cacheDir);
+      await Promise.allSettled(
+        files.map(file => fsp.unlink(path.join(this.cacheDir, file)))
+      );
     } catch {
       // Ignore errors during clear
     }
   }
 
-  clearExpired(): number {
+  async clearExpired(): Promise<number> {
     let cleared = 0;
 
     // Clear expired from memory
@@ -176,28 +171,31 @@ export class FileCache {
       }
     }
 
-    // Clear expired from files
+    // Clear expired from files (async, parallel)
     try {
-      if (fs.existsSync(this.cacheDir)) {
-        const files = fs.readdirSync(this.cacheDir);
-        for (const file of files) {
+      const files = await fsp.readdir(this.cacheDir);
+      const results = await Promise.allSettled(
+        files.map(async (file) => {
           const filePath = path.join(this.cacheDir, file);
           try {
-            const content = fs.readFileSync(filePath, 'utf-8');
+            const content = await fsp.readFile(filePath, 'utf-8');
             const entry = JSON.parse(content) as CacheEntry<unknown>;
             if (this.isExpired(entry)) {
-              fs.unlinkSync(filePath);
-              cleared++;
+              await fsp.unlink(filePath);
+              return 1;
             }
           } catch {
-            // Remove corrupted cache files
-            fs.unlinkSync(filePath);
-            cleared++;
+            await fsp.unlink(filePath).catch(() => {});
+            return 1;
           }
-        }
+          return 0;
+        })
+      );
+      for (const r of results) {
+        if (r.status === 'fulfilled') cleared += r.value;
       }
     } catch {
-      // Ignore errors during cleanup
+      // Directory may not exist
     }
 
     return cleared;

@@ -31,6 +31,35 @@ const SOURCE_CLASSES = {
  */
 const sourceInstanceCache = new Map<FreeSourceName, FreeSource>();
 
+/** In-flight dedup for fetchPatterns calls, keyed by source name */
+const fetchInflight = new Map<FreeSourceName, Promise<BasePattern[]>>();
+
+/** In-flight dedup for searchPatterns calls, keyed by "sourceName::query" */
+const searchInflight = new Map<string, Promise<BasePattern[]>>();
+
+function dedupFetch(name: FreeSourceName, source: FreeSource): Promise<BasePattern[]> {
+  const existing = fetchInflight.get(name);
+  if (existing) return existing;
+
+  const promise = source.fetchPatterns().finally(() => {
+    fetchInflight.delete(name);
+  });
+  fetchInflight.set(name, promise);
+  return promise;
+}
+
+function dedupSearch(name: FreeSourceName, source: FreeSource, query: string): Promise<BasePattern[]> {
+  const key = `${name}::${query}`;
+  const existing = searchInflight.get(key);
+  if (existing) return existing;
+
+  const promise = source.searchPatterns(query).finally(() => {
+    searchInflight.delete(key);
+  });
+  searchInflight.set(key, promise);
+  return promise;
+}
+
 /**
  * Get a source instance by name (singleton)
  */
@@ -91,9 +120,9 @@ export async function searchMultipleSources(
   query: string,
   sourceNames: FreeSourceName | 'all' | FreeSourceName[] = 'all'
 ): Promise<BasePattern[]> {
-  const sources = getSources(sourceNames);
+  const names = getSourceNames(sourceNames) as FreeSourceName[];
   const results = await Promise.allSettled(
-    sources.map(source => source.searchPatterns(query))
+    names.map(name => dedupSearch(name, getSource(name), query))
   );
 
   // Collect successful results, skip failed sources
@@ -108,12 +137,12 @@ export async function searchMultipleSources(
  * @returns Results of prefetch operations for all sources
  */
 export async function prefetchAllSources(): Promise<PromiseSettledResult<BasePattern[]>[]> {
-  const sources = getAllFreeSources();
-  const sourceNames = Object.keys(SOURCE_CLASSES);
+  const names = Object.keys(SOURCE_CLASSES) as FreeSourceName[];
 
   const results = await Promise.allSettled(
-    sources.map(source => source.fetchPatterns())
+    names.map(name => dedupFetch(name, getSource(name)))
   );
+  const sourceNames = names as string[];
 
   // Log summary of results
   const successful = results.filter(r => r.status === 'fulfilled').length;
@@ -139,12 +168,10 @@ export async function prefetchAllSources(): Promise<PromiseSettledResult<BasePat
 export async function fetchAllPatterns(
   sourceIds?: FreeSourceName[]
 ): Promise<BasePattern[]> {
-  const sources = sourceIds
-    ? sourceIds.map(id => getSource(id))
-    : getAllFreeSources();
+  const names = sourceIds ?? (Object.keys(SOURCE_CLASSES) as FreeSourceName[]);
 
   const results = await Promise.allSettled(
-    sources.map(source => source.fetchPatterns())
+    names.map(name => dedupFetch(name, getSource(name)))
   );
 
   return results

@@ -213,8 +213,8 @@ export class IntentCache {
   /**
    * Clear all cached intents
    */
-  clear(): void {
-    this.cache.clear();
+  async clear(): Promise<void> {
+    await this.cache.clear();
     this.hits = 0;
     this.misses = 0;
   }
