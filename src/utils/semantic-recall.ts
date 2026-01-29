@@ -61,7 +61,7 @@ export class SemanticRecallIndex {
     if (!this.pipeline) {
       const { pipeline, env } = await import('@xenova/transformers');
       env.allowLocalModels = false; // Use remote models only
-      this.pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+      this.pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { model_file_name: "model_uint8.onnx" });
     }
     return this.pipeline;
   }
