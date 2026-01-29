@@ -87,46 +87,46 @@ const MOCK_PATTERNS = {
 
 // Mock sources to return our test fixtures
 vi.mock('../../../sources/free/sundell.js', () => ({
-  default: vi.fn().mockImplementation(() => ({
-    searchPatterns: vi.fn().mockResolvedValue(MOCK_PATTERNS.sundell),
-  })),
+  default: class SundellSourceMock {
+    searchPatterns = vi.fn().mockResolvedValue(MOCK_PATTERNS.sundell);
+  },
 }));
 
 vi.mock('../../../sources/free/vanderlee.js', () => ({
-  default: vi.fn().mockImplementation(() => ({
-    searchPatterns: vi.fn().mockResolvedValue(MOCK_PATTERNS.vanderlee),
-  })),
+  default: class VanderLeeSourceMock {
+    searchPatterns = vi.fn().mockResolvedValue(MOCK_PATTERNS.vanderlee);
+  },
 }));
 
 vi.mock('../../../sources/free/nilcoalescing.js', () => ({
-  default: vi.fn().mockImplementation(() => ({
-    searchPatterns: vi.fn().mockResolvedValue(MOCK_PATTERNS.nilcoalescing),
-  })),
+  default: class NilCoalescingSourceMock {
+    searchPatterns = vi.fn().mockResolvedValue(MOCK_PATTERNS.nilcoalescing);
+  },
 }));
 
 vi.mock('../../../sources/free/pointfree.js', () => ({
-  default: vi.fn().mockImplementation(() => ({
-    searchPatterns: vi.fn().mockResolvedValue(MOCK_PATTERNS.pointfree),
-  })),
+  default: class PointFreeSourceMock {
+    searchPatterns = vi.fn().mockResolvedValue(MOCK_PATTERNS.pointfree);
+  },
 }));
 
 // Mock SourceManager to ensure semantic recall is disabled in tests
 vi.mock('../../../config/sources.js', () => ({
-  default: vi.fn().mockImplementation(() => ({
-    getSemanticRecallConfig: vi.fn().mockReturnValue({
+  default: class SourceManagerMock {
+    getSemanticRecallConfig = vi.fn().mockReturnValue({
       enabled: false,
       minLexicalScore: 0.35,
       minRelevanceScore: 70,
-    }),
-    isSemanticRecallEnabled: vi.fn().mockReturnValue(false),
-    getMemvidConfig: vi.fn().mockReturnValue({
+    });
+    isSemanticRecallEnabled = vi.fn().mockReturnValue(false);
+    getMemvidConfig = vi.fn().mockReturnValue({
       enabled: false,
       autoStore: false,
       useEmbeddings: false,
       embeddingModel: 'bge-small',
-    }),
-    isMemvidEnabled: vi.fn().mockReturnValue(false),
-  })),
+    });
+    isMemvidEnabled = vi.fn().mockReturnValue(false);
+  },
 }));
 
 // Create mock SourceManager

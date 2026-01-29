@@ -51,14 +51,14 @@ function createMockPatreonSource(opts: {
   const searchPatterns = vi.fn().mockResolvedValue(opts.searchResult ?? PATTERNS_WITH_CODE);
   const fetchPatterns = vi.fn().mockResolvedValue(opts.fetchResult ?? PATTERNS_WITH_CODE);
 
-  const MockClass = vi.fn().mockImplementation((): PatreonSourceInstance => ({
-    isConfigured: vi.fn().mockResolvedValue(true),
-    isAvailable: vi.fn().mockReturnValue(true),
-    searchPatterns,
-    fetchPatterns,
-  }));
+  class MockPatreonSource implements PatreonSourceInstance {
+    isConfigured = vi.fn().mockResolvedValue(true);
+    isAvailable = vi.fn().mockReturnValue(true);
+    searchPatterns = searchPatterns;
+    fetchPatterns = fetchPatterns;
+  }
 
-  return { MockClass, searchPatterns, fetchPatterns };
+  return { MockClass: MockPatreonSource, searchPatterns, fetchPatterns };
 }
 
 function createContext(patreonSource: unknown = null): ToolContext {
