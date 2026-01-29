@@ -90,3 +90,42 @@ Quick Wins (High Impact)
 4. Raise default enrichment concurrency to 3-5
 5. Make file cache I/O async — fs.promises instead of sync
 6. Add YouTube result caching — FileCache layer for search results (1h TTL)
+
+Long Term Wins
+
+Phase 1: Internal Optimizations
+
+1A. O(n) search index fingerprint (search.ts:206)
+- Replaced patterns.map(p => p.id).sort().join(',') (O(n log n) + string alloc) with an additive charCode hash
+(O(n), zero allocations)
+
+1B. Async cache cleanup (cache.ts, intent-cache.ts, test files)
+- clear() and clearExpired() now use fsp.readdir, fsp.readFile, fsp.unlink with Promise.allSettled for parallel file
+cleanup
+- Constructor and setInterval call them fire-and-forget
+- IntentCache.clear() is now async; all test callers updated with await
+
+Phase 2: Semantic Recall
+
+2A. Cold start elimination (semantic-recall.ts, searchSwiftContent.ts, index.ts)
+- Transformer pipeline lifted from instance field to module-scope shared promise — survives across
+SemanticRecallIndex instances and avoids re-download
+- Exported prefetchEmbeddingModel() called fire-and-forget on server startup when semantic recall is enabled
+- Added 5-second Promise.race timeout around trySemanticRecall() — semantic recall degrades gracefully instead of
+blocking responses
+
+2B. Double-fetch elimination — solved by 3B below (dedup means fetchAllPatterns reuses the in-flight promise)
+
+Phase 3: Observability & Deduplication
+
+3A. YouTube error surfacing (youtube.ts, getPatreonPatterns.ts)
+- Module-level YouTubeStatus tracker with recordError()/clearError() on all 6 failure paths
+- getYouTubeStatus() export lets handlers check recent failures
+- Patreon handler appends a warning note when YouTube API errored in the last 5 minutes
+
+3B. Request deduplication (source-registry.ts)
+- fetchInflight and searchInflight maps track in-flight promises per source
+- dedupFetch() and dedupSearch() return existing promise if a request for the same source+query is already running
+- searchMultipleSources(), fetchAllPatterns(), and prefetchAllSources() all use the dedup helpers
+- Also eliminates the double-fetch issue: when semantic recall calls fetchAllPatterns() while
+searchMultipleSources() is still running for the same sources, it joins the existing promises
