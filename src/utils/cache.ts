@@ -1,6 +1,7 @@
 // src/utils/cache.ts
 
 import fs from 'fs';
+import fsp from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
 import QuickLRU from 'quick-lru';
@@ -75,21 +76,19 @@ export class FileCache {
     // Check file cache
     const cachePath = this.getCachePath(key);
     try {
-      if (fs.existsSync(cachePath)) {
-        const content = fs.readFileSync(cachePath, 'utf-8');
-        const entry = JSON.parse(content) as CacheEntry<T>;
+      const content = await fsp.readFile(cachePath, 'utf-8');
+      const entry = JSON.parse(content) as CacheEntry<T>;
 
-        if (!this.isExpired(entry)) {
-          // Populate memory cache
-          this.memoryCache.set(key, entry);
-          return entry.data;
-        } else {
-          // Clean up expired entry
-          fs.unlinkSync(cachePath);
-        }
+      if (!this.isExpired(entry)) {
+        // Populate memory cache
+        this.memoryCache.set(key, entry);
+        return entry.data;
+      } else {
+        // Clean up expired entry
+        fsp.unlink(cachePath).catch(() => {});
       }
     } catch {
-      // Cache read failed, return null
+      // Cache read failed (file doesn't exist or is corrupted), return null
     }
 
     return null;
@@ -106,13 +105,11 @@ export class FileCache {
     // Set in memory cache
     this.memoryCache.set(key, entry);
 
-    // Set in file cache
+    // Set in file cache (async, non-blocking)
     const cachePath = this.getCachePath(key);
-    try {
-      fs.writeFileSync(cachePath, JSON.stringify(entry));
-    } catch {
+    fsp.writeFile(cachePath, JSON.stringify(entry)).catch(() => {
       // Cache write failed, continue without caching
-    }
+    });
   }
 
   async getOrFetch<T>(key: string, fetcher: () => Promise<T>, ttl: number = DEFAULT_TTL): Promise<T> {

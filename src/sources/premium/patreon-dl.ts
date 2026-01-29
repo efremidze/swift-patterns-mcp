@@ -14,6 +14,29 @@ const execAsync = promisify(exec);
 const PATREON_DL_PACKAGE = 'patreon-dl@3.6.0';
 const PATREON_DL_COMMAND = `npx --yes ${PATREON_DL_PACKAGE}`;
 
+// Request-scoped cache for scanDownloadedContent() to avoid repeated O(n) directory traversals
+let cachedScanResult: DownloadedPost[] | null = null;
+let cachedScanTimestamp = 0;
+const SCAN_CACHE_TTL_MS = 30_000; // 30 seconds
+
+function getCachedScan(): DownloadedPost[] | null {
+  if (cachedScanResult && (Date.now() - cachedScanTimestamp) < SCAN_CACHE_TTL_MS) {
+    return cachedScanResult;
+  }
+  cachedScanResult = null;
+  return null;
+}
+
+function setCachedScan(posts: DownloadedPost[]): void {
+  cachedScanResult = posts;
+  cachedScanTimestamp = Date.now();
+}
+
+/** Invalidate the scan cache (call after downloading new content) */
+export function invalidateScanCache(): void {
+  cachedScanResult = null;
+}
+
 function getCookiePath(): string {
   // Use .patreon-session in project root (created by extract-cookie.ts)
   return path.join(process.cwd(), '.patreon-session');
@@ -128,6 +151,9 @@ export async function downloadPost(
     const cmd = `${PATREON_DL_COMMAND} --no-prompt -c "session_id=${cookie}" -o "${outDir}" "${postUrl}"`;
     await execAsync(cmd, { timeout: 120000 }); // 2 min timeout for single post
 
+    // Invalidate scan cache after downloading new content
+    invalidateScanCache();
+
     // Scan for downloaded files
     const posts = scanDownloadedContent();
     // Match by postId OR by directory name (handles case where metadata postId differs from directory name)
@@ -179,6 +205,9 @@ export async function downloadCreatorContent(
  * Scan downloaded content and index files
  */
 export function scanDownloadedContent(): DownloadedPost[] {
+  const cached = getCachedScan();
+  if (cached) return cached;
+
   const downloadDir = getPatreonContentDir();
   const posts: DownloadedPost[] = [];
 
@@ -202,6 +231,7 @@ export function scanDownloadedContent(): DownloadedPost[] {
     }
   }
 
+  setCachedScan(posts);
   return posts;
 }
 
