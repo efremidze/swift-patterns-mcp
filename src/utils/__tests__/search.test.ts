@@ -1,7 +1,7 @@
 // src/utils/search.test.ts
 
 import { describe, it, expect } from 'vitest';
-import SearchIndex, { fuzzySearch, combineScores, suggestSimilar, SearchableDocument } from '../search.js';
+import { SearchIndex, fuzzySearch, combineScores, suggestSimilar, SearchableDocument } from '../search.js';
 
 // Test documents
 const testDocs: SearchableDocument[] = [

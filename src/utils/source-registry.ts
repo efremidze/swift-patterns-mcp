@@ -10,7 +10,7 @@ import PointFreeSource from '../sources/free/pointfree.js';
 
 export type FreeSourceName = 'sundell' | 'vanderlee' | 'nilcoalescing' | 'pointfree';
 
-export interface FreeSource {
+interface FreeSource {
   searchPatterns(query: string): Promise<BasePattern[]>;
   fetchPatterns(): Promise<BasePattern[]>;
 }

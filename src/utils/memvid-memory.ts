@@ -34,7 +34,7 @@ function enrichPatternWithSource(pattern: BasePattern, sourceName: string): Exte
 /**
  * Options for storing patterns in memvid
  */
-export interface MemvidStoreOptions {
+interface MemvidStoreOptions {
   enableEmbedding?: boolean;
   embeddingModel?: string;
   sourceName?: string; // Source identifier to tag patterns
@@ -43,7 +43,7 @@ export interface MemvidStoreOptions {
 /**
  * Options for searching memvid memory
  */
-export interface MemvidSearchOptions {
+interface MemvidSearchOptions {
   k?: number;
   mode?: 'lex' | 'sem' | 'auto';
   snippetChars?: number;
@@ -283,12 +283,3 @@ export function getMemvidMemory(): MemvidMemoryManager {
   return memoryManager;
 }
 
-/**
- * Close the memvid memory manager (for cleanup)
- */
-export async function closeMemvidMemory(): Promise<void> {
-  if (memoryManager) {
-    await memoryManager.close();
-    memoryManager = null;
-  }
-}

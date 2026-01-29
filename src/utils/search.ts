@@ -15,13 +15,13 @@ export interface SearchableDocument {
   topics: string[];
 }
 
-export interface SearchResult<T> {
+interface SearchResult<T> {
   item: T;
   score: number;
   matches: string[];
 }
 
-export interface SearchOptions {
+interface SearchOptions {
   fuzzy?: number;           // Fuzzy matching threshold (0-1, default 0.2)
   boost?: Record<string, number>;  // Field boosting
   minScore?: number;        // Minimum score threshold
@@ -237,4 +237,3 @@ export class CachedSearchIndex<T extends SearchableDocument> {
   }
 }
 
-export default SearchIndex;

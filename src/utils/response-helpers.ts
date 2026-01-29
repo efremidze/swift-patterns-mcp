@@ -20,7 +20,7 @@ export function createTextResponse(text: string): ToolResponse {
 /**
  * Create an error response
  */
-export function createErrorResponse(message: string): ToolResponse {
+function createErrorResponse(message: string): ToolResponse {
   return {
     content: [{
       type: "text",

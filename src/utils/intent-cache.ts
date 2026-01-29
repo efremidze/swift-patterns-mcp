@@ -23,7 +23,7 @@ export interface IntentKey {
 /**
  * Cached search result with all required fields
  */
-export interface CachedIntentResult {
+interface CachedIntentResult {
   patternIds: string[];           // Pattern IDs in order
   scores: Record<string, number>; // ID -> relevance score mapping
   sourceFingerprint: string;      // Hash of sources at cache time
@@ -235,4 +235,3 @@ export class IntentCache {
 // Shared instance for tool handlers
 export const intentCache = new IntentCache();
 
-export default IntentCache;

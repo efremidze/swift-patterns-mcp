@@ -1,7 +1,7 @@
 // src/config/creators.ts
 // Registry mapping creators to their Patreon and YouTube
 
-export interface Creator {
+interface Creator {
   id: string;
   name: string;
   patreonCampaignId: string;
@@ -28,14 +28,6 @@ export const CREATORS: Creator[] = [
     youtubeChannelId: 'UCvEdo8AyAUg_LqOr8rzTTbA',
   },
 ];
-
-export function getByPatreonId(id: string): Creator | undefined {
-  return CREATORS.find(c => c.patreonCampaignId === id);
-}
-
-export function getByYouTubeChannel(channelId: string): Creator | undefined {
-  return CREATORS.find(c => c.youtubeChannelId === channelId);
-}
 
 export function withYouTube(): Creator[] {
   return CREATORS.filter(c => c.youtubeChannelId);

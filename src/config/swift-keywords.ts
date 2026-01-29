@@ -8,7 +8,7 @@
 /**
  * Base topic keywords shared across all sources
  */
-export const BASE_TOPIC_KEYWORDS: Record<string, string[]> = {
+const BASE_TOPIC_KEYWORDS: Record<string, string[]> = {
   'swiftui': ['swiftui', 'view', 'state', 'binding'],
   'concurrency': ['async', 'await', 'actor', 'task'],
   'testing': ['test', 'xctest', 'mock'],
@@ -22,7 +22,7 @@ export const BASE_TOPIC_KEYWORDS: Record<string, string[]> = {
 /**
  * Base quality signals shared across all sources
  */
-export const BASE_QUALITY_SIGNALS: Record<string, number> = {
+const BASE_QUALITY_SIGNALS: Record<string, number> = {
   // Instructional content
   'how to': 5,
   'step by step': 5,
@@ -51,7 +51,7 @@ export const BASE_QUALITY_SIGNALS: Record<string, number> = {
 /**
  * Merge keyword sets, with specific keywords overriding base keywords
  */
-export function mergeKeywords(
+function mergeKeywords(
   base: Record<string, string[]>,
   specific: Record<string, string[]>
 ): Record<string, string[]> {
@@ -72,7 +72,7 @@ export function mergeKeywords(
 /**
  * Merge quality signals, with specific signals overriding base signals
  */
-export function mergeQualitySignals(
+function mergeQualitySignals(
   base: Record<string, number>,
   specific: Record<string, number>
 ): Record<string, number> {
