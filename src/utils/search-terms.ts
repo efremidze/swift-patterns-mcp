@@ -2,7 +2,7 @@
 // Shared search-related term lists
 
 // Common stopwords to filter out
-export const STOPWORDS = new Set([
+const STOPWORDS = new Set([
   'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
   'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
   'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
@@ -16,7 +16,7 @@ export const STOPWORDS = new Set([
 
 // Swift-specific terms that shouldn't be stemmed (preserve technical accuracy)
 // NOTE: If you add hyphenated terms here (e.g. "objective-c"), the tokenizer will now respect them.
-export const PRESERVE_TERMS = new Set([
+const PRESERVE_TERMS = new Set([
   'swift', 'swiftui', 'uikit', 'combine', 'async', 'await', 'actor',
   'struct', 'class', 'enum', 'protocol', 'extension', 'func', 'var', 'let',
   'mvvm', 'viper', 'mvc', 'tca', 'xctest', 'xcode', 'ios', 'macos',

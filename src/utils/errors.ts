@@ -7,7 +7,7 @@ import logger from './logger.js';
 /**
  * Type guard to check if a value is an Error instance.
  */
-export function isError(value: unknown): value is Error {
+function isError(value: unknown): value is Error {
   return value instanceof Error;
 }
 

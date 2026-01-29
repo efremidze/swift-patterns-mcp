@@ -11,7 +11,7 @@ import {
   extractDescriptiveTitle
 } from './swift-analysis.js';
 
-export interface FormatOptions {
+interface FormatOptions {
   maxResults?: number;
   includeQuality?: boolean;
   includeTopics?: boolean;
@@ -56,7 +56,7 @@ export function detectCodeIntent(args: any, query: string): boolean {
 /**
  * Format a single pattern as markdown
  */
-export function formatPattern(pattern: BasePattern, options: FormatOptions = {}): string {
+function formatPattern(pattern: BasePattern, options: FormatOptions = {}): string {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const sourceId = pattern.id.split('-')[0];
 
@@ -113,7 +113,7 @@ export function formatPattern(pattern: BasePattern, options: FormatOptions = {})
 /**
  * Format multiple patterns as a markdown document
  */
-export function formatPatterns(
+function formatPatterns(
   patterns: BasePattern[],
   title: string,
   options: FormatOptions = {}
