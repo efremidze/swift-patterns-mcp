@@ -105,11 +105,13 @@ export class FileCache {
     // Set in memory cache
     this.memoryCache.set(key, entry);
 
-    // Set in file cache (async, non-blocking)
+    // Set in file cache (async I/O, non-blocking to event loop)
     const cachePath = this.getCachePath(key);
-    fsp.writeFile(cachePath, JSON.stringify(entry)).catch(() => {
+    try {
+      await fsp.writeFile(cachePath, JSON.stringify(entry));
+    } catch {
       // Cache write failed, continue without caching
-    });
+    }
   }
 
   async getOrFetch<T>(key: string, fetcher: () => Promise<T>, ttl: number = DEFAULT_TTL): Promise<T> {
