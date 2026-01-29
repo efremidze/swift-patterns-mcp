@@ -4,6 +4,7 @@
 import { createHash } from 'crypto';
 import { FileCache } from './cache.js';
 import { normalizeTokens } from './search-terms.js';
+import { InflightDeduper } from './inflight-dedup.js';
 
 // 12 hours in seconds (longer than RSS cache, shorter than article cache)
 const DEFAULT_INTENT_TTL = 43200;
@@ -54,7 +55,7 @@ export interface StorableCachedSearchResult {
  */
 export class IntentCache {
   private cache: FileCache;
-  private pendingFetches: Map<string, Promise<unknown>> = new Map();
+  private pendingFetches = new InflightDeduper<string, CachedIntentResult>();
 
   // Simple metrics
   private hits = 0;
@@ -181,33 +182,19 @@ export class IntentCache {
     // Build key for deduplication
     const key = this.buildCacheKey(intent);
 
-    // Check if fetch already in progress (stampede prevention)
-    const pending = this.pendingFetches.get(key);
-    if (pending) {
-      return pending as Promise<CachedIntentResult>;
-    }
+    return this.pendingFetches.run(key, async () => {
+      const result = await fetcher();
+      const fingerprint = this.getSourceFingerprint(intent.sources);
 
-    // Start fetch and track it
-    const fetchPromise = (async () => {
-      try {
-        const result = await fetcher();
-        const fingerprint = this.getSourceFingerprint(intent.sources);
+      const entry: CachedIntentResult = {
+        ...result,
+        sourceFingerprint: fingerprint,
+        timestamp: Date.now(),
+      };
 
-        const entry: CachedIntentResult = {
-          ...result,
-          sourceFingerprint: fingerprint,
-          timestamp: Date.now(),
-        };
-
-        await this.cache.set(key, entry, ttl);
-        return entry;
-      } finally {
-        this.pendingFetches.delete(key);
-      }
-    })();
-
-    this.pendingFetches.set(key, fetchPromise);
-    return fetchPromise;
+      await this.cache.set(key, entry, ttl);
+      return entry;
+    });
   }
 
   /**

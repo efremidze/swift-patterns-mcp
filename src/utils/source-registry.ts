@@ -7,6 +7,7 @@ import SundellSource from '../sources/free/sundell.js';
 import VanderLeeSource from '../sources/free/vanderlee.js';
 import NilCoalescingSource from '../sources/free/nilcoalescing.js';
 import PointFreeSource from '../sources/free/pointfree.js';
+import { InflightDeduper } from './inflight-dedup.js';
 
 export type FreeSourceName = 'sundell' | 'vanderlee' | 'nilcoalescing' | 'pointfree';
 
@@ -32,32 +33,18 @@ const SOURCE_CLASSES = {
 const sourceInstanceCache = new Map<FreeSourceName, FreeSource>();
 
 /** In-flight dedup for fetchPatterns calls, keyed by source name */
-const fetchInflight = new Map<FreeSourceName, Promise<BasePattern[]>>();
+const fetchInflight = new InflightDeduper<FreeSourceName, BasePattern[]>();
 
 /** In-flight dedup for searchPatterns calls, keyed by "sourceName::query" */
-const searchInflight = new Map<string, Promise<BasePattern[]>>();
+const searchInflight = new InflightDeduper<string, BasePattern[]>();
 
 function dedupFetch(name: FreeSourceName, source: FreeSource): Promise<BasePattern[]> {
-  const existing = fetchInflight.get(name);
-  if (existing) return existing;
-
-  const promise = source.fetchPatterns().finally(() => {
-    fetchInflight.delete(name);
-  });
-  fetchInflight.set(name, promise);
-  return promise;
+  return fetchInflight.run(name, () => source.fetchPatterns());
 }
 
 function dedupSearch(name: FreeSourceName, source: FreeSource, query: string): Promise<BasePattern[]> {
   const key = `${name}::${query}`;
-  const existing = searchInflight.get(key);
-  if (existing) return existing;
-
-  const promise = source.searchPatterns(query).finally(() => {
-    searchInflight.delete(key);
-  });
-  searchInflight.set(key, promise);
-  return promise;
+  return searchInflight.run(key, () => source.searchPatterns(query));
 }
 
 /**
