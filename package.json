@@ -51,34 +51,34 @@
     "url": "https://github.com/efremidze/swift-patterns-mcp/issues"
   },
   "dependencies": {
-    "@memvid/sdk": "^2.0.152",
-    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@memvid/sdk": "^2.0.153",
+    "@modelcontextprotocol/sdk": "^1.25.3",
     "@xenova/transformers": "^2.17.2",
-    "adm-zip": "^0.5.10",
+    "adm-zip": "^0.5.16",
     "dotenv": "^17.2.3",
     "keytar": "^7.9.0",
     "linkedom": "^0.18.12",
     "minisearch": "^7.2.0",
     "ml-distance": "^4.0.1",
     "natural": "^8.1.0",
-    "pino": "^9.5.0",
-    "playwright": "^1.57.0",
+    "pino": "^10.3.0",
+    "playwright": "^1.58.0",
     "quick-lru": "^7.3.0",
     "rss-parser": "^3.13.0",
     "string-strip-html": "^13.5.3",
-    "undici": "^7.18.2",
+    "undici": "^7.19.2",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@eslint/js": "^9.17.0",
+    "@eslint/js": "^9.39.2",
     "@types/adm-zip": "^0.5.7",
-    "@types/natural": "^5.1.5",
-    "@types/node": "^25.0.9",
-    "eslint": "^9.17.0",
-    "globals": "^15.14.0",
-    "typescript": "^5.7.2",
-    "typescript-eslint": "^8.19.1",
-    "vitest": "^3.2.4"
+    "@types/natural": "^6.0.1",
+    "@types/node": "^25.1.0",
+    "eslint": "^9.39.2",
+    "globals": "^17.2.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0",
+    "vitest": "^4.0.18"
   },
   "engines": {
     "node": ">=18.0.0"
