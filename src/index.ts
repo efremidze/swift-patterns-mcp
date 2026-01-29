@@ -16,6 +16,7 @@ import SourceManager from "./config/sources.js";
 import { getHandler, ToolContext, PatreonSourceConstructor } from './tools/index.js';
 import { createErrorResponseFromError } from './utils/response-helpers.js';
 import { prefetchAllSources } from './utils/source-registry.js';
+import { prefetchEmbeddingModel } from './utils/semantic-recall.js';
 import logger from './utils/logger.js';
 
 // Premium sources (imported conditionally)
@@ -195,6 +196,12 @@ async function main() {
     }).catch((error) => {
       logger.warn({ err: error }, "Failed to prefetch sources");
     });
+  }
+
+  // Prefetch semantic embedding model if semantic recall is enabled
+  const semanticConfig = sourceManager.getSemanticRecallConfig();
+  if (semanticConfig.enabled) {
+    prefetchEmbeddingModel();
   }
 }
 

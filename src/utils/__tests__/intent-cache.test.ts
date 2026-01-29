@@ -6,10 +6,10 @@ import { IntentCache, IntentKey } from '../intent-cache.js';
 describe('IntentCache', () => {
   let cache: IntentCache;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Use test-specific namespace to avoid cache pollution from build/ tests
     cache = new IntentCache(50, `test-${Date.now()}-${Math.random()}`);
-    cache.clear();
+    await cache.clear();
   });
 
   describe('normalizeQuery', () => {
@@ -350,7 +350,7 @@ describe('IntentCache', () => {
 
     it('should reset stats on clear', async () => {
       await cache.get(testIntent); // miss
-      cache.clear();
+      await cache.clear();
 
       const stats = cache.getStats();
       expect(stats.hits).toBe(0);

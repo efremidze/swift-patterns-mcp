@@ -211,17 +211,22 @@ export class PatreonSource {
   }
 
   async searchPatterns(query: string): Promise<PatreonPattern[]> {
-    const patterns: PatreonPattern[] = [];
+    // Search YouTube for all known creators in parallel
+    const creators = withYouTube();
+    const results = await Promise.allSettled(
+      creators.map(creator =>
+        searchVideos(query, creator.youtubeChannelId!, 25)
+          .then(videos => videos.map(video => this.videoToPattern(video, creator.name)))
+      )
+    );
 
-    // Search YouTube for all known creators with YouTube channels
-    for (const creator of withYouTube()) {
-      try {
-        const videos = await searchVideos(query, creator.youtubeChannelId!, 25);
-        for (const video of videos) {
-          patterns.push(this.videoToPattern(video, creator.name));
-        }
-      } catch (error) {
-        logError('Patreon', error, { creator: creator.name, query });
+    const patterns: PatreonPattern[] = [];
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      if (result.status === 'fulfilled') {
+        patterns.push(...result.value);
+      } else {
+        logError('Patreon', result.reason, { creator: creators[i].name, query });
       }
     }
 
@@ -234,7 +239,7 @@ export class PatreonSource {
    * Fetch actual code content from Patreon for patterns that have Patreon links
    */
   private async enrichPatternsWithContent(patterns: PatreonPattern[]): Promise<PatreonPattern[]> {
-    const concurrencyRaw = Number.parseInt(process.env.PATREON_ENRICH_CONCURRENCY || '1', 10);
+    const concurrencyRaw = Number.parseInt(process.env.PATREON_ENRICH_CONCURRENCY || '3', 10);
     const concurrency = Number.isFinite(concurrencyRaw) && concurrencyRaw > 0 ? concurrencyRaw : 1;
     const outputs: PatreonPattern[][] = new Array(patterns.length);
     let index = 0;

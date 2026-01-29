@@ -202,8 +202,14 @@ export class CachedSearchIndex<T extends SearchableDocument> {
       boost = { title: 2.5, topics: 1.8, content: 1 },
     } = options;
 
-    // Simple hash based on length and sorted IDs
-    const patternsHash = `${patterns.length}-${patterns.map(p => p.id).sort().join(',')}`;
+    // O(n) additive fingerprint — order-insensitive, no allocations
+    let hash = 0;
+    for (const p of patterns) {
+      for (let i = 0; i < p.id.length; i++) {
+        hash = (hash + p.id.charCodeAt(i) * (i + 1)) | 0;
+      }
+    }
+    const patternsHash = `${patterns.length}:${hash}`;
 
     // Rebuild index only if patterns changed
     if (!this.searchIndex || this.indexedPatternsHash !== patternsHash) {

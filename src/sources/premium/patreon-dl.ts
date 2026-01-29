@@ -14,6 +14,29 @@ const execAsync = promisify(exec);
 const PATREON_DL_PACKAGE = 'patreon-dl@3.6.0';
 const PATREON_DL_COMMAND = `npx --yes ${PATREON_DL_PACKAGE}`;
 
+// Request-scoped cache for scanDownloadedContent() to avoid repeated O(n) directory traversals
+let cachedScanResult: DownloadedPost[] | null = null;
+let cachedScanTimestamp = 0;
+const SCAN_CACHE_TTL_MS = 30_000; // 30 seconds
+
+function getCachedScan(): DownloadedPost[] | null {
+  if (cachedScanResult && (Date.now() - cachedScanTimestamp) < SCAN_CACHE_TTL_MS) {
+    return cachedScanResult;
+  }
+  cachedScanResult = null;
+  return null;
+}
+
+function setCachedScan(posts: DownloadedPost[]): void {
+  cachedScanResult = posts;
+  cachedScanTimestamp = Date.now();
+}
+
+/** Invalidate the scan cache (call after downloading new content) */
+export function invalidateScanCache(): void {
+  cachedScanResult = null;
+}
+
 function getCookiePath(): string {
   // Use .patreon-session in project root (created by extract-cookie.ts)
   return path.join(process.cwd(), '.patreon-session');
@@ -65,25 +88,17 @@ export function extractPostId(url: string): string | null {
 }
 
 /**
- * Check if a post is already downloaded
+ * Check if a post is already downloaded.
+ * Uses the cached scanDownloadedContent() to avoid redundant directory traversals.
  */
 export function isPostDownloaded(postId: string): boolean {
-  const contentDir = getPatreonContentDir();
-  if (!fs.existsSync(contentDir)) return false;
-
-  // Search through creator directories for this post
-  const creatorDirs = fs.readdirSync(contentDir);
-  for (const creatorDir of creatorDirs) {
-    const postsPath = path.join(contentDir, creatorDir, 'posts');
-    if (!fs.existsSync(postsPath)) continue;
-
-    const postDirs = fs.readdirSync(postsPath);
-    // Directory names are in format "POSTID - Title", so check for exact match at start
-    if (postDirs.some(dir => dir === postId || dir.startsWith(`${postId} -`) || dir.startsWith(`${postId}-`))) {
-      return true;
-    }
-  }
-  return false;
+  const posts = scanDownloadedContent();
+  return posts.some(p =>
+    p.postId === postId ||
+    p.dirName === postId ||
+    p.dirName?.startsWith(`${postId} -`) ||
+    p.dirName?.startsWith(`${postId}-`)
+  );
 }
 
 /**
@@ -127,6 +142,9 @@ export async function downloadPost(
     // Run patreon-dl for this specific post (--no-prompt for non-interactive)
     const cmd = `${PATREON_DL_COMMAND} --no-prompt -c "session_id=${cookie}" -o "${outDir}" "${postUrl}"`;
     await execAsync(cmd, { timeout: 120000 }); // 2 min timeout for single post
+
+    // Invalidate scan cache after downloading new content
+    invalidateScanCache();
 
     // Scan for downloaded files
     const posts = scanDownloadedContent();
@@ -179,6 +197,9 @@ export async function downloadCreatorContent(
  * Scan downloaded content and index files
  */
 export function scanDownloadedContent(): DownloadedPost[] {
+  const cached = getCachedScan();
+  if (cached) return cached;
+
   const downloadDir = getPatreonContentDir();
   const posts: DownloadedPost[] = [];
 
@@ -202,6 +223,7 @@ export function scanDownloadedContent(): DownloadedPost[] {
     }
   }
 
+  setCachedScan(posts);
   return posts;
 }
 

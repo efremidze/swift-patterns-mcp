@@ -17,6 +17,30 @@ export const DEFAULT_CONFIG: SemanticRecallConfig = {
   minRelevanceScore: 70,
 };
 
+// Module-scope shared pipeline (survives across SemanticRecallIndex instances)
+let sharedPipeline: any = null;
+let pipelinePromise: Promise<any> | null = null;
+
+async function getSharedPipeline(): Promise<any> {
+  if (sharedPipeline) return sharedPipeline;
+  if (!pipelinePromise) {
+    pipelinePromise = (async () => {
+      const { pipeline, env } = await import('@xenova/transformers');
+      env.allowLocalModels = false;
+      sharedPipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
+        model_file_name: 'model_uint8.onnx',
+      });
+      return sharedPipeline;
+    })();
+  }
+  return pipelinePromise;
+}
+
+/** Eagerly start loading the embedding model. Fire-and-forget, safe to call multiple times. */
+export function prefetchEmbeddingModel(): void {
+  getSharedPipeline().catch(() => {});
+}
+
 /**
  * Extract indexable content from pattern (title + excerpt only, not full content)
  */
@@ -46,7 +70,6 @@ interface IndexedPattern {
 export class SemanticRecallIndex {
   private indexedMap: Map<string, IndexedPattern> = new Map();
   private cache: FileCache;
-  private pipeline: any = null; // Lazy-loaded transformer pipeline
   private config: SemanticRecallConfig;
 
   constructor(config: SemanticRecallConfig = DEFAULT_CONFIG) {
@@ -55,22 +78,10 @@ export class SemanticRecallIndex {
   }
 
   /**
-   * Lazy-load the transformer pipeline
-   */
-  private async getEmbeddingPipeline() {
-    if (!this.pipeline) {
-      const { pipeline, env } = await import('@xenova/transformers');
-      env.allowLocalModels = false; // Use remote models only
-      this.pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-    }
-    return this.pipeline;
-  }
-
-  /**
-   * Generate embedding for text
+   * Generate embedding for text using the shared module-scope pipeline
    */
   private async embed(text: string): Promise<Float32Array> {
-    const pipe = await this.getEmbeddingPipeline();
+    const pipe = await getSharedPipeline();
     const output = await pipe(text, { pooling: 'mean', normalize: true });
     return output.data;
   }

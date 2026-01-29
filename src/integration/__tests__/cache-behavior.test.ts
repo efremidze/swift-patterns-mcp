@@ -32,9 +32,9 @@ const MOCK_PATTERNS = [
 ];
 
 describe('IntentCache - Cache Hit/Miss Behavior', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     // Clear cache before each test to isolate tests
-    intentCache.clear();
+    await intentCache.clear();
   });
 
   it('should cache miss on first call, cache hit on second identical call', async () => {
@@ -214,8 +214,8 @@ describe('IntentCache - Cache Hit/Miss Behavior', () => {
 });
 
 describe('IntentCache - Cache Metrics', () => {
-  beforeEach(() => {
-    intentCache.clear();
+  beforeEach(async () => {
+    await intentCache.clear();
   });
 
   it('should return 0/0 stats initially after clear', () => {
@@ -329,7 +329,7 @@ describe('IntentCache - Cache Metrics', () => {
     expect(stats.misses).toBe(1);
 
     // Clear cache
-    intentCache.clear();
+    await intentCache.clear();
 
     // Verify stats reset
     stats = intentCache.getStats();
@@ -381,8 +381,8 @@ describe('IntentCache - Cache Metrics', () => {
 });
 
 describe('IntentCache - Cross-Handler Cache Isolation', () => {
-  beforeEach(() => {
-    intentCache.clear();
+  beforeEach(async () => {
+    await intentCache.clear();
   });
 
   it('should use separate cache keys for different tools with same query', async () => {
@@ -458,8 +458,8 @@ describe('IntentCache - Cross-Handler Cache Isolation', () => {
 });
 
 describe('IntentCache - Stampede Prevention', () => {
-  beforeEach(() => {
-    intentCache.clear();
+  beforeEach(async () => {
+    await intentCache.clear();
   });
 
   it('should deduplicate concurrent identical requests', async () => {
