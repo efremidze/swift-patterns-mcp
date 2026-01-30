@@ -13,6 +13,16 @@ import logger from '../../utils/logger.js';
 const execFileAsync = promisify(execFile);
 const PATREON_DL_PACKAGE = 'patreon-dl@3.6.0';
 
+/**
+ * Validate cookie value format to prevent injection.
+ * Patreon session_id cookies are hex strings (typically 32-64 chars).
+ * We allow alphanumeric characters, hyphens, and underscores.
+ */
+function validateCookieValue(cookie: string): boolean {
+  // Must be non-empty, reasonable length, and only safe characters
+  return cookie.length > 0 && cookie.length <= 256 && /^[a-zA-Z0-9_-]+$/.test(cookie);
+}
+
 // Request-scoped cache for scanDownloadedContent() to avoid repeated O(n) directory traversals
 let cachedScanResult: DownloadedPost[] | null = null;
 let cachedScanTimestamp = 0;
@@ -68,9 +78,13 @@ export function isCookieConfigured(): boolean {
  * Save cookie for patreon-dl
  */
 export function saveCookie(cookie: string): void {
+  const trimmed = cookie.trim();
+  if (!validateCookieValue(trimmed)) {
+    throw new Error('Invalid cookie format. Cookie must contain only alphanumeric characters, hyphens, and underscores.');
+  }
   const cookiePath = getCookiePath();
   fs.mkdirSync(path.dirname(cookiePath), { recursive: true });
-  fs.writeFileSync(cookiePath, cookie);
+  fs.writeFileSync(cookiePath, trimmed);
 }
 
 /**
@@ -133,6 +147,11 @@ export async function downloadPost(
   }
 
   const cookie = fs.readFileSync(cookiePath, 'utf-8').trim();
+
+  if (!validateCookieValue(cookie)) {
+    return { success: false, error: 'Invalid cookie format. Cookie must contain only alphanumeric characters, hyphens, and underscores.' };
+  }
+
   const outDir = path.join(getPatreonContentDir(), creatorName);
 
   try {
@@ -179,6 +198,11 @@ export async function downloadCreatorContent(
   }
 
   const cookie = fs.readFileSync(cookiePath, 'utf-8').trim();
+
+  if (!validateCookieValue(cookie)) {
+    return { success: false, error: 'Invalid cookie format. Cookie must contain only alphanumeric characters, hyphens, and underscores.' };
+  }
+
   const outDir = path.join(getPatreonContentDir(), creatorName);
 
   try {
