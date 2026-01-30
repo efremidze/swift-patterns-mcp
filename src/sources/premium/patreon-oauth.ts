@@ -1,7 +1,7 @@
 // src/sources/premium/patreon-oauth.ts
 
 import http from 'http';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { URL } from 'url';
 import { join } from 'path';
 import { homedir } from 'os';
@@ -18,7 +18,7 @@ const PATREON_TOKEN_URL = 'https://www.patreon.com/api/oauth2/token';
 async function getKeytar(): Promise<any> {
   try {
     return await import('keytar').then(m => m.default);
-  } catch (e) {
+  } catch {
     // keytar not available (libsecret not installed on Linux, etc.)
     return null;
   }
@@ -233,10 +233,17 @@ export async function startOAuthFlow(
       console.log(`\nOpening browser for Patreon authorization...`);
       console.log(`If browser doesn't open, visit: ${authUrl.toString()}\n`);
 
-      // Open browser
-      const cmd = process.platform === 'darwin' ? 'open' :
-                  process.platform === 'win32' ? 'start' : 'xdg-open';
-      exec(`${cmd} "${authUrl.toString()}"`);
+      // Open browser (safe - no shell interpolation)
+      const url = authUrl.toString();
+      if (process.platform !== 'darwin') {
+        console.error('Patreon OAuth is only supported on macOS.');
+        return;
+      }
+      execFile('open', [url], (err) => {
+        if (err) {
+          console.error(`Failed to open browser: ${err.message}`);
+        }
+      });
     });
 
     // Timeout after 60 seconds

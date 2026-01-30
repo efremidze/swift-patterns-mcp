@@ -64,11 +64,16 @@ describe('AVAILABLE_SOURCES', () => {
 describe('SourceManager', () => {
   let tempConfigPath: string;
   let manager: SourceManager;
+  const savedEnv: Record<string, string | undefined> = {};
+  const patreonEnvKeys = ['PATREON_CLIENT_ID', 'PATREON_CLIENT_SECRET'];
 
   beforeEach(() => {
     // Create a temp config path for testing
     tempConfigPath = path.join(os.tmpdir(), `swift-patterns-mcp-test-${Date.now()}.json`);
     manager = new SourceManager(tempConfigPath);
+    patreonEnvKeys.forEach(key => {
+      savedEnv[key] = process.env[key];
+    });
   });
 
   afterEach(() => {
@@ -78,6 +83,13 @@ describe('SourceManager', () => {
     } catch {
       // Ignore if file doesn't exist
     }
+    patreonEnvKeys.forEach(key => {
+      if (savedEnv[key] !== undefined) {
+        process.env[key] = savedEnv[key];
+      } else {
+        delete process.env[key];
+      }
+    });
   });
 
   describe('getSource', () => {
@@ -171,6 +183,7 @@ describe('SourceManager', () => {
     });
 
     it('should throw for unconfigured premium source', () => {
+      patreonEnvKeys.forEach(key => { delete process.env[key]; });
       expect(() => manager.enableSource('patreon')).toThrow(/requires configuration/);
     });
   });
@@ -198,6 +211,7 @@ describe('SourceManager', () => {
     });
 
     it('should return false for unconfigured premium sources', () => {
+      patreonEnvKeys.forEach(key => { delete process.env[key]; });
       const configured = manager.isSourceConfigured('patreon');
 
       expect(configured).toBe(false);

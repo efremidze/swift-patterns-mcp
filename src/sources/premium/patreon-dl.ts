@@ -1,7 +1,7 @@
 // src/sources/premium/patreon-dl.ts
 // Wrapper for patreon-dl to download and index Patreon content
 
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
@@ -10,9 +10,18 @@ import { CREATORS } from '../../config/creators.js';
 import { getPatreonContentDir } from '../../utils/paths.js';
 import logger from '../../utils/logger.js';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const PATREON_DL_PACKAGE = 'patreon-dl@3.6.0';
-const PATREON_DL_COMMAND = `npx --yes ${PATREON_DL_PACKAGE}`;
+
+/**
+ * Validate cookie value format to prevent injection.
+ * Patreon session_id cookies are hex strings (typically 32-64 chars).
+ * We allow alphanumeric characters, hyphens, and underscores.
+ */
+function validateCookieValue(cookie: string): boolean {
+  // Must be non-empty, reasonable length, and only safe characters
+  return cookie.length > 0 && cookie.length <= 256 && /^[a-zA-Z0-9_-]+$/.test(cookie);
+}
 
 // Request-scoped cache for scanDownloadedContent() to avoid repeated O(n) directory traversals
 let cachedScanResult: DownloadedPost[] | null = null;
@@ -69,9 +78,13 @@ export function isCookieConfigured(): boolean {
  * Save cookie for patreon-dl
  */
 export function saveCookie(cookie: string): void {
+  const trimmed = cookie.trim();
+  if (!validateCookieValue(trimmed)) {
+    throw new Error('Invalid cookie format. Cookie must contain only alphanumeric characters, hyphens, and underscores.');
+  }
   const cookiePath = getCookiePath();
   fs.mkdirSync(path.dirname(cookiePath), { recursive: true });
-  fs.writeFileSync(cookiePath, cookie);
+  fs.writeFileSync(cookiePath, trimmed);
 }
 
 /**
@@ -134,14 +147,19 @@ export async function downloadPost(
   }
 
   const cookie = fs.readFileSync(cookiePath, 'utf-8').trim();
+
+  if (!validateCookieValue(cookie)) {
+    return { success: false, error: 'Invalid cookie format. Cookie must contain only alphanumeric characters, hyphens, and underscores.' };
+  }
+
   const outDir = path.join(getPatreonContentDir(), creatorName);
 
   try {
     logger.info({ postUrl, creatorName }, 'Downloading Patreon post');
 
-    // Run patreon-dl for this specific post (--no-prompt for non-interactive)
-    const cmd = `${PATREON_DL_COMMAND} --no-prompt -c "session_id=${cookie}" -o "${outDir}" "${postUrl}"`;
-    await execAsync(cmd, { timeout: 120000 }); // 2 min timeout for single post
+    // Run patreon-dl for this specific post (safe - no shell interpolation)
+    const args = ['--yes', PATREON_DL_PACKAGE, '--no-prompt', '-c', `session_id=${cookie}`, '-o', outDir, postUrl];
+    await execFileAsync('npx', args, { timeout: 120000 }); // 2 min timeout for single post
 
     // Invalidate scan cache after downloading new content
     invalidateScanCache();
@@ -180,12 +198,17 @@ export async function downloadCreatorContent(
   }
 
   const cookie = fs.readFileSync(cookiePath, 'utf-8').trim();
+
+  if (!validateCookieValue(cookie)) {
+    return { success: false, error: 'Invalid cookie format. Cookie must contain only alphanumeric characters, hyphens, and underscores.' };
+  }
+
   const outDir = path.join(getPatreonContentDir(), creatorName);
 
   try {
-    // Run patreon-dl with session_id cookie format (--no-prompt for non-interactive)
-    const cmd = `${PATREON_DL_COMMAND} --no-prompt -c "session_id=${cookie}" -o "${outDir}" "${creatorUrl}"`;
-    await execAsync(cmd, { timeout: 300000 }); // 5 min timeout
+    // Run patreon-dl with session_id cookie format (safe - no shell interpolation)
+    const args = ['--yes', PATREON_DL_PACKAGE, '--no-prompt', '-c', `session_id=${cookie}`, '-o', outDir, creatorUrl];
+    await execFileAsync('npx', args, { timeout: 300000 }); // 5 min timeout
 
     return { success: true };
   } catch (error) {

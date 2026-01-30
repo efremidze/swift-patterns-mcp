@@ -356,6 +356,80 @@ it('should return null after TTL expires', async () => {
 });
 ```
 
+## Manual Testing
+
+### Query Tester (`scripts/test-query.ts`)
+
+Interactive CLI for probing any MCP tool with any query. Starts the MCP server as a subprocess, calls tools via JSON-RPC, and prints results.
+
+```bash
+# Search all tools with a query
+npx tsx scripts/test-query.ts "Apple Books Hero Effect"
+
+# Target a specific tool
+npx tsx scripts/test-query.ts "SwiftUI navigation" --tool get_swift_pattern
+
+# Filter results
+npx tsx scripts/test-query.ts "async await" --code --min-quality 70 --source sundell
+
+# Patreon-only (via MCP)
+npx tsx scripts/test-query.ts "Hero Effect" --patreon
+
+# Bypass MCP, call PatreonSource directly (faster, shows raw patterns)
+npx tsx scripts/test-query.ts "LoopingScrollView" --direct --limit 10
+
+# Raw JSON output for debugging
+npx tsx scripts/test-query.ts "testing" --tool search_swift_content --json
+
+# List available tools (verifies Patreon auto-registration)
+npx tsx scripts/test-query.ts --tools
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--tool <name>` | Call a specific tool (`get_swift_pattern`, `search_swift_content`, `get_patreon_patterns`) |
+| `--code` | Only return results with code examples |
+| `--min-quality <n>` | Minimum quality score (default: 0) |
+| `--source <id>` | Specific free source (`sundell`, `vanderlee`, `nilcoalescing`, `pointfree`) |
+| `--patreon` | Query Patreon source only (via MCP tool) |
+| `--direct` | Bypass MCP server, call `PatreonSource` directly |
+| `--limit <n>` | Max results to display (default: 5) |
+| `--json` | Output raw JSON response |
+| `--tools` | Just list available tools |
+
+### Patreon E2E (`scripts/test-patreon-e2e.ts`)
+
+End-to-end verification of the Patreon premium source integration.
+
+```bash
+npm run test:patreon
+# or
+npx tsx scripts/test-patreon-e2e.ts
+```
+
+**Prerequisites:**
+- `YOUTUBE_API_KEY` env var (or in `.env`)
+- `PATREON_CLIENT_ID` env var
+- `PATREON_CLIENT_SECRET` env var
+- Downloaded content in `~/.swift-patterns-mcp/patreon-content/` (for offline tests)
+
+**What it tests:**
+1. Configuration — env vars, creators registry
+2. Local content scanning — downloaded post indexing, zip extraction
+3. YouTube discovery — channel video fetching, Patreon link extraction
+4. PatreonSource operations — `searchPatterns()`, `fetchPatterns()`
+5. End-to-end — full flow from query to Swift code
+
+### Patreon Integration Tests
+
+```bash
+npm test -- src/sources/premium/__tests__/patreon-integration.test.ts
+```
+
+Skipped on CI (`SKIP_PATREON_TESTS=1` or `CI=true`). Requires all Patreon env vars. Tests the same areas as the E2E script but within the Vitest framework with assertions.
+
 ---
 
-*Testing analysis: 2026-01-29*
+*Testing analysis: 2026-01-30*

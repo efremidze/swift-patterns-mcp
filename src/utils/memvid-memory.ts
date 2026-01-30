@@ -6,12 +6,13 @@ import { join, dirname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { getSwiftMcpDir } from './paths.js';
 import logger from './logger.js';
+import { hasCodeContent } from './swift-analysis.js';
 import type { BasePattern } from '../sources/free/rssPatternSource.js';
 
 const MEMORY_FILE = 'swift-patterns-memory.mv2';
 
 // Score scaling constant for converting memvid scores (0-1) to pattern scores (0-100)
-const SCORE_SCALE_FACTOR = 10;
+const SCORE_SCALE_FACTOR = 100;
 
 /**
  * Extended pattern with source and author for memvid storage
@@ -204,22 +205,24 @@ export class MemvidMemoryManager {
 
       // Convert memvid hits back to BasePattern format
       // Note: We use snippet as content since full text isn't returned
-      // hasCode detection: check for common code indicators in snippet
-      const codePatterns = /```|`\w+`|func |class |struct |let |var |import /;
-      
-      return results.hits.map(hit => ({
-        id: hit.uri?.split('/').pop() || '',
-        title: hit.title || '',
-        url: hit.uri || '',
-        publishDate: hit.created_at || '',
-        excerpt: hit.snippet || '',
-        content: hit.snippet || '', // Use snippet as content for search results
-        topics: hit.tags || [],
-        // Heuristic: detect code in snippet for better hasCode accuracy
-        hasCode: codePatterns.test(hit.snippet || ''),
-        // Scale memvid score (0-1 range) to pattern relevanceScore (0-100 range)
-        relevanceScore: Math.round(hit.score * SCORE_SCALE_FACTOR),
-      }));
+      return results.hits.map(hit => {
+        const contentForDetection = [hit.title, hit.snippet].filter(Boolean).join('\n\n');
+        const score = typeof hit.score === 'number' ? hit.score : 0;
+
+        return {
+          id: hit.uri?.split('/').pop() || '',
+          title: hit.title || '',
+          url: hit.uri || '',
+          publishDate: hit.created_at || '',
+          excerpt: hit.snippet || '',
+          content: hit.snippet || '', // Use snippet as content for search results
+          topics: hit.tags || [],
+          // Best-effort code detection from snippet/title
+          hasCode: contentForDetection ? hasCodeContent(contentForDetection) : false,
+          // Scale memvid score (0-1 range) to pattern relevanceScore (0-100 range)
+          relevanceScore: Math.round(score * SCORE_SCALE_FACTOR),
+        };
+      });
     } catch (error) {
       logger.warn({ err: error, query }, 'Failed to search memvid memory');
       return []; // Return empty on error
@@ -282,4 +285,3 @@ export function getMemvidMemory(): MemvidMemoryManager {
   }
   return memoryManager;
 }
-

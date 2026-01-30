@@ -141,16 +141,26 @@ export function fuzzySearch<T extends SearchableDocument>(
 export function combineScores(
   searchScore: number,
   staticRelevance: number,
-  searchWeight: number = 0.6
+  searchWeight: number = 0.8
 ): number {
   // Normalize search score (MiniSearch scores can vary widely)
-  const normalizedSearch = Math.min(searchScore / 10, 1) * 100;
+  // Divide by 5 to spread scores further apart (was /10)
+  const normalizedSearch = Math.min(searchScore / 5, 1) * 100;
 
-  // Weighted combination
-  return Math.round(
+  // Weighted combination: heavily favor query-aware search score (80%)
+  // over static quality score (20%)
+  let combined = Math.round(
     normalizedSearch * searchWeight +
     staticRelevance * (1 - searchWeight)
   );
+
+  // Cap score at 50 when search relevance is very low — prevents
+  // irrelevant content from scoring high just because it's "quality" content
+  if (searchScore < 1.0) {
+    combined = Math.min(combined, 50);
+  }
+
+  return combined;
 }
 
 // Suggest similar terms (for "did you mean?" functionality)
@@ -220,11 +230,46 @@ export class CachedSearchIndex<T extends SearchableDocument> {
 
     const results = this.searchIndex.search(query, { fuzzy, boost });
 
+    // Count query terms for coverage penalty
+    const queryTerms = processQuery(query);
+    const queryTermCount = queryTerms.length;
+
+    // Normalize MiniSearch scores using relative ranking, absolute
+    // confidence, and query term coverage.
+    const maxSearchScore = results.length > 0
+      ? Math.max(...results.map(r => r.score))
+      : 1;
+
+    // Absolute confidence: how strong is the best match overall?
+    const confidenceFactor = Math.min(maxSearchScore / 10, 1);
+
     return results
-      .map(result => ({
-        ...result.item,
-        relevanceScore: combineScores(result.score, (result.item as T & { relevanceScore: number }).relevanceScore),
-      }))
+      .map(result => {
+        // Relative score within this result set (0-100)
+        const relativeScore = maxSearchScore > 0
+          ? (result.score / maxSearchScore) * 100
+          : 0;
+
+        // Term coverage: what fraction of query terms matched?
+        // If query is "Apple Books Hero Effect" (4 terms) but only "effect"
+        // matched (1/4 = 0.25), the score drops significantly.
+        const matchCount = result.matches.length;
+        const coverageFactor = queryTermCount > 0
+          ? matchCount / queryTermCount
+          : 1;
+
+        // Apply both confidence and coverage factors
+        const normalizedSearch = relativeScore * confidenceFactor * coverageFactor;
+        const staticRelevance = (result.item as T & { relevanceScore: number }).relevanceScore;
+
+        // 80% query-aware search score, 20% static quality
+        const combined = Math.round(normalizedSearch * 0.8 + staticRelevance * 0.2);
+
+        return {
+          ...result.item,
+          relevanceScore: combined,
+        };
+      })
       .sort((a, b) => b.relevanceScore - a.relevanceScore);
   }
 

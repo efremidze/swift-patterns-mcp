@@ -19,25 +19,67 @@
  * 6. End-to-End - full flow from query to code
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import AdmZip from 'adm-zip';
+import { isCI } from '../../../integration/test-client.js';
 import { PatreonSource } from '../patreon.js';
 import {
   scanDownloadedContent,
   extractPostId,
+  saveCookie,
+  isCookieConfigured,
+  downloadPost,
+  invalidateScanCache,
 } from '../patreon-dl.js';
 import { searchVideos, getChannelVideos } from '../youtube.js';
 import { CREATORS, withYouTube } from '../../../config/creators.js';
 
-// Skip tests if required env vars are missing
-const hasYouTubeKey = !!process.env.YOUTUBE_API_KEY;
-const hasPatreonCredentials = !!process.env.PATREON_CLIENT_ID && !!process.env.PATREON_CLIENT_SECRET;
-const describeWithYouTube = hasYouTubeKey ? describe : describe.skip;
-const describeWithPatreon = hasPatreonCredentials ? describe : describe.skip;
-
-// Skip entire suite in CI/CD without Patreon credentials
-const describePatreonIntegration = hasPatreonCredentials ? describe : describe.skip;
+const describeWithYouTube = describe;
+const describeWithPatreon = describe;
+const describePatreonIntegration = (isCI || process.env.SKIP_PATREON_TESTS === '1')
+  ? describe.skip
+  : describe;
 
 describePatreonIntegration('Patreon Integration', () => {
+  const savedEnv: Record<string, string | undefined> = {};
+  const testEnvOverrides: Record<string, string> = {
+    PATREON_TEST_MAX_CREATORS: '1',
+    PATREON_TEST_YOUTUBE_LIMIT: '5',
+    PATREON_TEST_MAX_PATTERNS: '5',
+    LOG_LEVEL: 'error',
+  };
+
+  beforeAll(() => {
+    Object.keys(testEnvOverrides).forEach(key => {
+      savedEnv[key] = process.env[key];
+      process.env[key] = testEnvOverrides[key];
+    });
+    if (isCI) return;
+    const missing: string[] = [];
+    if (!process.env.YOUTUBE_API_KEY) missing.push('YOUTUBE_API_KEY');
+    if (!process.env.PATREON_CLIENT_ID) missing.push('PATREON_CLIENT_ID');
+    if (!process.env.PATREON_CLIENT_SECRET) missing.push('PATREON_CLIENT_SECRET');
+
+    if (missing.length > 0) {
+      throw new Error(
+        `Missing required env vars for Patreon integration tests: ${missing.join(', ')}. ` +
+        'Set them or run with SKIP_PATREON_TESTS=1.'
+      );
+    }
+  });
+
+  afterAll(() => {
+    Object.keys(testEnvOverrides).forEach(key => {
+      if (savedEnv[key] !== undefined) {
+        process.env[key] = savedEnv[key];
+      } else {
+        delete process.env[key];
+      }
+    });
+  });
 
   // ============================================================================
   // 1. CONFIGURATION TESTS
@@ -84,6 +126,13 @@ describePatreonIntegration('Patreon Integration', () => {
       expect(Array.isArray(posts)).toBe(true);
     });
 
+    it('should build a pattern from a known Patreon URL without search', async () => {
+      const patreon = new PatreonSource();
+      const patterns = await patreon.searchPatterns('https://www.patreon.com/posts/148144034');
+
+      expect(Array.isArray(patterns)).toBe(true);
+    });
+
     it('should extract post ID from Patreon URLs', () => {
       // Standard format
       expect(extractPostId('https://www.patreon.com/posts/apple-stocks-ui-148144034'))
@@ -96,6 +145,69 @@ describePatreonIntegration('Patreon Integration', () => {
       // Invalid URL
       expect(extractPostId('https://example.com/not-patreon'))
         .toBeNull();
+    });
+
+    it('should reject invalid cookie format', () => {
+      expect(() => saveCookie('invalid cookie value')).toThrow(/Invalid cookie format/);
+    });
+
+    it('should report invalid Patreon URLs before downloading', async () => {
+      const cookiePath = path.join(process.cwd(), '.patreon-session');
+      const existing = fs.existsSync(cookiePath) ? fs.readFileSync(cookiePath, 'utf-8') : null;
+
+      try {
+        saveCookie('valid_cookie_123');
+        expect(isCookieConfigured()).toBe(true);
+
+        const result = await downloadPost('https://www.patreon.com/posts/not-a-post', 'TestCreator');
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Invalid Patreon URL');
+      } finally {
+        if (existing !== null) {
+          fs.writeFileSync(cookiePath, existing);
+        } else if (fs.existsSync(cookiePath)) {
+          fs.unlinkSync(cookiePath);
+        }
+      }
+    });
+
+    it('should extract Swift files from zip downloads', () => {
+      const originalHome = process.env.HOME;
+      const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'swift-mcp-test-'));
+      process.env.HOME = tempHome;
+
+      try {
+        const postDir = path.join(
+          tempHome,
+          '.swift-patterns-mcp',
+          'patreon-content',
+          'TestCreator',
+          'posts',
+          '123 - Test Post'
+        );
+        fs.mkdirSync(postDir, { recursive: true });
+
+        const zipPath = path.join(postDir, 'code.zip');
+        const zip = new AdmZip();
+        zip.addFile('Sources/Foo.swift', Buffer.from('import SwiftUI\nstruct Foo {}'));
+        zip.writeZip(zipPath);
+
+        fs.writeFileSync(
+          path.join(postDir, 'post.json'),
+          JSON.stringify({ title: 'Test Post', published_at: '2024-01-01T00:00:00Z' })
+        );
+
+        invalidateScanCache();
+        const posts = scanDownloadedContent();
+        const swiftFiles = posts.flatMap(p => p.files).filter(f => f.type === 'swift');
+
+        expect(swiftFiles.length).toBeGreaterThan(0);
+        expect(swiftFiles.some(f => f.content?.includes('struct Foo'))).toBe(true);
+      } finally {
+        process.env.HOME = originalHome;
+        fs.rmSync(tempHome, { recursive: true, force: true });
+        invalidateScanCache();
+      }
     });
 
     describe('with downloaded content', () => {
@@ -158,7 +270,7 @@ describePatreonIntegration('Patreon Integration', () => {
     const KAVSOFT_CHANNEL = 'UCsuV4MRk_aB291SrchUVb4w';
 
     it('should fetch channel videos', async () => {
-      const videos = await getChannelVideos(KAVSOFT_CHANNEL, 5);
+      const videos = await getChannelVideos(KAVSOFT_CHANNEL, 3);
 
       expect(Array.isArray(videos)).toBe(true);
       expect(videos.length).toBeGreaterThan(0);
@@ -171,7 +283,7 @@ describePatreonIntegration('Patreon Integration', () => {
     }, 30000);
 
     it('should extract Patreon links from video descriptions', async () => {
-      const videos = await getChannelVideos(KAVSOFT_CHANNEL, 20);
+      const videos = await getChannelVideos(KAVSOFT_CHANNEL, 8);
 
       // At least some videos should have Patreon links
       const withPatreon = videos.filter(v => v.patreonLink);
@@ -184,14 +296,14 @@ describePatreonIntegration('Patreon Integration', () => {
     }, 30000);
 
     it('should search videos by query', async () => {
-      const videos = await searchVideos('SwiftUI animation', KAVSOFT_CHANNEL, 5);
+      const videos = await searchVideos('SwiftUI animation', KAVSOFT_CHANNEL, 3);
 
       expect(Array.isArray(videos)).toBe(true);
       // Search might return 0 results for specific queries, that's OK
     }, 30000);
 
     it('should search and find Apple Stocks video', async () => {
-      const videos = await searchVideos('Apple Stocks ScrollView', KAVSOFT_CHANNEL, 10);
+      const videos = await searchVideos('Apple Stocks ScrollView', KAVSOFT_CHANNEL, 5);
 
       const stocksVideo = videos.find(v =>
         v.title.toLowerCase().includes('stocks') ||

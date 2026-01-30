@@ -51,6 +51,15 @@ export interface Video {
   codeLinks?: string[];
 }
 
+type YouTubeSnippet = {
+  title?: string;
+  description?: string;
+  publishedAt?: string;
+  channelId?: string;
+  channelTitle?: string;
+  tags?: string[];
+};
+
 function extractPatreonLink(text: string): string | undefined {
   const match = text.match(/https?:\/\/(www\.)?patreon\.com\/[^\s)]+/i);
   return match?.[0];
@@ -61,52 +70,52 @@ function extractCodeLinks(text: string): string[] {
   return matches || [];
 }
 
-function toVideo(id: string, snippet: {
-  title: string;
-  description: string;
-  publishedAt: string;
-  channelId: string;
-  channelTitle: string;
-  tags?: string[];
-}): Video {
+function toVideo(id: string, snippet: YouTubeSnippet = {}): Video {
+  const safeSnippet = {
+    title: '',
+    description: '',
+    publishedAt: '',
+    channelId: '',
+    channelTitle: '',
+    ...snippet,
+  };
+
   return {
     id,
-    title: snippet.title,
-    description: snippet.description,
-    publishedAt: snippet.publishedAt,
-    channelId: snippet.channelId,
-    channelTitle: snippet.channelTitle,
-    tags: snippet.tags,
-    patreonLink: extractPatreonLink(snippet.description),
-    codeLinks: extractCodeLinks(snippet.description),
+    title: safeSnippet.title ?? '',
+    description: safeSnippet.description ?? '',
+    publishedAt: safeSnippet.publishedAt ?? '',
+    channelId: safeSnippet.channelId ?? '',
+    channelTitle: safeSnippet.channelTitle ?? '',
+    tags: safeSnippet.tags,
+    patreonLink: extractPatreonLink(safeSnippet.description ?? ''),
+    codeLinks: extractCodeLinks(safeSnippet.description ?? ''),
   };
 }
 
 function mapSearchItems(items: Array<{
-  id: { videoId: string };
-  snippet: {
-    title: string;
-    description: string;
-    publishedAt: string;
-    channelId: string;
-    channelTitle: string;
-  };
+  id?: { videoId?: string };
+  snippet?: YouTubeSnippet;
 }>): Video[] {
-  return items.map(item => toVideo(item.id.videoId, item.snippet));
+  return items.flatMap(item => {
+    const videoId = item.id?.videoId;
+    if (!videoId) {
+      return [];
+    }
+    return [toVideo(videoId, item.snippet)];
+  });
 }
 
 function mapVideoItems(items: Array<{
-  id: string;
-  snippet: {
-    title: string;
-    description: string;
-    publishedAt: string;
-    channelId: string;
-    channelTitle: string;
-    tags?: string[];
-  };
+  id?: string;
+  snippet?: YouTubeSnippet;
 }>): Video[] {
-  return items.map(item => toVideo(item.id, item.snippet));
+  return items.flatMap(item => {
+    if (!item.id) {
+      return [];
+    }
+    return [toVideo(item.id, item.snippet)];
+  });
 }
 
 export async function getChannelVideos(
@@ -139,18 +148,15 @@ async function _fetchChannelVideos(apiKey: string, channelId: string, maxResults
 
     const searchData = await searchRes.json() as {
       items: Array<{
-        id: { videoId: string };
-        snippet: {
-          title: string;
-          description: string;
-          publishedAt: string;
-          channelId: string;
-          channelTitle: string;
-        };
+        id?: { videoId?: string };
+        snippet?: YouTubeSnippet;
       }>;
     };
 
-    const videoIds = searchData.items.map(i => i.id.videoId).join(',');
+    const videoIds = searchData.items
+      .map(i => i.id?.videoId)
+      .filter((id): id is string => Boolean(id))
+      .join(',');
     if (!videoIds) return [];
 
     // Get full video details (includes tags)
@@ -164,15 +170,8 @@ async function _fetchChannelVideos(apiKey: string, channelId: string, maxResults
 
     const videosData = await videosRes.json() as {
       items: Array<{
-        id: string;
-        snippet: {
-          title: string;
-          description: string;
-          publishedAt: string;
-          channelId: string;
-          channelTitle: string;
-          tags?: string[];
-        };
+        id?: string;
+        snippet?: YouTubeSnippet;
       }>;
     };
 
@@ -217,18 +216,15 @@ async function _fetchSearchVideos(apiKey: string, query: string, channelId: stri
 
     const searchData = await res.json() as {
       items: Array<{
-        id: { videoId: string };
-        snippet: {
-          title: string;
-          description: string;
-          publishedAt: string;
-          channelId: string;
-          channelTitle: string;
-        };
+        id?: { videoId?: string };
+        snippet?: YouTubeSnippet;
       }>;
     };
 
-    const videoIds = searchData.items.map(i => i.id.videoId).join(',');
+    const videoIds = searchData.items
+      .map(i => i.id?.videoId)
+      .filter((id): id is string => Boolean(id))
+      .join(',');
     if (!videoIds) return [];
 
     // Fetch full video details to get complete descriptions (search returns truncated)
@@ -242,15 +238,8 @@ async function _fetchSearchVideos(apiKey: string, query: string, channelId: stri
 
     const videosData = await videosRes.json() as {
       items: Array<{
-        id: string;
-        snippet: {
-          title: string;
-          description: string;
-          publishedAt: string;
-          channelId: string;
-          channelTitle: string;
-          tags?: string[];
-        };
+        id?: string;
+        snippet?: YouTubeSnippet;
       }>;
     };
 
