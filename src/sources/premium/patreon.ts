@@ -66,9 +66,9 @@ const { topicKeywords: patreonTopicKeywords, qualitySignals: patreonQualitySigna
   { 'swift': 10, 'ios': 8, 'pattern': 6, 'best practice': 8 }
 );
 
-// Patreon-specific scoring constants
-const PATREON_CODE_BONUS = 15; // Higher bonus for code-heavy Patreon content
-const PATREON_BASE_SCORE = 0; // Start at 0 for Patreon to rely on quality signals
+// Patreon-specific scoring constants (matched to free source defaults)
+const PATREON_CODE_BONUS = 10;
+const PATREON_BASE_SCORE = 50;
 const PATREON_EXCERPT_LENGTH = 300;
 const PATREON_DEFAULT_QUERY = 'swiftui';
 

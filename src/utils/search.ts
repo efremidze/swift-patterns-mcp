@@ -141,16 +141,26 @@ export function fuzzySearch<T extends SearchableDocument>(
 export function combineScores(
   searchScore: number,
   staticRelevance: number,
-  searchWeight: number = 0.6
+  searchWeight: number = 0.8
 ): number {
   // Normalize search score (MiniSearch scores can vary widely)
-  const normalizedSearch = Math.min(searchScore / 10, 1) * 100;
+  // Divide by 5 to spread scores further apart (was /10)
+  const normalizedSearch = Math.min(searchScore / 5, 1) * 100;
 
-  // Weighted combination
-  return Math.round(
+  // Weighted combination: heavily favor query-aware search score (80%)
+  // over static quality score (20%)
+  let combined = Math.round(
     normalizedSearch * searchWeight +
     staticRelevance * (1 - searchWeight)
   );
+
+  // Cap score at 50 when search relevance is very low — prevents
+  // irrelevant content from scoring high just because it's "quality" content
+  if (searchScore < 1.0) {
+    combined = Math.min(combined, 50);
+  }
+
+  return combined;
 }
 
 // Suggest similar terms (for "did you mean?" functionality)
