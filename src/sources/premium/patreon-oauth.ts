@@ -1,7 +1,7 @@
 // src/sources/premium/patreon-oauth.ts
 
 import http from 'http';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { URL } from 'url';
 import { join } from 'path';
 import { homedir } from 'os';
@@ -233,10 +233,24 @@ export async function startOAuthFlow(
       console.log(`\nOpening browser for Patreon authorization...`);
       console.log(`If browser doesn't open, visit: ${authUrl.toString()}\n`);
 
-      // Open browser
-      const cmd = process.platform === 'darwin' ? 'open' :
-                  process.platform === 'win32' ? 'start' : 'xdg-open';
-      exec(`${cmd} "${authUrl.toString()}"`);
+      // Open browser (safe - no shell interpolation)
+      const url = authUrl.toString();
+      if (process.platform === 'win32') {
+        // Windows: 'start' is a shell built-in, not an executable
+        execFile('cmd', ['/c', 'start', url], (err) => {
+          if (err) {
+            console.error(`Failed to open browser: ${err.message}`);
+          }
+        });
+      } else {
+        // macOS and Linux: 'open' and 'xdg-open' are real executables
+        const cmd = process.platform === 'darwin' ? 'open' : 'xdg-open';
+        execFile(cmd, [url], (err) => {
+          if (err) {
+            console.error(`Failed to open browser: ${err.message}`);
+          }
+        });
+      }
     });
 
     // Timeout after 60 seconds

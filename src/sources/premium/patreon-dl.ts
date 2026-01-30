@@ -1,7 +1,7 @@
 // src/sources/premium/patreon-dl.ts
 // Wrapper for patreon-dl to download and index Patreon content
 
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
@@ -10,9 +10,8 @@ import { CREATORS } from '../../config/creators.js';
 import { getPatreonContentDir } from '../../utils/paths.js';
 import logger from '../../utils/logger.js';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const PATREON_DL_PACKAGE = 'patreon-dl@3.6.0';
-const PATREON_DL_COMMAND = `npx --yes ${PATREON_DL_PACKAGE}`;
 
 // Request-scoped cache for scanDownloadedContent() to avoid repeated O(n) directory traversals
 let cachedScanResult: DownloadedPost[] | null = null;
@@ -139,9 +138,9 @@ export async function downloadPost(
   try {
     logger.info({ postUrl, creatorName }, 'Downloading Patreon post');
 
-    // Run patreon-dl for this specific post (--no-prompt for non-interactive)
-    const cmd = `${PATREON_DL_COMMAND} --no-prompt -c "session_id=${cookie}" -o "${outDir}" "${postUrl}"`;
-    await execAsync(cmd, { timeout: 120000 }); // 2 min timeout for single post
+    // Run patreon-dl for this specific post (safe - no shell interpolation)
+    const args = ['--yes', PATREON_DL_PACKAGE, '--no-prompt', '-c', `session_id=${cookie}`, '-o', outDir, postUrl];
+    await execFileAsync('npx', args, { timeout: 120000 }); // 2 min timeout for single post
 
     // Invalidate scan cache after downloading new content
     invalidateScanCache();
@@ -183,9 +182,9 @@ export async function downloadCreatorContent(
   const outDir = path.join(getPatreonContentDir(), creatorName);
 
   try {
-    // Run patreon-dl with session_id cookie format (--no-prompt for non-interactive)
-    const cmd = `${PATREON_DL_COMMAND} --no-prompt -c "session_id=${cookie}" -o "${outDir}" "${creatorUrl}"`;
-    await execAsync(cmd, { timeout: 300000 }); // 5 min timeout
+    // Run patreon-dl with session_id cookie format (safe - no shell interpolation)
+    const args = ['--yes', PATREON_DL_PACKAGE, '--no-prompt', '-c', `session_id=${cookie}`, '-o', outDir, creatorUrl];
+    await execFileAsync('npx', args, { timeout: 300000 }); // 5 min timeout
 
     return { success: true };
   } catch (error) {
