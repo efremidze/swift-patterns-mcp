@@ -41,10 +41,10 @@ Plans:
   2. YouTube videos with missing snippet fields (channelId, channelTitle) are parsed without crashes
   3. Code detection correctly identifies Swift code blocks beyond single-line heuristics
   4. Search results with memvid context show accurate relevance percentages
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 02-01: TBD (will be created during planning)
+- [ ] 02-01-PLAN.md — Fix memvid scoring, YouTube parsing, and code detection
 
 ### Phase 3: Input Validation & Test Coverage
 **Goal**: Tool inputs are validated and all fixes have test coverage
