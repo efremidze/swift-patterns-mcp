@@ -63,7 +63,7 @@ Premium content requires OAuth authentication and active subscriptions:
 |--------|--------------|-------|
 | **Patreon** | Premium content from supported creators | OAuth 2.0 |
 
-Access exclusive content from top iOS educators: **Kavsoft** (SwiftUI design patterns), **SwiftUI Codes** (advanced components), **sucodee** (cutting-edge techniques), and many more. Get tutorials, code samples, and expert guidance directly from creators you support.
+Access exclusive content from top iOS educators: **Kavsoft**, **SwiftUI Codes**, **sucodee** and many more. Get tutorials, code samples, and expert guidance directly from creators you support.
 
 ## 📋 Prerequisites
 
