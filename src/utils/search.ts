@@ -230,16 +230,17 @@ export class CachedSearchIndex<T extends SearchableDocument> {
 
     const results = this.searchIndex.search(query, { fuzzy, boost });
 
-    // Normalize MiniSearch scores using both relative ranking and absolute
-    // confidence. This prevents irrelevant content from scoring high just
-    // because it's the "best" among weak matches.
+    // Count query terms for coverage penalty
+    const queryTerms = processQuery(query);
+    const queryTermCount = queryTerms.length;
+
+    // Normalize MiniSearch scores using relative ranking, absolute
+    // confidence, and query term coverage.
     const maxSearchScore = results.length > 0
       ? Math.max(...results.map(r => r.score))
       : 1;
 
-    // Absolute confidence factor: how strong is the best match?
-    // MiniSearch scores ~10+ indicate strong multi-term matches;
-    // scores < 5 indicate weak/partial matches. Scale 0-1.
+    // Absolute confidence: how strong is the best match overall?
     const confidenceFactor = Math.min(maxSearchScore / 10, 1);
 
     return results
@@ -249,8 +250,16 @@ export class CachedSearchIndex<T extends SearchableDocument> {
           ? (result.score / maxSearchScore) * 100
           : 0;
 
-        // Apply confidence: weak overall matches get scaled down
-        const normalizedSearch = relativeScore * confidenceFactor;
+        // Term coverage: what fraction of query terms matched?
+        // If query is "Apple Books Hero Effect" (4 terms) but only "effect"
+        // matched (1/4 = 0.25), the score drops significantly.
+        const matchCount = result.matches.length;
+        const coverageFactor = queryTermCount > 0
+          ? matchCount / queryTermCount
+          : 1;
+
+        // Apply both confidence and coverage factors
+        const normalizedSearch = relativeScore * confidenceFactor * coverageFactor;
         const staticRelevance = (result.item as T & { relevanceScore: number }).relevanceScore;
 
         // 80% query-aware search score, 20% static quality
