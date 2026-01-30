@@ -13,8 +13,7 @@ This milestone hardens the MCP server against security vulnerabilities and known
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Command Injection Elimination** - Replace shell interpolation with safe execution
-- [ ] **Phase 2: Credential Safety** - Secure token/credential handling and validation
-- [ ] **Phase 3: Bug Fixes** - Fix memvid scoring, YouTube parsing, code detection
+- [ ] **Phase 2: Bug Fixes** - Fix memvid scoring, YouTube parsing, code detection
 - [ ] **Phase 3: Input Validation & Test Coverage** - Zod schemas and comprehensive tests
 
 ## Phase Details
@@ -33,15 +32,15 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [ ] 01-01-PLAN.md — Replace exec with execFile and add cookie format validation
 
-### Phase 2: Credential Safety
-**Goal**: Credentials never leak through logs and missing dependencies produce visible warnings
-**Depends on**: Phase 1 (shares Patreon OAuth code)
-**Requirements**: SEC-02, SEC-04, SEC-05
+### Phase 2: Bug Fixes
+**Goal**: Search scoring, metadata parsing, and code detection work correctly
+**Depends on**: Phase 1 (sequential execution, though logically independent)
+**Requirements**: BUG-01, BUG-02, BUG-03
 **Success Criteria** (what must be TRUE):
-  1. Error messages logged to console strip tokens, client secrets, and cookie values
-  2. Keytar unavailability produces a console warning visible to users instead of silent failure
-  3. Partially configured environment variables (e.g., CLIENT_ID present but CLIENT_SECRET missing) fail fast on startup with clear error
-  4. OAuth token storage gracefully degrades when keytar is unavailable
+  1. Memvid relevance scores display in 0-100 range matching user expectations
+  2. YouTube videos with missing snippet fields (channelId, channelTitle) are parsed without crashes
+  3. Code detection correctly identifies Swift code blocks beyond single-line heuristics
+  4. Search results with memvid context show accurate relevance percentages
 **Plans**: TBD
 
 Plans:
@@ -65,12 +64,12 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4
+Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Command Injection Elimination | 0/1 | Not started | - |
-| 2. Credential Safety | 0/1 | Not started | - |
+| 2. Bug Fixes | 0/1 | Not started | - |
 | 3. Input Validation & Test Coverage | 0/1 | Not started | - |
 
 ---
