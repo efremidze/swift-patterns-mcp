@@ -230,11 +230,34 @@ export class CachedSearchIndex<T extends SearchableDocument> {
 
     const results = this.searchIndex.search(query, { fuzzy, boost });
 
+    // Normalize MiniSearch scores relative to the best result in this query.
+    // This ensures the best match gets ~100 and poor matches scale down
+    // proportionally, regardless of absolute MiniSearch score magnitude.
+    const maxSearchScore = results.length > 0
+      ? Math.max(...results.map(r => r.score))
+      : 1;
+
     return results
-      .map(result => ({
-        ...result.item,
-        relevanceScore: combineScores(result.score, (result.item as T & { relevanceScore: number }).relevanceScore),
-      }))
+      .map(result => {
+        const normalizedSearch = maxSearchScore > 0
+          ? (result.score / maxSearchScore) * 100
+          : 0;
+        const staticRelevance = (result.item as T & { relevanceScore: number }).relevanceScore;
+
+        // 80% query-aware search score, 20% static quality
+        let combined = Math.round(normalizedSearch * 0.8 + staticRelevance * 0.2);
+
+        // Cap at 50 when raw search score is very low relative to best match —
+        // prevents irrelevant content scoring high on static quality alone
+        if (result.score < maxSearchScore * 0.1) {
+          combined = Math.min(combined, 50);
+        }
+
+        return {
+          ...result.item,
+          relevanceScore: combined,
+        };
+      })
       .sort((a, b) => b.relevanceScore - a.relevanceScore);
   }
 
