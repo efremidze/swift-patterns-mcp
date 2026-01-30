@@ -9,7 +9,7 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 
 ## Current Position
 
-Phase: 1 of 4 (Command Injection Elimination)
+Phase: 1 of 3 (Command Injection Elimination)
 Plan: 1 of 1 in current phase
 Status: Phase complete
 Last activity: 2026-01-29 — Completed 01-01-PLAN.md (Command Injection Elimination)

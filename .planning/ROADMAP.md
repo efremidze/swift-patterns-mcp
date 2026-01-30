@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 1: Command Injection Elimination** - Replace shell interpolation with safe execution
 - [ ] **Phase 2: Credential Safety** - Secure token/credential handling and validation
 - [ ] **Phase 3: Bug Fixes** - Fix memvid scoring, YouTube parsing, code detection
-- [ ] **Phase 4: Input Validation & Test Coverage** - Zod schemas and comprehensive tests
+- [ ] **Phase 3: Input Validation & Test Coverage** - Zod schemas and comprehensive tests
 
 ## Phase Details
 
@@ -47,23 +47,9 @@ Plans:
 Plans:
 - [ ] 02-01: TBD (will be created during planning)
 
-### Phase 3: Bug Fixes
-**Goal**: Search scoring, metadata parsing, and code detection work correctly
-**Depends on**: Phase 2 (sequential execution, though logically independent)
-**Requirements**: BUG-01, BUG-02, BUG-03
-**Success Criteria** (what must be TRUE):
-  1. Memvid relevance scores display in 0-100 range matching user expectations
-  2. YouTube videos with missing snippet fields (channelId, channelTitle) are parsed without crashes
-  3. Code detection correctly identifies Swift code blocks beyond single-line heuristics
-  4. Search results with memvid context show accurate relevance percentages
-**Plans**: TBD
-
-Plans:
-- [ ] 03-01: TBD (will be created during planning)
-
-### Phase 4: Input Validation & Test Coverage
+### Phase 3: Input Validation & Test Coverage
 **Goal**: Tool inputs are validated and all fixes have test coverage
-**Depends on**: Phase 3 (tests verify fixes from all prior phases)
+**Depends on**: Phase 2 (tests verify fixes from all prior phases)
 **Requirements**: HARD-01, HARD-02, HARD-03
 **Success Criteria** (what must be TRUE):
   1. Tool handler inputs validated via Zod schemas with minQuality range 0-100 enforced
@@ -74,7 +60,7 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 04-01: TBD (will be created during planning)
+- [ ] 03-01: TBD (will be created during planning)
 
 ## Progress
 
@@ -85,8 +71,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Command Injection Elimination | 0/1 | Not started | - |
 | 2. Credential Safety | 0/1 | Not started | - |
-| 3. Bug Fixes | 0/1 | Not started | - |
-| 4. Input Validation & Test Coverage | 0/1 | Not started | - |
+| 3. Input Validation & Test Coverage | 0/1 | Not started | - |
 
 ---
 *Roadmap created: 2026-01-29*

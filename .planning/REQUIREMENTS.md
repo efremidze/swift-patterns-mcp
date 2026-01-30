@@ -76,9 +76,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BUG-01 | Phase 3 | Pending |
 | BUG-02 | Phase 3 | Pending |
 | BUG-03 | Phase 3 | Pending |
-| HARD-01 | Phase 4 | Pending |
-| HARD-02 | Phase 4 | Pending |
-| HARD-03 | Phase 4 | Pending |
+| HARD-01 | Phase 3 | Pending |
+| HARD-02 | Phase 3 | Pending |
+| HARD-03 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 11 total
