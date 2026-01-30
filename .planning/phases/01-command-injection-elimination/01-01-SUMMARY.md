@@ -31,12 +31,10 @@ key-files:
 key-decisions:
   - "Use execFile instead of exec to prevent shell interpolation"
   - "Validate cookies with /^[a-zA-Z0-9_-]+$/ regex for defense-in-depth"
-  - "Handle Windows 'start' built-in with cmd /c wrapper for cross-platform compatibility"
 
 patterns-established:
   - "Subprocess invocation: Always use execFile with argument arrays, never exec with command strings"
   - "Input validation: Validate format before subprocess use, even with safe APIs"
-  - "Cross-platform commands: Handle Windows built-ins differently from macOS/Linux executables"
 
 # Metrics
 duration: 2min
@@ -115,18 +113,6 @@ execFile(cmd, [authUrl.toString()], (err) => { ... });  // No shell
 // patreon-dl.ts
 const args = ['--yes', PATREON_DL_PACKAGE, '--no-prompt', '-c', `session_id=${cookie}`, '-o', outDir, postUrl];
 await execFileAsync('npx', args, { timeout: 120000 });  // No shell
-```
-
-### Cross-Platform Handling
-
-Windows requires special handling because 'start' is a shell built-in, not an executable:
-```typescript
-if (process.platform === 'win32') {
-  execFile('cmd', ['/c', 'start', url], ...);
-} else {
-  const cmd = process.platform === 'darwin' ? 'open' : 'xdg-open';
-  execFile(cmd, [url], ...);
-}
 ```
 
 ### Defense-in-Depth

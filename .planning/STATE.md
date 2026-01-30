@@ -46,7 +46,6 @@ Recent decisions affecting current work:
 - Zod for tool input validation (already a dependency, type-safe, standard approach)
 - Warn (not crash) when keytar unavailable (graceful degradation is existing pattern)
 - Validate cookies with /^[a-zA-Z0-9_-]+$/ regex for defense-in-depth (01-01)
-- Handle Windows 'start' built-in with cmd /c wrapper for cross-platform compatibility (01-01)
 
 ### Pending Todos
 
