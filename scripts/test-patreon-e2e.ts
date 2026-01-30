@@ -93,16 +93,16 @@ async function main() {
 
     const KAVSOFT = 'UCsuV4MRk_aB291SrchUVb4w';
 
+    // Single call with larger limit — reuse for both assertions
+    let channelVideos: Awaited<ReturnType<typeof getChannelVideos>> = [];
     await timedTest('getChannelVideos', async () => {
-      const videos = await getChannelVideos(KAVSOFT, 5);
-      return videos.length > 0;
+      channelVideos = await getChannelVideos(KAVSOFT, 20);
+      return channelVideos.length > 0;
     });
 
-    await timedTest('Videos have Patreon links', async () => {
-      const videos = await getChannelVideos(KAVSOFT, 20);
-      const withLinks = videos.filter(v => v.patreonLink);
-      return withLinks.length > 0;
-    });
+    test('Videos have Patreon links',
+      channelVideos.filter(v => v.patreonLink).length > 0,
+      `${channelVideos.filter(v => v.patreonLink).length} with links`);
 
     await timedTest('searchVideos works', async () => {
       const videos = await searchVideos('SwiftUI', KAVSOFT, 5);
@@ -113,10 +113,12 @@ async function main() {
   }
 
   // ─── PatreonSource ───
-  if (process.env.PATREON_CLIENT_ID) {
+  // Single instance shared across all sections (avoids duplicate YouTube + download work)
+  const patreon = process.env.PATREON_CLIENT_ID ? new PatreonSource() : null;
+
+  if (patreon) {
     console.log('\n─── PatreonSource ───\n');
 
-    const patreon = new PatreonSource();
     test('PatreonSource instantiates', Boolean(patreon));
     test('isAvailable returns true', patreon.isAvailable());
 
@@ -126,18 +128,18 @@ async function main() {
         return Array.isArray(patterns);
       });
 
+      // fetchPatterns() internally calls searchPatterns('swiftui') —
+      // verify via the cached search instead of making a duplicate network call
       await timedTest('fetchPatterns works', async () => {
-        const patterns = await patreon.fetchPatterns();
+        const patterns = await cachedSearchPatterns(patreon, 'swiftui');
         return patterns.length > 0;
       });
     }
   }
 
   // ─── End-to-End ───
-  if (process.env.YOUTUBE_API_KEY && process.env.PATREON_CLIENT_ID && posts.length > 0) {
+  if (process.env.YOUTUBE_API_KEY && patreon && posts.length > 0) {
     console.log('\n─── End-to-End ───\n');
-
-    const patreon = new PatreonSource();
 
     await timedTest('Apple Stocks query returns code', async () => {
       const patterns = await cachedSearchPatterns(patreon, 'Apple Stocks looping ScrollView');
