@@ -31,10 +31,12 @@ try {
 // Initialize source manager
 const sourceManager = new SourceManager();
 
-// Auto-detect Patreon credentials and enable if configured
+// Auto-detect Patreon credentials and enable if configured.
+// isSourceConfigured checks env vars; markSourceConfigured persists
+// enabled=true + configured=true so getEnabledSources() includes Patreon.
 if (patreonSource && sourceManager.isSourceConfigured('patreon')) {
-  const patreonConfig = sourceManager.getAllSources().find(s => s.id === 'patreon');
-  if (patreonConfig && !patreonConfig.isEnabled) {
+  const enabledIds = sourceManager.getEnabledSources().map(s => s.id);
+  if (!enabledIds.includes('patreon')) {
     sourceManager.markSourceConfigured('patreon');
     logger.info('Patreon auto-enabled (credentials detected)');
   }
