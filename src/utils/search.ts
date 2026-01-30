@@ -230,28 +230,31 @@ export class CachedSearchIndex<T extends SearchableDocument> {
 
     const results = this.searchIndex.search(query, { fuzzy, boost });
 
-    // Normalize MiniSearch scores relative to the best result in this query.
-    // This ensures the best match gets ~100 and poor matches scale down
-    // proportionally, regardless of absolute MiniSearch score magnitude.
+    // Normalize MiniSearch scores using both relative ranking and absolute
+    // confidence. This prevents irrelevant content from scoring high just
+    // because it's the "best" among weak matches.
     const maxSearchScore = results.length > 0
       ? Math.max(...results.map(r => r.score))
       : 1;
 
+    // Absolute confidence factor: how strong is the best match?
+    // MiniSearch scores ~10+ indicate strong multi-term matches;
+    // scores < 5 indicate weak/partial matches. Scale 0-1.
+    const confidenceFactor = Math.min(maxSearchScore / 10, 1);
+
     return results
       .map(result => {
-        const normalizedSearch = maxSearchScore > 0
+        // Relative score within this result set (0-100)
+        const relativeScore = maxSearchScore > 0
           ? (result.score / maxSearchScore) * 100
           : 0;
+
+        // Apply confidence: weak overall matches get scaled down
+        const normalizedSearch = relativeScore * confidenceFactor;
         const staticRelevance = (result.item as T & { relevanceScore: number }).relevanceScore;
 
         // 80% query-aware search score, 20% static quality
-        let combined = Math.round(normalizedSearch * 0.8 + staticRelevance * 0.2);
-
-        // Cap at 50 when raw search score is very low relative to best match —
-        // prevents irrelevant content scoring high on static quality alone
-        if (result.score < maxSearchScore * 0.1) {
-          combined = Math.min(combined, 50);
-        }
+        const combined = Math.round(normalizedSearch * 0.8 + staticRelevance * 0.2);
 
         return {
           ...result.item,
