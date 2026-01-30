@@ -10,12 +10,6 @@
 - Impact: While the URL is pre-validated, passing it through shell exec creates risk if URL validation ever weakens. The cookie value injected directly into shell command could be exploited.
 - Fix approach: Use `execFile` instead of `exec` with array arguments, or implement stricter input validation before shell execution
 
-**Dependency Version Downgrades:**
-- Issue: Recent commits (cb97ddd) downgrades pino and vitest dependencies without documented reason
-- Files: `package.json`
-- Impact: Introduces potential security or compatibility regressions; unclear if this addresses real issues or creates new ones
-- Fix approach: Document why downgrades were necessary and evaluate if they fix specific bugs or just hide symptoms
-
 **"as any" Type Assertions in Tests:**
 - Issue: Multiple test files use `as any` to bypass TypeScript type checking for mock objects
 - Files: `src/tools/handlers/__tests__/handlers.test.ts`, `src/tools/handlers/__tests__/getPatreonPatterns.test.ts`, `src/sources/premium/__tests__/patreon-integration.test.ts`
