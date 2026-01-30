@@ -73,9 +73,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-03 | Phase 1 | Pending |
 | SEC-04 | Phase 2 | Pending |
 | SEC-05 | Phase 2 | Pending |
-| BUG-01 | Phase 2 | Pending |
-| BUG-02 | Phase 2 | Pending |
-| BUG-03 | Phase 2 | Pending |
+| BUG-01 | Phase 2 | Complete |
+| BUG-02 | Phase 2 | Complete |
+| BUG-03 | Phase 2 | Complete |
 | HARD-01 | Phase 3 | Pending |
 | HARD-02 | Phase 3 | Pending |
 | HARD-03 | Phase 3 | Pending |
