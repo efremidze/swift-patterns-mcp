@@ -20,6 +20,7 @@
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
+import { isCI } from '../../../integration/test-client.js';
 import { PatreonSource } from '../patreon.js';
 import {
   scanDownloadedContent,
@@ -28,16 +29,27 @@ import {
 import { searchVideos, getChannelVideos } from '../youtube.js';
 import { CREATORS, withYouTube } from '../../../config/creators.js';
 
-// Skip tests if required env vars are missing
-const hasYouTubeKey = !!process.env.YOUTUBE_API_KEY;
-const hasPatreonCredentials = !!process.env.PATREON_CLIENT_ID && !!process.env.PATREON_CLIENT_SECRET;
-const describeWithYouTube = hasYouTubeKey ? describe : describe.skip;
-const describeWithPatreon = hasPatreonCredentials ? describe : describe.skip;
-
-// Skip entire suite in CI/CD without Patreon credentials
-const describePatreonIntegration = hasPatreonCredentials ? describe : describe.skip;
+const describeWithYouTube = describe;
+const describeWithPatreon = describe;
+const describePatreonIntegration = (isCI || process.env.SKIP_PATREON_TESTS === '1')
+  ? describe.skip
+  : describe;
 
 describePatreonIntegration('Patreon Integration', () => {
+  beforeAll(() => {
+    if (isCI) return;
+    const missing: string[] = [];
+    if (!process.env.YOUTUBE_API_KEY) missing.push('YOUTUBE_API_KEY');
+    if (!process.env.PATREON_CLIENT_ID) missing.push('PATREON_CLIENT_ID');
+    if (!process.env.PATREON_CLIENT_SECRET) missing.push('PATREON_CLIENT_SECRET');
+
+    if (missing.length > 0) {
+      throw new Error(
+        `Missing required env vars for Patreon integration tests: ${missing.join(', ')}. ` +
+        'Set them or run with SKIP_PATREON_TESTS=1.'
+      );
+    }
+  });
 
   // ============================================================================
   // 1. CONFIGURATION TESTS
