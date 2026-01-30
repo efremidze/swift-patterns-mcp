@@ -29,9 +29,8 @@ import {
 import { searchVideos, getChannelVideos } from '../youtube.js';
 import { CREATORS, withYouTube } from '../../../config/creators.js';
 
-const isFull = process.env.PATREON_TEST_FULL === '1';
-const describeWithYouTube = isFull ? describe : describe.skip;
-const describeWithPatreon = isFull ? describe : describe.skip;
+const describeWithYouTube = describe;
+const describeWithPatreon = describe;
 const describePatreonIntegration = (isCI || process.env.SKIP_PATREON_TESTS === '1')
   ? describe.skip
   : describe;
