@@ -12,8 +12,8 @@ This milestone hardens the MCP server against security vulnerabilities and known
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Command Injection Elimination** - Replace shell interpolation with safe execution
-- [ ] **Phase 2: Bug Fixes** - Fix memvid scoring, YouTube parsing, code detection
+- [x] **Phase 1: Command Injection Elimination** - Replace shell interpolation with safe execution
+- [x] **Phase 2: Bug Fixes** - Fix memvid scoring, YouTube parsing, code detection
 - [ ] **Phase 3: Input Validation & Test Coverage** - Zod schemas and comprehensive tests
 
 ## Phase Details
@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 1 plan
 
 Plans:
-- [ ] 01-01-PLAN.md — Replace exec with execFile and add cookie format validation
+- [x] 01-01-PLAN.md — Replace exec with execFile and add cookie format validation
 
 ### Phase 2: Bug Fixes
 **Goal**: Search scoring, metadata parsing, and code detection work correctly
@@ -44,7 +44,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 02-01-PLAN.md — Fix memvid scoring, YouTube parsing, and code detection
+- [x] 02-01-PLAN.md — Fix memvid scoring, YouTube parsing, and code detection
 
 ### Phase 3: Input Validation & Test Coverage
 **Goal**: Tool inputs are validated and all fixes have test coverage
@@ -68,10 +68,10 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Command Injection Elimination | 0/1 | Not started | - |
-| 2. Bug Fixes | 0/1 | Not started | - |
+| 1. Command Injection Elimination | 1/1 | Complete | 2026-01-29 |
+| 2. Bug Fixes | 1/1 | Complete | 2026-01-30 |
 | 3. Input Validation & Test Coverage | 0/1 | Not started | - |
 
 ---
 *Roadmap created: 2026-01-29*
-*Last updated: 2026-01-29 after phase 1 planning*
+*Last updated: 2026-01-30 after phase 2 execution*
