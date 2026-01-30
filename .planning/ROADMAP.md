@@ -28,10 +28,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Patreon download tool uses execFile with argument arrays instead of shell interpolation
   3. Cookie values are validated for format compliance before being passed to any subprocess
   4. Attempting to inject shell metacharacters via cookies or OAuth parameters fails safely
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 01-01: TBD (will be created during planning)
+- [ ] 01-01-PLAN.md — Replace exec with execFile and add cookie format validation
 
 ### Phase 2: Credential Safety
 **Goal**: Credentials never leak through logs and missing dependencies produce visible warnings
@@ -90,4 +90,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 ---
 *Roadmap created: 2026-01-29*
-*Last updated: 2026-01-29 after initialization*
+*Last updated: 2026-01-29 after phase 1 planning*
