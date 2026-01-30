@@ -18,7 +18,7 @@ const PATREON_TOKEN_URL = 'https://www.patreon.com/api/oauth2/token';
 async function getKeytar(): Promise<any> {
   try {
     return await import('keytar').then(m => m.default);
-  } catch (e) {
+  } catch {
     // keytar not available (libsecret not installed on Linux, etc.)
     return null;
   }
