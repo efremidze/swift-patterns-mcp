@@ -50,23 +50,5 @@ describe('Tool Registry', () => {
   });
 });
 
-describe('Tool Registration Integration', () => {
-  it('should have core tools registered after import', async () => {
-    // Importing index.js registers all handlers
-    await import('../index.js');
-    const { hasHandler } = await import('../registry.js');
-
-    expect(hasHandler('get_swift_pattern')).toBe(true);
-    expect(hasHandler('search_swift_content')).toBe(true);
-    expect(hasHandler('list_content_sources')).toBe(true);
-    expect(hasHandler('enable_source')).toBe(true);
-  });
-
-  it('should return valid handler functions', async () => {
-    await import('../index.js');
-    const { getHandler } = await import('../registry.js');
-
-    const handler = getHandler('get_swift_pattern');
-    expect(typeof handler).toBe('function');
-  });
-});
+// Tool Registration Integration tests removed — covered by
+// src/integration/__tests__/mcp-client.test.ts (listTools)

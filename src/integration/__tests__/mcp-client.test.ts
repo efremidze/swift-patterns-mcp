@@ -73,16 +73,7 @@ describeIntegration('MCP Server Integration', () => {
       expect(result.content[0].text.length).toBeGreaterThan(0);
     }, 60000);
 
-    it('should handle enable_source with unknown source', async () => {
-      const response = await client.callTool('enable_source', {
-        source: 'unknown_source',
-      });
-
-      expect(response.error).toBeUndefined();
-
-      const result = response.result as { content: Array<{ text: string }> };
-      expect(result.content[0].text).toContain('Unknown source');
-    });
+    // enable_source unknown source test removed — covered by unit test in handlers.test.ts
   });
 
   describe('Error Handling', () => {
@@ -95,13 +86,6 @@ describeIntegration('MCP Server Integration', () => {
       }
     });
 
-    it('should handle missing required arguments gracefully', async () => {
-      const response = await client.callTool('get_swift_pattern', {});
-
-      expect(response.error).toBeUndefined();
-
-      const result = response.result as { content: Array<{ text: string }> };
-      expect(result.content[0].text).toContain('Missing required argument');
-    }, 30000);
+    // missing required arguments test removed — covered by unit test in handlers.test.ts
   });
 });

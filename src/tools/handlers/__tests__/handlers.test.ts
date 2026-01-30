@@ -224,53 +224,8 @@ describe('getSwiftPatternHandler', () => {
     expect(text).not.toContain('Composable Architecture'); // pointfree
   });
 
-  it('should sort results by relevance score (highest first)', async () => {
-    const result = await getSwiftPatternHandler({
-      topic: 'swift',
-      minQuality: 0, // Include all
-    }, context);
-    const text = result.content[0].text;
-
-    // pointfree-1 (90) should appear before sundell-1 (85)
-    const pointfreeIndex = text.indexOf('Composable Architecture');
-    const sundellIndex = text.indexOf('Advanced SwiftUI Patterns');
-
-    expect(pointfreeIndex).toBeLessThan(sundellIndex);
-  });
-
-  it('should include quality scores in output', async () => {
-    const result = await getSwiftPatternHandler({ topic: 'swiftui' }, context);
-    const text = result.content[0].text;
-
-    // Should show quality scores
-    expect(text).toMatch(/Quality.*\d+\/100/i);
-  });
-
-  it('should include source attribution in output', async () => {
-    const result = await getSwiftPatternHandler({ topic: 'swiftui' }, context);
-    const text = result.content[0].text;
-
-    expect(text).toMatch(/Source.*:/i);
-  });
-
-  it('should include clickable URLs in output', async () => {
-    const result = await getSwiftPatternHandler({ topic: 'swiftui' }, context);
-    const text = result.content[0].text;
-
-    // Should have markdown links
-    expect(text).toMatch(/\[.+\]\(https?:\/\/.+\)/);
-  });
-
-  it('should return helpful message when no patterns found', async () => {
-    const result = await getSwiftPatternHandler({
-      topic: 'nonexistent_topic',
-      minQuality: 100, // Filter out everything
-    }, context);
-    const text = result.content[0].text;
-
-    expect(text).toContain('No patterns found');
-    expect(text).toMatch(/[Tt]ry/); // Should suggest trying something else
-  });
+  // Format validation tests (quality scores, source attribution, URLs, sorting,
+  // empty results) removed — covered by src/integration/__tests__/response-quality.test.ts
 });
 
 describe('searchSwiftContentHandler', () => {

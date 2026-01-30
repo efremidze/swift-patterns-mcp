@@ -1,14 +1,15 @@
 // src/utils/source-registry.test.ts
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { 
-  getSource, 
-  getAllFreeSources, 
-  getSources, 
+import {
+  getSource,
+  getAllFreeSources,
+  getSources,
   getSourceNames,
   searchMultipleSources,
   prefetchAllSources,
-  type FreeSourceName 
+  fetchAllPatterns,
+  type FreeSourceName
 } from '../source-registry.js';
 import type { BasePattern } from '../../sources/free/rssPatternSource.js';
 
@@ -235,7 +236,7 @@ describe('source-registry', () => {
       const direct = getSource('sundell');
       const fromArray = getSources(['sundell'])[0];
       const fromAll = getAllFreeSources()[0]; // Assuming sundell is first
-      
+
       expect(direct).toBe(fromArray);
       // Note: fromAll might be in a different order, so we just check it's in the set
       const allSources = getAllFreeSources();
@@ -246,7 +247,7 @@ describe('source-registry', () => {
       const sourceBefore = getSource('sundell');
       await searchMultipleSources('test', 'sundell');
       const sourceAfter = getSource('sundell');
-      
+
       expect(sourceBefore).toBe(sourceAfter);
     });
 
@@ -254,8 +255,106 @@ describe('source-registry', () => {
       const sourceBefore = getSource('pointfree');
       await prefetchAllSources();
       const sourceAfter = getSource('pointfree');
-      
+
       expect(sourceBefore).toBe(sourceAfter);
+    });
+  });
+
+  // Merged from source-registry-dedup.test.ts
+  describe('request deduplication', () => {
+    beforeEach(() => {
+      const sources = getAllFreeSources();
+      sources.forEach(source => {
+        vi.spyOn(source, 'fetchPatterns').mockImplementation(
+          () => new Promise(resolve => setTimeout(() => resolve([mockPattern]), 50))
+        );
+        vi.spyOn(source, 'searchPatterns').mockImplementation(
+          () => new Promise(resolve => setTimeout(() => resolve([mockPattern]), 50))
+        );
+      });
+    });
+
+    describe('dedupFetch via fetchAllPatterns', () => {
+      it('should deduplicate concurrent fetchAllPatterns calls', async () => {
+        const [r1, r2] = await Promise.all([
+          fetchAllPatterns(),
+          fetchAllPatterns(),
+        ]);
+
+        expect(r1.length).toBeGreaterThan(0);
+        expect(r2.length).toBeGreaterThan(0);
+
+        const sources = getAllFreeSources();
+        sources.forEach(source => {
+          expect(source.fetchPatterns).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      it('should allow a new fetch after the first completes', async () => {
+        await fetchAllPatterns();
+        await fetchAllPatterns();
+
+        const sources = getAllFreeSources();
+        sources.forEach(source => {
+          expect(source.fetchPatterns).toHaveBeenCalledTimes(2);
+        });
+      });
+
+      it('should clear inflight entry on failure so next call retries', async () => {
+        const sundell = getSource('sundell');
+        vi.spyOn(sundell, 'fetchPatterns')
+          .mockRejectedValueOnce(new Error('network error'))
+          .mockResolvedValueOnce([mockPattern]);
+
+        const r1 = await fetchAllPatterns();
+        expect(r1.length).toBeGreaterThan(0);
+
+        const r2 = await fetchAllPatterns();
+        expect(r2.length).toBeGreaterThan(0);
+
+        expect(sundell.fetchPatterns).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    describe('dedupSearch via searchMultipleSources', () => {
+      it('should deduplicate concurrent searches with same query', async () => {
+        const [r1, r2] = await Promise.all([
+          searchMultipleSources('swift'),
+          searchMultipleSources('swift'),
+        ]);
+
+        expect(r1.length).toBeGreaterThan(0);
+        expect(r2.length).toBeGreaterThan(0);
+
+        const sources = getAllFreeSources();
+        sources.forEach(source => {
+          expect(source.searchPatterns).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      it('should fetch separately for different queries', async () => {
+        await Promise.all([
+          searchMultipleSources('swift'),
+          searchMultipleSources('combine'),
+        ]);
+
+        const sources = getAllFreeSources();
+        sources.forEach(source => {
+          expect(source.searchPatterns).toHaveBeenCalledTimes(2);
+          expect(source.searchPatterns).toHaveBeenCalledWith('swift');
+          expect(source.searchPatterns).toHaveBeenCalledWith('combine');
+        });
+      });
+
+      it('should allow a fresh search after the first completes', async () => {
+        await searchMultipleSources('swift');
+        await searchMultipleSources('swift');
+
+        const sources = getAllFreeSources();
+        sources.forEach(source => {
+          expect(source.searchPatterns).toHaveBeenCalledTimes(2);
+        });
+      });
     });
   });
 });
