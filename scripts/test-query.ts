@@ -88,6 +88,7 @@ function parseArgs(): Options {
       case '-h':
         printUsage();
         process.exit(0);
+        break; // eslint: no-fallthrough
       default:
         if (!arg.startsWith('--')) {
           opts.query = arg;
@@ -197,7 +198,8 @@ async function main() {
   try {
     // List tools
     const toolsResp = await client.listTools();
-    const tools = (toolsResp.result as any).tools.map((t: any) => t.name) as string[];
+    const result = toolsResp.result as { tools: Array<{ name: string }> };
+    const tools = result.tools.map(t => t.name);
 
     if (opts.listTools) {
       printSeparator('Available Tools');
@@ -274,8 +276,8 @@ async function main() {
           const text = await client.callToolText(name, args);
           printToolResult(name, text, opts.limit);
         }
-      } catch (e: any) {
-        console.log(`Error: ${e.message}`);
+      } catch (e: unknown) {
+        console.log(`Error: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
   } finally {
