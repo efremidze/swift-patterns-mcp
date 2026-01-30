@@ -235,22 +235,15 @@ export async function startOAuthFlow(
 
       // Open browser (safe - no shell interpolation)
       const url = authUrl.toString();
-      if (process.platform === 'win32') {
-        // Windows: 'start' is a shell built-in, not an executable
-        execFile('cmd', ['/c', 'start', url], (err) => {
-          if (err) {
-            console.error(`Failed to open browser: ${err.message}`);
-          }
-        });
-      } else {
-        // macOS and Linux: 'open' and 'xdg-open' are real executables
-        const cmd = process.platform === 'darwin' ? 'open' : 'xdg-open';
-        execFile(cmd, [url], (err) => {
-          if (err) {
-            console.error(`Failed to open browser: ${err.message}`);
-          }
-        });
+      if (process.platform !== 'darwin') {
+        console.error('Patreon OAuth is only supported on macOS.');
+        return;
       }
+      execFile('open', [url], (err) => {
+        if (err) {
+          console.error(`Failed to open browser: ${err.message}`);
+        }
+      });
     });
 
     // Timeout after 60 seconds
