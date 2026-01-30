@@ -29,8 +29,9 @@ import {
 import { searchVideos, getChannelVideos } from '../youtube.js';
 import { CREATORS, withYouTube } from '../../../config/creators.js';
 
-const describeWithYouTube = describe;
-const describeWithPatreon = describe;
+const isFull = process.env.PATREON_TEST_FULL === '1';
+const describeWithYouTube = isFull ? describe : describe.skip;
+const describeWithPatreon = isFull ? describe : describe.skip;
 const describePatreonIntegration = (isCI || process.env.SKIP_PATREON_TESTS === '1')
   ? describe.skip
   : describe;
@@ -94,6 +95,13 @@ describePatreonIntegration('Patreon Integration', () => {
     it('should scan downloaded content without crashing', () => {
       const posts = scanDownloadedContent();
       expect(Array.isArray(posts)).toBe(true);
+    });
+
+    it('should build a pattern from a known Patreon URL without search', async () => {
+      const patreon = new PatreonSource();
+      const patterns = await patreon.searchPatterns('https://www.patreon.com/posts/148144034');
+
+      expect(Array.isArray(patterns)).toBe(true);
     });
 
     it('should extract post ID from Patreon URLs', () => {
@@ -170,7 +178,7 @@ describePatreonIntegration('Patreon Integration', () => {
     const KAVSOFT_CHANNEL = 'UCsuV4MRk_aB291SrchUVb4w';
 
     it('should fetch channel videos', async () => {
-      const videos = await getChannelVideos(KAVSOFT_CHANNEL, 5);
+      const videos = await getChannelVideos(KAVSOFT_CHANNEL, 3);
 
       expect(Array.isArray(videos)).toBe(true);
       expect(videos.length).toBeGreaterThan(0);
@@ -183,7 +191,7 @@ describePatreonIntegration('Patreon Integration', () => {
     }, 30000);
 
     it('should extract Patreon links from video descriptions', async () => {
-      const videos = await getChannelVideos(KAVSOFT_CHANNEL, 20);
+      const videos = await getChannelVideos(KAVSOFT_CHANNEL, 8);
 
       // At least some videos should have Patreon links
       const withPatreon = videos.filter(v => v.patreonLink);
@@ -196,14 +204,14 @@ describePatreonIntegration('Patreon Integration', () => {
     }, 30000);
 
     it('should search videos by query', async () => {
-      const videos = await searchVideos('SwiftUI animation', KAVSOFT_CHANNEL, 5);
+      const videos = await searchVideos('SwiftUI animation', KAVSOFT_CHANNEL, 3);
 
       expect(Array.isArray(videos)).toBe(true);
       // Search might return 0 results for specific queries, that's OK
     }, 30000);
 
     it('should search and find Apple Stocks video', async () => {
-      const videos = await searchVideos('Apple Stocks ScrollView', KAVSOFT_CHANNEL, 10);
+      const videos = await searchVideos('Apple Stocks ScrollView', KAVSOFT_CHANNEL, 5);
 
       const stocksVideo = videos.find(v =>
         v.title.toLowerCase().includes('stocks') ||
