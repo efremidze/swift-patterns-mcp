@@ -110,6 +110,37 @@ describe('MemvidMemoryManager', () => {
     expect(results[0]).toHaveProperty('topics');
   });
 
+  it('should reconstruct original URLs and IDs from stored patterns', async () => {
+    manager = new MemvidMemoryManager(testMemoryPath);
+    await manager.initialize();
+
+    const pattern: BasePattern = {
+      id: 'sundell-patterns-https://www.swiftbysundell.com/articles/animation',
+      title: 'SwiftUI Animation',
+      url: 'https://www.swiftbysundell.com/articles/animation',
+      publishDate: '2024-01-15',
+      excerpt: 'Animation patterns',
+      content: 'SwiftUI animation content',
+      topics: ['swiftui', 'animation'],
+      hasCode: true,
+      relevanceScore: 85,
+    };
+
+    await manager.storePattern(pattern, { sourceName: 'sundell' });
+
+    const results = await manager.search('animation', { k: 5 });
+
+    expect(results.length).toBeGreaterThan(0);
+    const hit = results[0];
+
+    // URL should be the real URL, not an mv2:// internal URI
+    expect(hit.url).not.toContain('mv2://');
+    expect(hit.url).toContain('https://');
+
+    // ID should contain the original pattern ID prefix
+    expect(hit.id).toContain('sundell-patterns');
+  });
+
   it('should handle search with no results gracefully', async () => {
     manager = new MemvidMemoryManager(testMemoryPath);
     await manager.initialize();
