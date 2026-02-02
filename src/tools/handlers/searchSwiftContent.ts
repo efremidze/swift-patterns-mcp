@@ -161,10 +161,13 @@ Usage: search_swift_content({ query: "async await" })`);
       });
 
       // Filter out duplicates and add new results
+      // Dedup by both id and url since memvid-derived IDs may differ from originals
       if (memvidResults.length > 0) {
         const existingIds = new Set(finalResults.map(p => p.id));
-        const newMemvidResults = memvidResults.filter(p => 
+        const existingUrls = new Set(finalResults.map(p => p.url));
+        const newMemvidResults = memvidResults.filter(p =>
           !existingIds.has(p.id) &&
+          !existingUrls.has(p.url) &&
           (!requireCode || p.hasCode)
         );
 
