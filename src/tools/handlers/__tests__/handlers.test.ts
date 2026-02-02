@@ -352,6 +352,7 @@ describe('enableSourceHandler', () => {
 
     expect(text).toContain('Unknown source');
     expect(text).toContain('unknown_source');
+    expect(result.isError).toBe(true);
   });
 
   it('should list available sources when source is unknown', async () => {
