@@ -217,7 +217,7 @@ export class MemvidMemoryManager {
 
         // Extract the real URL from the original pattern ID
         // Pattern IDs follow: {cacheKey}-{url}, e.g. sundell-patterns-https://example.com/...
-        const urlMatch = originalId.match(/https?:\/\/.+/);
+        const urlMatch = originalId.match(/https?:\/\/\S+/);
         const realUrl = urlMatch ? urlMatch[0] : '';
 
         return {
