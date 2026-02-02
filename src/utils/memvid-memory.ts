@@ -209,10 +209,21 @@ export class MemvidMemoryManager {
         const contentForDetection = [hit.title, hit.snippet].filter(Boolean).join('\n\n');
         const score = typeof hit.score === 'number' ? hit.score : 0;
 
+        // Reconstruct original pattern ID from the URI path
+        // URI format: mv2://patterns/{source}/{originalPatternId}
+        const uriPath = hit.uri?.replace('mv2://patterns/', '') || '';
+        const slashIdx = uriPath.indexOf('/');
+        const originalId = slashIdx >= 0 ? uriPath.slice(slashIdx + 1) : '';
+
+        // Extract the real URL from the original pattern ID
+        // Pattern IDs follow: {cacheKey}-{url}, e.g. sundell-patterns-https://example.com/...
+        const urlMatch = originalId.match(/https?:\/\/.+/);
+        const realUrl = urlMatch ? urlMatch[0] : '';
+
         return {
-          id: hit.uri?.split('/').pop() || '',
+          id: originalId || hit.uri?.split('/').pop() || '',
           title: hit.title || '',
-          url: hit.uri || '',
+          url: realUrl || hit.uri || '',
           publishDate: hit.created_at || '',
           excerpt: hit.snippet || '',
           content: hit.snippet || '', // Use snippet as content for search results
