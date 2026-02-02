@@ -1,14 +1,14 @@
 // src/tools/handlers/enableSource.ts
 
 import type { ToolHandler } from '../types.js';
-import { createTextResponse } from '../../utils/response-helpers.js';
+import { createTextResponse, createErrorResponse } from '../../utils/response-helpers.js';
 
 export const enableSourceHandler: ToolHandler = async (args, context) => {
   const sourceId = args?.source as string;
   const source = context.sourceManager.getSource(sourceId);
 
   if (!source) {
-    return createTextResponse(`Unknown source: "${sourceId}"
+    return createErrorResponse(`Unknown source: "${sourceId}"
 
 Available sources:
 ${context.sourceManager.getAllSources().map(s => `- ${s.id}: ${s.name}`).join('\n')}`);
