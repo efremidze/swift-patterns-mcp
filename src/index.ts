@@ -6,9 +6,8 @@ import 'dotenv/config';
 
 // CLI subcommand routing — detect before starting MCP server
 const CLI_COMMANDS: Record<string, string> = {
-  source: './cli/source-manager.js',
-  setup: './cli/setup.js',
-  auth: './cli/auth.js',
+  sources: './cli/sources.js',
+  patreon: './cli/patreon.js',
 };
 
 const subcommand = process.argv[2];
