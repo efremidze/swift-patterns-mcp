@@ -75,7 +75,7 @@ Access exclusive content from top iOS educators: **Kavsoft**, **SwiftUI Codes**,
 ### Install
 
 ```bash
-npm install -g swift-patterns-mcp
+npx -y swift-patterns-mcp@latest
 ```
 
 ### Configure Your AI Assistant
