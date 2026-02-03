@@ -85,7 +85,7 @@ export const AVAILABLE_SOURCES: ContentSource[] = [
 export interface SourceConfig {
   sources: Record<string, {
     enabled: boolean;
-    configured: boolean;
+    configured?: boolean;
     lastSync?: string;
   }>;
   prefetchSources?: boolean;
@@ -105,7 +105,7 @@ export interface SourceConfig {
 const sourceConfigSchema = z.object({
   sources: z.record(z.string(), z.object({
     enabled: z.boolean(),
-    configured: z.boolean(),
+    configured: z.boolean().optional(),
     lastSync: z.string().optional(),
   })),
   prefetchSources: z.boolean().optional(),
@@ -186,7 +186,7 @@ export class SourceManager {
   getEnabledSources(): ContentSource[] {
     return AVAILABLE_SOURCES.filter(source => {
       const config = this.config.sources[source.id];
-      return config?.enabled && config?.configured;
+      return config?.enabled && this.isSourceConfigured(source.id);
     });
   }
   
