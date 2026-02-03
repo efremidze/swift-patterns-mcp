@@ -224,6 +224,44 @@ describe('getSwiftPatternHandler', () => {
     expect(text).not.toContain('Composable Architecture'); // pointfree
   });
 
+  it('should return helpful error when source is a Patreon creator', async () => {
+    const result = await getSwiftPatternHandler({
+      topic: 'animations',
+      source: 'kavsoft',
+    }, context);
+    const text = result.content[0].text;
+
+    expect(text).toContain('Kavsoft');
+    expect(text).toContain('Patreon creator');
+    expect(text).toContain('get_patreon_patterns');
+    expect(text).toContain('animations');
+  });
+
+  it('should match Patreon creator names case-insensitively', async () => {
+    const result = await getSwiftPatternHandler({
+      topic: 'layouts',
+      source: 'Kavsoft',
+    }, context);
+    const text = result.content[0].text;
+
+    expect(text).toContain('Patreon creator');
+    expect(text).toContain('get_patreon_patterns');
+  });
+
+  it('should return error listing all sources for completely unknown source', async () => {
+    const result = await getSwiftPatternHandler({
+      topic: 'swift',
+      source: 'nonexistent',
+    }, context);
+    const text = result.content[0].text;
+
+    expect(text).toContain("isn't a recognized source");
+    expect(text).toContain('sundell');
+    expect(text).toContain('kavsoft');
+    expect(text).toContain('get_swift_pattern');
+    expect(text).toContain('get_patreon_patterns');
+  });
+
   // Format validation tests (quality scores, source attribution, URLs, sorting,
   // empty results) removed — covered by src/integration/__tests__/response-quality.test.ts
 });
