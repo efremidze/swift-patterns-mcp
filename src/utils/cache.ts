@@ -185,8 +185,9 @@ export class FileCache {
               return 1;
             }
           } catch {
-            await fsp.unlink(filePath).catch(() => {});
-            return 1;
+            // Skip files that can't be read or parsed — don't delete them
+            // as they may be mid-write by another operation
+            return 0;
           }
           return 0;
         })
