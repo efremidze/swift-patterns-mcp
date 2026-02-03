@@ -4,6 +4,22 @@
 
 import 'dotenv/config';
 
+// CLI subcommand routing — detect before starting MCP server
+const CLI_COMMANDS: Record<string, string> = {
+  source: './cli/source-manager.js',
+  setup: './cli/setup.js',
+  auth: './cli/auth.js',
+};
+
+const subcommand = process.argv[2];
+if (subcommand && subcommand in CLI_COMMANDS) {
+  // Strip the subcommand from argv so CLI modules see correct args
+  // e.g. "swift-patterns-mcp source list" → argv becomes [..., "list"]
+  process.argv.splice(2, 1);
+  await import(CLI_COMMANDS[subcommand]);
+  process.exit(0); // Fallback if CLI module doesn't exit explicitly
+}
+
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {

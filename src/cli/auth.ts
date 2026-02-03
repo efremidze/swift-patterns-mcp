@@ -29,7 +29,9 @@ async function resetAuth(): Promise<void> {
 const args = process.argv.slice(2)
 
 if (args.includes("reset") || args.includes("-r")) {
-  resetAuth().catch((err) => {
+  resetAuth().then(() => {
+    process.exit(0)
+  }).catch((err) => {
     logger.error({ err }, "Reset failed")
     process.exit(1)
   })

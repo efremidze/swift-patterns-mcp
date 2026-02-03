@@ -108,6 +108,7 @@ async function setupPatreon(): Promise<void> {
   print("Use 'get_patreon_patterns' in your AI assistant to search them.\n");
 
   rl.close();
+  process.exit(0);
 }
 
 // Parse args
