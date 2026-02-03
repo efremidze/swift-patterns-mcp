@@ -39,7 +39,6 @@ function extractPostContent(html: string): string {
     if (element) {
       // Remove unwanted elements before extracting text
       const unwantedElements = element.querySelectorAll('script, style, nav, footer, .sidebar, .comments');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       unwantedElements.forEach((el: any) => {
         el.parentNode?.removeChild(el);
       });

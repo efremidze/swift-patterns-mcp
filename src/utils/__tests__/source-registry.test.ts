@@ -235,10 +235,9 @@ describe('source-registry', () => {
     it('should maintain same instances across different function calls', () => {
       const direct = getSource('sundell');
       const fromArray = getSources(['sundell'])[0];
-      const fromAll = getAllFreeSources()[0]; // Assuming sundell is first
 
       expect(direct).toBe(fromArray);
-      // Note: fromAll might be in a different order, so we just check it's in the set
+      // Check the instance is in the full set regardless of order
       const allSources = getAllFreeSources();
       expect(allSources).toContain(direct);
     });

@@ -6,7 +6,6 @@ import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
 import AdmZip from 'adm-zip';
-import { CREATORS } from '../../config/creators.js';
 import { getPatreonContentDir } from '../../utils/paths.js';
 import logger from '../../utils/logger.js';
 
