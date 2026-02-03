@@ -376,7 +376,7 @@ graph LR
     B --> C[Free Sources]
     B --> D[Premium Sources]
     C --> E[Swift by Sundell RSS]
-    C --> F[van der Lee RSS]
+    C --> F[Antoine van der Lee RSS]
     C --> G[Nil Coalescing RSS]
     C --> H[Point-Free GitHub]
     D --> I[Patreon API]
