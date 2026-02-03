@@ -6,7 +6,7 @@ import { CachedSearchIndex } from '../../utils/search.js';
 import { detectTopics, hasCodeContent, calculateRelevance } from '../../utils/swift-analysis.js';
 import { createSourceConfig } from '../../config/swift-keywords.js';
 import { fetchJson, fetchText, buildHeaders } from '../../utils/http.js';
-import { runWithConcurrency } from '../../utils/concurrency.js';
+import pLimit from 'p-limit';
 import logger from '../../utils/logger.js';
 import type { BasePattern } from './rssPatternSource.js';
 
@@ -172,7 +172,8 @@ export class PointFreeSource {
     const branch = await this.getDefaultBranch();
     const { branch: resolvedBranch, files } = await this.fetchContentFiles(branch);
 
-    const patterns = await runWithConcurrency(files, MAX_CONCURRENT_FETCHES, async file => {
+    const limit = pLimit(MAX_CONCURRENT_FETCHES);
+    const patterns = await Promise.all(files.map(file => limit(async () => {
       try {
         const content = await this.fetchFileContent(resolvedBranch, file.path);
         const title = extractTitle(file.path, content);
@@ -203,7 +204,7 @@ export class PointFreeSource {
         );
         return null;
       }
-    });
+    })));
 
     // Filter out null results from failed fetches
     const validPatterns = patterns.filter((pattern): pattern is PointFreePattern => pattern !== null);
