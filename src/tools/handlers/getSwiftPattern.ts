@@ -1,7 +1,7 @@
 // src/tools/handlers/getSwiftPattern.ts
 
 import type { ToolHandler } from '../types.js';
-import { getSourceNames, searchMultipleSources, type FreeSourceName } from '../../utils/source-registry.js';
+import { FREE_SOURCE_NAMES, getSourceNames, searchMultipleSources, type FreeSourceName } from '../../utils/source-registry.js';
 import { formatTopicPatterns, COMMON_FORMAT_OPTIONS, detectCodeIntent } from '../../utils/pattern-formatter.js';
 import { createTextResponse } from '../../utils/response-helpers.js';
 import { intentCache, type IntentKey, type StorableCachedSearchResult } from '../../utils/intent-cache.js';
@@ -27,6 +27,15 @@ Example topics:
   const source = (args?.source as string) || "all";
   const minQuality = (args?.minQuality as number) || 65;
   const wantsCode = detectCodeIntent(args, topic);
+
+  if (source !== 'all' && !FREE_SOURCE_NAMES.includes(source as FreeSourceName)) {
+    return createTextResponse(`"${source}" isn't a supported free source for get_swift_pattern.
+
+Available free sources: ${FREE_SOURCE_NAMES.join(', ')}
+
+For Patreon creators (e.g. Kavsoft), use:
+get_patreon_patterns({ topic: "${topic}" })`);
+  }
 
   // Build intent key for caching
   const intentKey: IntentKey = {
