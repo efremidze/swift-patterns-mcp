@@ -61,6 +61,7 @@
     "minisearch": "^7.2.0",
     "ml-distance": "^4.0.1",
     "natural": "^8.1.0",
+    "p-limit": "^7.2.0",
     "pino": "^9.5.0",
     "playwright": "^1.58.0",
     "quick-lru": "^7.3.0",
