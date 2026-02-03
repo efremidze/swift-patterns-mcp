@@ -323,13 +323,13 @@ Add to your MCP client config:
 Access premium content from iOS creators you support:
 
 ```bash
-swift-patterns-mcp setup --patreon
+swift-patterns-mcp patreon setup
 ```
 
 Follow the interactive wizard to:
-1. Create a Patreon OAuth application
-2. Configure credentials
-3. Complete authentication
+1. Verify environment variables are configured
+2. Complete OAuth authentication
+3. Fetch and verify content from your subscriptions
 
 📖 **Detailed Guide**: [Patreon Setup Documentation](docs/PATREON_SETUP.md)
 
@@ -354,18 +354,13 @@ Patreon requires OAuth apps to be registered by creators. You don't need to laun
 ## ⚙️ Commands
 
 ```bash
-# Source management
-swift-patterns-mcp source list
-swift-patterns-mcp source enable <source-name>
-swift-patterns-mcp source disable <source-name>
+# List all content sources and status
+swift-patterns-mcp sources
 
-# Configuration
-swift-patterns-mcp setup
-swift-patterns-mcp setup --patreon
-
-# Authentication
-swift-patterns-mcp auth patreon
-swift-patterns-mcp auth status
+# Patreon integration
+swift-patterns-mcp patreon setup     # Connect your Patreon account
+swift-patterns-mcp patreon status    # Check connection status
+swift-patterns-mcp patreon reset     # Clear authentication data
 ```
 
 ## 🗃️ How It Works
@@ -399,9 +394,8 @@ node --version  # Should be >= 18.0.0
 
 **Sources not returning results**
 ```bash
-swift-patterns-mcp source list
+swift-patterns-mcp sources
 ls ~/.swift-patterns-mcp/config.json
-swift-patterns-mcp setup
 ```
 
 ### Patreon Integration Issues
@@ -413,8 +407,8 @@ swift-patterns-mcp setup
 
 **No premium content showing**
 - Confirm you have active Patreon subscriptions to iOS creators
-- Re-authenticate: `swift-patterns-mcp auth patreon`
-- Check Patreon source is enabled: `swift-patterns-mcp source list`
+- Check status: `swift-patterns-mcp patreon status`
+- Re-authenticate: `swift-patterns-mcp patreon setup`
 
 ## 🗺️ Roadmap
 
