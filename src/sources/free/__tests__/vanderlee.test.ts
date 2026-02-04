@@ -3,59 +3,67 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import VanderLeeSource from '../vanderlee.js';
 
-const mockFetch = vi.hoisted(() => vi.fn());
+const mockFetchTextConditional = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../utils/fetch.js', () => ({
-  fetch: (...args: unknown[]) => mockFetch(...args),
+vi.mock('../../../utils/http.js', () => ({
+  buildHeaders: (ua: string) => ({ 'User-Agent': ua }),
+  fetchTextConditional: (...args: unknown[]) => mockFetchTextConditional(...args),
 }));
-
-vi.mock('rss-parser', () => {
-  return {
-    default: class Parser {
-      async parseURL(_url: string) {
-        return {
-          items: [
-            {
-              guid: '1',
-              title: 'Debugging with Xcode',
-              link: 'https://example.com/1',
-              pubDate: '2026-01-01',
-              contentSnippet: 'Debugging tips',
-              content: '<p>Debugging <code>let x = 1</code></p>',
-            },
-            {
-              guid: '2',
-              title: 'SwiftUI Performance',
-              link: 'https://example.com/2',
-              pubDate: '2026-01-02',
-              contentSnippet: 'SwiftUI performance best practices',
-              content: '<p>SwiftUI <pre>struct ContentView: View {}</pre></p>',
-            },
-          ],
-        };
-      }
-    },
-  };
-});
 
 vi.mock('../../../utils/cache.js', () => ({
   rssCache: {
     get: vi.fn(async () => undefined),
     set: vi.fn(async () => undefined),
+    getExpiredEntry: vi.fn(async () => null),
+    refreshTtl: vi.fn(async () => undefined),
   },
   articleCache: {
     get: vi.fn(async () => undefined),
     set: vi.fn(async () => undefined),
+    getExpiredEntry: vi.fn(async () => null),
+    refreshTtl: vi.fn(async () => undefined),
   },
 }));
+
+const rssXml = `<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <guid>1</guid>
+      <title>Debugging with Xcode</title>
+      <link>https://example.com/1</link>
+      <pubDate>2026-01-01</pubDate>
+      <description><![CDATA[<p>Debugging <code>let x = 1</code></p>]]></description>
+    </item>
+    <item>
+      <guid>2</guid>
+      <title>SwiftUI Performance</title>
+      <link>https://example.com/2</link>
+      <pubDate>2026-01-02</pubDate>
+      <description><![CDATA[<p>SwiftUI <pre>struct ContentView: View {}</pre></p>]]></description>
+    </item>
+  </channel>
+</rss>`;
 
 describe('VanderLeeSource', () => {
   let source: VanderLeeSource;
   beforeEach(() => {
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValue({
-      ok: true,
-      text: async () => '<div class="post-content">Full article <code>let y = 2</code></div><div></div>',
+    mockFetchTextConditional.mockReset();
+    mockFetchTextConditional.mockImplementation((url: string) => {
+      // RSS feed fetch
+      if (url.includes('avanderlee.com/feed') || url.includes('test.com/feed')) {
+        return Promise.resolve({
+          data: rssXml,
+          httpMeta: {},
+          notModified: false,
+        });
+      }
+      // Article fetches
+      return Promise.resolve({
+        data: '<div class="post-content">Full article <code>let y = 2</code></div><div></div>',
+        httpMeta: {},
+        notModified: false,
+      });
     });
     source = new VanderLeeSource();
   });

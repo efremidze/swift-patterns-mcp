@@ -4,7 +4,7 @@ import Parser from 'rss-parser';
 import { rssCache, articleCache } from '../../utils/cache.js';
 import { CachedSearchIndex } from '../../utils/search.js';
 import { detectTopics as detectTopicsUtil, hasCodeContent as hasCodeContentUtil, calculateRelevance as calculateRelevanceUtil } from '../../utils/swift-analysis.js';
-import { fetchText, buildHeaders } from '../../utils/http.js';
+import { fetchTextConditional, buildHeaders } from '../../utils/http.js';
 import { logError } from '../../utils/errors.js';
 
 export interface BasePattern {
@@ -42,17 +42,37 @@ export abstract class RssPatternSource<T extends BasePattern> {
   async fetchPatterns(): Promise<T[]> {
     try {
       const { cacheKey, rssCacheTtl = 3600, fetchFullArticle } = this.options;
+
+      // 1. Check for valid (non-expired) cache hit
       const cached = await rssCache.get<T[]>(cacheKey);
       if (cached) return cached;
-      
-      const feed = await this.parser.parseURL(this.options.feedUrl);
+
+      // 2. Check for expired entry to get data + HTTP metadata for conditional request
+      const expiredEntry = await rssCache.getExpiredEntry<T[]>(cacheKey);
+
+      // 3. Fetch with conditional headers
+      const headers = buildHeaders('swift-patterns-mcp/1.0 (RSS Reader)');
+      const result = await fetchTextConditional(
+        this.options.feedUrl,
+        { headers },
+        expiredEntry?.httpMeta
+      );
+
+      // 4. On 304 Not Modified: refresh TTL and return expired data
+      if (result.notModified && expiredEntry) {
+        await rssCache.refreshTtl(cacheKey, rssCacheTtl);
+        return expiredEntry.data;
+      }
+
+      // 5. On 200: parse XML and process patterns
+      const feed = await this.parser.parseString(result.data!);
       const patterns = await Promise.all(
         feed.items.map(item =>
           fetchFullArticle ? this.processArticle(item) : this.processRssItem(item)
         )
       );
-      
-      await rssCache.set(cacheKey, patterns, rssCacheTtl);
+
+      await rssCache.set(cacheKey, patterns, rssCacheTtl, result.httpMeta);
       // Invalidate search index after fetching new patterns
       this.cachedSearch.invalidate();
       return patterns;
@@ -111,13 +131,32 @@ export abstract class RssPatternSource<T extends BasePattern> {
 
   protected async fetchArticleContent(url: string): Promise<string> {
     const { articleCacheTtl = 86400, extractContentFn } = this.options;
+
+    // 1. Check valid cache
     const cached = await articleCache.get<string>(url);
     if (cached) return cached;
-    
+
+    // 2. Check expired entry for conditional request metadata
+    const expiredEntry = await articleCache.getExpiredEntry<string>(url);
+
+    // 3. Fetch with conditional headers
     const headers = buildHeaders('swift-patterns-mcp/1.0 (RSS Reader)');
-    const html = await fetchText(url, { headers });
-    const content = extractContentFn ? extractContentFn(html) : html;
-    await articleCache.set(url, content, articleCacheTtl);
+    const result = await fetchTextConditional(
+      url,
+      { headers },
+      expiredEntry?.httpMeta
+    );
+
+    // 4. On 304: refresh TTL, return expired data
+    if (result.notModified && expiredEntry) {
+      await articleCache.refreshTtl(url, articleCacheTtl);
+      const content = extractContentFn ? extractContentFn(expiredEntry.data) : expiredEntry.data;
+      return content;
+    }
+
+    // 5. On 200: process and cache
+    const content = extractContentFn ? extractContentFn(result.data!) : result.data!;
+    await articleCache.set(url, content, articleCacheTtl, result.httpMeta);
     return content;
   }
 

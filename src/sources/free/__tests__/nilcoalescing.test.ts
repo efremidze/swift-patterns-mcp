@@ -3,45 +3,52 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import NilCoalescingSource from '../nilcoalescing.js';
 
-vi.mock('rss-parser', () => {
-  return {
-    default: class Parser {
-      async parseURL(_url: string) {
-        return {
-          items: [
-            {
-              guid: '1',
-              title: 'SwiftUI Navigation Patterns',
-              link: 'https://example.com/1',
-              pubDate: '2026-01-01',
-              contentSnippet: 'Navigation and layout tips for SwiftUI',
-              content: '<p>Some content <code>NavigationStack</code></p>',
-            },
-            {
-              guid: '2',
-              title: 'Snapshot Testing in Swift',
-              link: 'https://example.com/2',
-              pubDate: '2026-01-02',
-              contentSnippet: 'Snapshot testing for UIKit and SwiftUI',
-              content: '<p>Testing <pre>assertSnapshot()</pre></p>',
-            },
-          ],
-        };
-      }
-    },
-  };
-});
+const mockFetchTextConditional = vi.hoisted(() => vi.fn());
+
+vi.mock('../../../utils/http.js', () => ({
+  buildHeaders: (ua: string) => ({ 'User-Agent': ua }),
+  fetchTextConditional: (...args: unknown[]) => mockFetchTextConditional(...args),
+}));
 
 vi.mock('../../../utils/cache.js', () => ({
   rssCache: {
     get: vi.fn(async () => undefined),
     set: vi.fn(async () => undefined),
+    getExpiredEntry: vi.fn(async () => null),
+    refreshTtl: vi.fn(async () => undefined),
   },
 }));
 
+const rssXml = `<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <guid>1</guid>
+      <title>SwiftUI Navigation Patterns</title>
+      <link>https://example.com/1</link>
+      <pubDate>2026-01-01</pubDate>
+      <description><![CDATA[<p>Some content <code>NavigationStack</code></p>]]></description>
+    </item>
+    <item>
+      <guid>2</guid>
+      <title>Snapshot Testing in Swift</title>
+      <link>https://example.com/2</link>
+      <pubDate>2026-01-02</pubDate>
+      <description><![CDATA[<p>Testing <pre>assertSnapshot()</pre></p>]]></description>
+    </item>
+  </channel>
+</rss>`;
+
 describe('NilCoalescingSource', () => {
   let source: NilCoalescingSource;
+
   beforeEach(() => {
+    mockFetchTextConditional.mockReset();
+    mockFetchTextConditional.mockResolvedValue({
+      data: rssXml,
+      httpMeta: {},
+      notModified: false,
+    });
     source = new NilCoalescingSource();
   });
 
