@@ -26,6 +26,8 @@ const SOURCE_CLASSES = {
   pointfree: PointFreeSource,
 } as const;
 
+export const FREE_SOURCE_NAMES = Object.keys(SOURCE_CLASSES) as FreeSourceName[];
+
 /**
  * Singleton cache for source instances
  * Keeps search indexes warm across calls
@@ -64,7 +66,7 @@ export function getSource(name: FreeSourceName): FreeSource {
  * Get all free source instances
  */
 export function getAllFreeSources(): FreeSource[] {
-  return Object.keys(SOURCE_CLASSES).map(name => getSource(name as FreeSourceName));
+  return FREE_SOURCE_NAMES.map(name => getSource(name));
 }
 
 /**
@@ -89,7 +91,7 @@ export function getSources(sourceNames: FreeSourceName | 'all' | FreeSourceName[
  */
 export function getSourceNames(sourceNames: FreeSourceName | 'all' | FreeSourceName[]): string[] {
   if (sourceNames === 'all') {
-    return Object.keys(SOURCE_CLASSES);
+    return FREE_SOURCE_NAMES;
   }
 
   if (Array.isArray(sourceNames)) {

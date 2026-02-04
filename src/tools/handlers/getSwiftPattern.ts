@@ -1,7 +1,7 @@
 // src/tools/handlers/getSwiftPattern.ts
 
 import type { ToolHandler } from '../types.js';
-import { getSourceNames, searchMultipleSources, type FreeSourceName } from '../../utils/source-registry.js';
+import { FREE_SOURCE_NAMES, getSourceNames, searchMultipleSources, type FreeSourceName } from '../../utils/source-registry.js';
 import { formatTopicPatterns, COMMON_FORMAT_OPTIONS, detectCodeIntent } from '../../utils/pattern-formatter.js';
 import { createTextResponse } from '../../utils/response-helpers.js';
 import { intentCache, type IntentKey, type StorableCachedSearchResult } from '../../utils/intent-cache.js';
@@ -9,6 +9,7 @@ import type { BasePattern } from '../../sources/free/rssPatternSource.js';
 import { getMemvidMemory } from '../../utils/memvid-memory.js';
 import SourceManager from '../../config/sources.js';
 import logger from '../../utils/logger.js';
+import { CREATORS } from '../../config/creators.js';
 
 export const getSwiftPatternHandler: ToolHandler = async (args, context) => {
   const topic = args?.topic as string;
@@ -27,6 +28,28 @@ Example topics:
   const source = (args?.source as string) || "all";
   const minQuality = (args?.minQuality as number) || 65;
   const wantsCode = detectCodeIntent(args, topic);
+
+  if (source !== 'all' && !FREE_SOURCE_NAMES.includes(source as FreeSourceName)) {
+    const patreonCreator = CREATORS.find(c => c.id.toLowerCase() === source.toLowerCase());
+
+    if (patreonCreator) {
+      return createTextResponse(`"${patreonCreator.name}" is a Patreon creator, not a free source.
+
+Use get_patreon_patterns to search Patreon content:
+get_patreon_patterns({ topic: "${topic}" })`);
+    }
+
+    return createTextResponse(`"${source}" isn't a recognized source.
+
+Available free sources: ${FREE_SOURCE_NAMES.join(', ')}
+Patreon creators: ${CREATORS.map(c => c.id).join(', ')}
+
+For free sources, use:
+get_swift_pattern({ topic: "${topic}", source: "sundell" })
+
+For Patreon creators, use:
+get_patreon_patterns({ topic: "${topic}" })`);
+  }
 
   // Build intent key for caching
   const intentKey: IntentKey = {

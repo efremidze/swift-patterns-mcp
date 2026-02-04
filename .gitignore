@@ -38,6 +38,7 @@ npm-debug.log*
 # Testing
 coverage/
 .nyc_output/
+demo/
 
 # Git keep files
 *.gitkeep
