@@ -11,16 +11,10 @@ const DEFAULT_TTL = 86400; // 24 hours in seconds
 const DEFAULT_MAX_MEMORY_ENTRIES = 100;
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
-export interface HttpCacheMetadata {
-  etag?: string;
-  lastModified?: string;
-}
-
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
   ttl: number;
-  httpMeta?: HttpCacheMetadata;
 }
 
 export class FileCache {
@@ -89,9 +83,10 @@ export class FileCache {
         // Populate memory cache
         this.memoryCache.set(key, entry);
         return entry.data;
+      } else {
+        // Clean up expired entry
+        fsp.unlink(cachePath).catch(() => {});
       }
-      // Expired entries are left on disk for getExpiredEntry() to use;
-      // clearExpired() handles periodic cleanup.
     } catch {
       // Cache read failed (file doesn't exist or is corrupted), return null
     }
@@ -99,55 +94,12 @@ export class FileCache {
     return null;
   }
 
-  async getExpiredEntry<T>(key: string): Promise<{ data: T; httpMeta?: HttpCacheMetadata } | null> {
-    // Check memory cache for expired entry
-    const memEntry = this.memoryCache.get(key) as CacheEntry<T> | undefined;
-    if (memEntry) {
-      return { data: memEntry.data, httpMeta: memEntry.httpMeta };
-    }
-
-    // Check file cache
-    const cachePath = this.getCachePath(key);
-    try {
-      const content = await fsp.readFile(cachePath, 'utf-8');
-      const entry = JSON.parse(content) as CacheEntry<T>;
-      return { data: entry.data, httpMeta: entry.httpMeta };
-    } catch {
-      return null;
-    }
-  }
-
-  async refreshTtl(key: string, ttl: number): Promise<void> {
-    const now = Date.now();
-
-    // Refresh in memory cache
-    const memEntry = this.memoryCache.get(key);
-    if (memEntry) {
-      memEntry.timestamp = now;
-      memEntry.ttl = ttl;
-      this.memoryCache.set(key, memEntry);
-    }
-
-    // Refresh in file cache
-    const cachePath = this.getCachePath(key);
-    try {
-      const content = await fsp.readFile(cachePath, 'utf-8');
-      const entry = JSON.parse(content) as CacheEntry<unknown>;
-      entry.timestamp = now;
-      entry.ttl = ttl;
-      await fsp.writeFile(cachePath, JSON.stringify(entry));
-    } catch {
-      // File may not exist
-    }
-  }
-
-  async set<T>(key: string, data: T, ttl: number = DEFAULT_TTL, httpMeta?: HttpCacheMetadata): Promise<void> {
+  async set<T>(key: string, data: T, ttl: number = DEFAULT_TTL): Promise<void> {
     const now = Date.now();
     const entry: CacheEntry<T> = {
       data,
       timestamp: now,
       ttl,
-      ...(httpMeta && { httpMeta }),
     };
 
     // Set in memory cache
