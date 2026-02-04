@@ -3,25 +3,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import VanderLeeSource from '../vanderlee.js';
 
-const mockFetchTextConditional = vi.hoisted(() => vi.fn());
+const mockFetch = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../utils/http.js', () => ({
-  buildHeaders: (ua: string) => ({ 'User-Agent': ua }),
-  fetchTextConditional: (...args: unknown[]) => mockFetchTextConditional(...args),
+vi.mock('../../../utils/fetch.js', () => ({
+  fetch: (...args: unknown[]) => mockFetch(...args),
 }));
 
 vi.mock('../../../utils/cache.js', () => ({
   rssCache: {
     get: vi.fn(async () => undefined),
     set: vi.fn(async () => undefined),
-    getExpiredEntry: vi.fn(async () => null),
-    refreshTtl: vi.fn(async () => undefined),
   },
   articleCache: {
     get: vi.fn(async () => undefined),
     set: vi.fn(async () => undefined),
-    getExpiredEntry: vi.fn(async () => null),
-    refreshTtl: vi.fn(async () => undefined),
   },
 }));
 
@@ -48,21 +43,19 @@ const rssXml = `<?xml version="1.0"?>
 describe('VanderLeeSource', () => {
   let source: VanderLeeSource;
   beforeEach(() => {
-    mockFetchTextConditional.mockReset();
-    mockFetchTextConditional.mockImplementation((url: string) => {
+    mockFetch.mockReset();
+    mockFetch.mockImplementation((url: string) => {
       // RSS feed fetch
-      if (url.includes('avanderlee.com/feed') || url.includes('test.com/feed')) {
+      if (url.includes('avanderlee.com/feed')) {
         return Promise.resolve({
-          data: rssXml,
-          httpMeta: {},
-          notModified: false,
+          ok: true,
+          text: async () => rssXml,
         });
       }
       // Article fetches
       return Promise.resolve({
-        data: '<div class="post-content">Full article <code>let y = 2</code></div><div></div>',
-        httpMeta: {},
-        notModified: false,
+        ok: true,
+        text: async () => '<div class="post-content">Full article <code>let y = 2</code></div><div></div>',
       });
     });
     source = new VanderLeeSource();

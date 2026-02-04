@@ -3,11 +3,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RssPatternSource, BasePattern } from '../rssPatternSource.js';
 
-const mockFetchTextConditional = vi.hoisted(() => vi.fn());
+const mockFetch = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../utils/http.js', () => ({
-  buildHeaders: (ua: string) => ({ 'User-Agent': ua }),
-  fetchTextConditional: (...args: unknown[]) => mockFetchTextConditional(...args),
+vi.mock('../../../utils/fetch.js', () => ({
+  fetch: (...args: unknown[]) => mockFetch(...args),
 }));
 
 // Mock dependencies
@@ -15,14 +14,10 @@ vi.mock('../../../utils/cache.js', () => ({
   rssCache: {
     get: vi.fn(async () => undefined),
     set: vi.fn(async () => undefined),
-    getExpiredEntry: vi.fn(async () => null),
-    refreshTtl: vi.fn(async () => undefined),
   },
   articleCache: {
     get: vi.fn(async () => undefined),
     set: vi.fn(async () => undefined),
-    getExpiredEntry: vi.fn(async () => null),
-    refreshTtl: vi.fn(async () => undefined),
   },
 }));
 
@@ -74,11 +69,10 @@ describe('RssPatternSource', () => {
   let source: TestSource;
 
   beforeEach(() => {
-    mockFetchTextConditional.mockReset();
-    mockFetchTextConditional.mockResolvedValue({
-      data: rssXml,
-      httpMeta: { etag: '"test"' },
-      notModified: false,
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      text: async () => rssXml,
     });
     source = new TestSource();
   });
@@ -105,14 +99,5 @@ describe('RssPatternSource', () => {
     const results = await source.searchPatterns('swiftui');
     expect(results[0].title).toMatch(/swiftui/i);
     expect(results[0].topics).toContain('swiftui');
-  });
-
-  it('uses conditional fetch with feed URL', async () => {
-    await source.fetchPatterns();
-    expect(mockFetchTextConditional).toHaveBeenCalledWith(
-      'https://test.com/feed',
-      expect.objectContaining({ headers: expect.any(Object) }),
-      undefined
-    );
   });
 });

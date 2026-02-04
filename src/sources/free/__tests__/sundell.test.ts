@@ -3,19 +3,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import SundellSource from '../sundell.js';
 
-const mockFetchTextConditional = vi.hoisted(() => vi.fn());
+const mockFetch = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../utils/http.js', () => ({
-  buildHeaders: (ua: string) => ({ 'User-Agent': ua }),
-  fetchTextConditional: (...args: unknown[]) => mockFetchTextConditional(...args),
+vi.mock('../../../utils/fetch.js', () => ({
+  fetch: (...args: unknown[]) => mockFetch(...args),
 }));
 
 vi.mock('../../../utils/cache.js', () => ({
   rssCache: {
     get: vi.fn(async () => undefined),
     set: vi.fn(async () => undefined),
-    getExpiredEntry: vi.fn(async () => null),
-    refreshTtl: vi.fn(async () => undefined),
   },
 }));
 
@@ -43,11 +40,10 @@ describe('SundellSource', () => {
   let source: SundellSource;
 
   beforeEach(() => {
-    mockFetchTextConditional.mockReset();
-    mockFetchTextConditional.mockResolvedValue({
-      data: rssXml,
-      httpMeta: {},
-      notModified: false,
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      text: async () => rssXml,
     });
     source = new SundellSource();
   });
