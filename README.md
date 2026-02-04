@@ -176,10 +176,10 @@ Configuration is automatically created at `~/.swift-patterns-mcp/config.json`:
 ```json
 {
   "sources": {
-    "sundell": { "enabled": true, "configured": true },
-    "vanderlee": { "enabled": true, "configured": true },
-    "nilcoalescing": { "enabled": true, "configured": true },
-    "pointfree": { "enabled": true, "configured": true },
+    "sundell": { "enabled": true },
+    "vanderlee": { "enabled": true },
+    "nilcoalescing": { "enabled": true },
+    "pointfree": { "enabled": true },
     "patreon": { "enabled": false, "configured": false }
   },
   "prefetchSources": true,
@@ -196,6 +196,8 @@ Configuration is automatically created at `~/.swift-patterns-mcp/config.json`:
   }
 }
 ```
+
+Note: `configured` only applies to premium sources. Free sources are treated as configured by default.
 
 ### Persistent Memory with Memvid
 
