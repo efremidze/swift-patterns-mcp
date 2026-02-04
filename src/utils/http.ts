@@ -33,20 +33,20 @@ async function fetchWithTimeout(
   options: FetchOptions = {}
 ): Promise<Response> {
   const { timeout = DEFAULT_TIMEOUT, headers = {}, signal } = options;
-
+  
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
-
+  
   try {
     const response = await fetch(url, {
       signal: signal || controller.signal,
       headers,
     });
-
+    
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-
+    
     return response;
   } finally {
     clearTimeout(timeoutId);
