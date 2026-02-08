@@ -48,8 +48,8 @@ demo/
 
 # Claude Code
 .claude/
+.opencode/
 .gsd/
-.worktrees/
 
 # Secrets
 *.pem
