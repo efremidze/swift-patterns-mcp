@@ -3,7 +3,7 @@
 import type { ToolHandler } from '../types.js';
 import { searchMultipleSources, getSourceNames, fetchAllPatterns, type FreeSourceName } from '../../utils/source-registry.js';
 import { formatSearchPatterns, COMMON_FORMAT_OPTIONS, detectCodeIntent } from '../../utils/pattern-formatter.js';
-import { createTextResponse } from '../../utils/response-helpers.js';
+import { createMarkdownResponse, createTextResponse } from '../../utils/response-helpers.js';
 import { intentCache, type IntentKey, type StorableCachedSearchResult } from '../../utils/intent-cache.js';
 import type { BasePattern } from '../../sources/free/rssPatternSource.js';
 import { SemanticRecallIndex, type SemanticRecallConfig } from '../../utils/semantic-recall.js';
@@ -206,7 +206,10 @@ Usage: search_swift_content({ query: "async await" })`);
   }
 
   if (finalResults.length === 0) {
-    return createTextResponse(`No results found for "${query}"${requireCode ? ' with code examples' : ''}.`);
+    return createMarkdownResponse(
+      `Search Results: "${query}"`,
+      `No results found for "${query}"${requireCode ? ' with code examples' : ''}.`,
+    );
   }
 
   // Format using shared utility

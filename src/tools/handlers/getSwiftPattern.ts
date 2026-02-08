@@ -3,7 +3,7 @@
 import type { ToolHandler } from '../types.js';
 import { FREE_SOURCE_NAMES, getSourceNames, searchMultipleSources, type FreeSourceName } from '../../utils/source-registry.js';
 import { formatTopicPatterns, COMMON_FORMAT_OPTIONS, detectCodeIntent } from '../../utils/pattern-formatter.js';
-import { createTextResponse } from '../../utils/response-helpers.js';
+import { createMarkdownResponse, createTextResponse } from '../../utils/response-helpers.js';
 import { intentCache, type IntentKey, type StorableCachedSearchResult } from '../../utils/intent-cache.js';
 import type { BasePattern } from '../../sources/free/rssPatternSource.js';
 import { getMemvidMemory } from '../../utils/memvid-memory.js';
@@ -115,15 +115,18 @@ get_patreon_patterns({ topic: "${topic}" })`);
   }
 
   if (results.length === 0) {
-    return createTextResponse(`No patterns found for "${topic}" with quality ≥ ${minQuality}.
-
-Try:
+    return createMarkdownResponse(
+      `Swift Patterns: ${topic}`,
+      `No patterns found for "${topic}" with quality ≥ ${minQuality}.`,
+      `Try:
 - Broader search terms
 - Lower minQuality
-- Different topic
-
-Available sources: Swift by Sundell, Antoine van der Lee, Nil Coalescing, Point-Free
-${context.sourceManager.isSourceConfigured('patreon') ? '\n💡 Enable Patreon for more premium content!' : ''}`);
+- Different topic`,
+      'Available sources: Swift by Sundell, Antoine van der Lee, Nil Coalescing, Point-Free',
+      context.sourceManager.isSourceConfigured('patreon')
+        ? '💡 Enable Patreon for more premium content!'
+        : undefined,
+    );
   }
 
   // Format using shared utility

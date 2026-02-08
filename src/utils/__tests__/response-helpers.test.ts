@@ -2,6 +2,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+  createMarkdownResponse,
   createTextResponse,
   createErrorResponse,
   createErrorResponseFromError,
@@ -19,6 +20,18 @@ describe('response-helpers', () => {
     it('should not set isError', () => {
       const result = createTextResponse('hello');
       expect(result.isError).toBeUndefined();
+    });
+  });
+
+  describe('createMarkdownResponse', () => {
+    it('should format title-only markdown response', () => {
+      const result = createMarkdownResponse('Search Results');
+      expect(result.content[0].text).toBe('# Search Results');
+    });
+
+    it('should join non-empty sections with blank lines', () => {
+      const result = createMarkdownResponse('Search Results', 'No results found', '', undefined, 'Try again');
+      expect(result.content[0].text).toBe('# Search Results\n\nNo results found\n\nTry again');
     });
   });
 
