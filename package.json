@@ -20,7 +20,8 @@
     "lint": "eslint . && tsc --noEmit",
     "pretest": "npm run build",
     "test": "vitest run",
-    "test:patreon": "npx tsx scripts/test-patreon-e2e.ts"
+    "test:patreon": "npx tsx scripts/test-patreon-e2e.ts",
+    "bench": "npm run build && node scripts/benchmark-mcp.js"
   },
   "keywords": [
     "mcp",
