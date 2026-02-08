@@ -25,8 +25,10 @@ export class MCPTestClient {
   private pendingRequests = new Map<number, {
     resolve: (value: JsonRpcResponse) => void;
     reject: (reason: Error) => void;
+    timeout: NodeJS.Timeout;
   }>();
   private rl: readline.Interface | null = null;
+  private initialized = false;
 
   async start(): Promise<void> {
     const serverPath = path.join(process.cwd(), 'build', 'index.js');
@@ -47,6 +49,7 @@ export class MCPTestClient {
         const pending = this.pendingRequests.get(response.id);
         if (pending) {
           this.pendingRequests.delete(response.id);
+          clearTimeout(pending.timeout);
           pending.resolve(response);
         }
       } catch {
@@ -57,8 +60,22 @@ export class MCPTestClient {
     // Consume stderr to prevent blocking
     this.process.stderr?.on('data', () => {});
 
-    // Wait for server to start
-    await new Promise(resolve => setTimeout(resolve, 500));
+    this.process.on('exit', (code, signal) => {
+      const reason = new Error(`MCP server exited (code=${code}, signal=${signal})`);
+      for (const [, pending] of this.pendingRequests) {
+        clearTimeout(pending.timeout);
+        pending.reject(reason);
+      }
+      this.pendingRequests.clear();
+      this.initialized = false;
+    });
+
+    // Explicit readiness handshake instead of fixed sleep.
+    const response = await this.initialize();
+    if (response.error) {
+      throw new Error(`Initialize failed: ${response.error.message}`);
+    }
+    this.initialized = true;
   }
 
   async stop(): Promise<void> {
@@ -70,6 +87,7 @@ export class MCPTestClient {
       this.rl.close();
       this.rl = null;
     }
+    this.initialized = false;
   }
 
   async send(method: string, params?: Record<string, unknown>): Promise<JsonRpcResponse> {
@@ -81,12 +99,12 @@ export class MCPTestClient {
     const request: JsonRpcRequest = { jsonrpc: '2.0', id, method, params };
 
     return new Promise((resolve, reject) => {
-      this.pendingRequests.set(id, { resolve, reject });
-
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(id);
         reject(new Error(`Request ${id} timed out`));
       }, 30000);
+
+      this.pendingRequests.set(id, { resolve, reject, timeout });
 
       this.process!.stdin!.write(JSON.stringify(request) + '\n', (err) => {
         if (err) {
@@ -99,11 +117,15 @@ export class MCPTestClient {
   }
 
   async initialize(): Promise<JsonRpcResponse> {
-    return this.send('initialize', {
+    const response = await this.send('initialize', {
       protocolVersion: '2024-11-05',
       capabilities: {},
       clientInfo: { name: 'test-client', version: '1.0.0' },
     });
+    if (!response.error) {
+      this.initialized = true;
+    }
+    return response;
   }
 
   async listTools(): Promise<JsonRpcResponse> {
