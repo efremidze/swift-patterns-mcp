@@ -78,6 +78,9 @@ Access exclusive content from top iOS educators: **Kavsoft**, **SwiftUI Codes**,
 npx -y swift-patterns-mcp@latest
 ```
 
+In an interactive terminal, this opens the setup wizard.  
+When launched by an MCP client (non-interactive stdio), it runs as the MCP server automatically.
+
 ### Interactive Setup Wizard
 
 ```bash
@@ -85,10 +88,32 @@ swift-patterns-mcp setup
 ```
 
 The wizard helps you choose:
-- Run mode (`npx`, project-local install, or global install)
-- MCP client (Cursor, Claude Code, Windsurf, VS Code)
 - Config scope (local project vs global)
+- MCP client (Cursor, Claude Code, Windsurf, VS Code)
 - Optional Patreon setup prompt
+
+### Non-interactive Setup (CI/Scripts)
+
+```bash
+# Cursor
+npx -y swift-patterns-mcp@latest setup --cursor --global
+npx -y swift-patterns-mcp@latest setup --cursor --local
+
+# Claude Code
+npx -y swift-patterns-mcp@latest setup --claude --global
+
+# Windsurf
+npx -y swift-patterns-mcp@latest setup --windsurf --global
+
+# VS Code
+npx -y swift-patterns-mcp@latest setup --vscode --local
+
+# All clients
+npx -y swift-patterns-mcp@latest setup --all --global
+```
+
+Use `--global` (`-g`) or `--local` (`-l`) to skip the location prompt.  
+Use `--cursor`, `--claude`, `--windsurf`, `--vscode`, or `--all` to skip the client prompt.
 
 ### Configure Your AI Assistant
 
