@@ -17,7 +17,7 @@ ${context.sourceManager.getAllSources().map(s => `- ${s.id}: ${s.name}`).join('\
   if (source.requiresAuth && !context.sourceManager.isSourceConfigured(sourceId)) {
     return createTextResponse(`⚙️ ${source.name} requires setup first.
 
-Run: swift-patterns-mcp setup --${sourceId}
+Run: swift-patterns-mcp ${sourceId} setup
 
 This will guide you through:
 ${sourceId === 'patreon' ? '- Patreon OAuth authentication\n- Connecting your subscriptions' : '- Authentication setup'}`);

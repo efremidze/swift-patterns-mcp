@@ -370,7 +370,7 @@ describe('listContentSourcesHandler', () => {
     const result = await listContentSourcesHandler({}, context);
     const text = result.content[0].text;
 
-    expect(text).toContain('swift-patterns-mcp setup');
+    expect(text).toContain('swift-patterns-mcp patreon setup');
   });
 });
 
@@ -409,8 +409,7 @@ describe('enableSourceHandler', () => {
     const text = result.content[0].text;
 
     expect(text).toContain('requires setup');
-    expect(text).toContain('swift-patterns-mcp setup');
-    expect(text).toContain('--patreon');
+    expect(text).toContain('swift-patterns-mcp patreon setup');
   });
 
   it('should enable configured free sources', async () => {

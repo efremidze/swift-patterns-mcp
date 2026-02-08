@@ -44,7 +44,7 @@ describeIntegration('Response Quality Validation', () => {
     });
 
     it('should include actionable setup instructions', () => {
-      expect(listSourcesResponse).toContain('swift-patterns-mcp setup');
+      expect(listSourcesResponse).toContain('swift-patterns-mcp patreon setup');
     });
   });
 

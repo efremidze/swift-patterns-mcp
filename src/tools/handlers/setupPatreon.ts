@@ -22,14 +22,14 @@ Get credentials at: https://www.patreon.com/portal/registration/register-clients
       ? `Patreon is configured and ready to use!`
       : `Patreon is not yet configured.
 
-Run: swift-patterns-mcp setup --patreon`);
+Run: swift-patterns-mcp patreon setup`);
   }
 
   return createTextResponse(`Patreon Setup
 
 To set up Patreon integration, run:
 \`\`\`bash
-swift-patterns-mcp setup --patreon
+swift-patterns-mcp patreon setup
 \`\`\`
 
 This will:

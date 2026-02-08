@@ -33,7 +33,7 @@ ${premiumList}
 
 To enable premium sources:
 \`\`\`
-swift-patterns-mcp setup --patreon
+swift-patterns-mcp patreon setup
 \`\`\`
 `);
 };
