@@ -1,0 +1,161 @@
+{
+  "createdAt": "2026-02-08T21:10:06.618Z",
+  "nodeVersion": "v23.11.0",
+  "platform": "darwin-arm64",
+  "commit": "394d052",
+  "runsPerScenario": 3,
+  "cold": [
+    {
+      "scenario": {
+        "name": "list sources",
+        "tool": "list_content_sources",
+        "args": {}
+      },
+      "runs": 3,
+      "successes": 3,
+      "failures": 0,
+      "p50_ms": 2.34,
+      "p90_ms": 12.75,
+      "p99_ms": 12.75,
+      "min_ms": 2.1,
+      "max_ms": 12.75,
+      "mean_ms": 5.73,
+      "errors": []
+    },
+    {
+      "scenario": {
+        "name": "enable unknown source (error path)",
+        "tool": "enable_source",
+        "args": {
+          "source": "invalid_source_xyz"
+        }
+      },
+      "runs": 3,
+      "successes": 3,
+      "failures": 0,
+      "p50_ms": 12.47,
+      "p90_ms": 12.84,
+      "p99_ms": 12.84,
+      "min_ms": 1.09,
+      "max_ms": 12.84,
+      "mean_ms": 8.8,
+      "errors": []
+    },
+    {
+      "scenario": {
+        "name": "search swift content",
+        "tool": "search_swift_content",
+        "args": {
+          "query": "async await"
+        }
+      },
+      "runs": 3,
+      "successes": 3,
+      "failures": 0,
+      "p50_ms": 40.51,
+      "p90_ms": 40.69,
+      "p99_ms": 40.69,
+      "min_ms": 40.13,
+      "max_ms": 40.69,
+      "mean_ms": 40.44,
+      "errors": []
+    },
+    {
+      "scenario": {
+        "name": "get swift pattern",
+        "tool": "get_swift_pattern",
+        "args": {
+          "topic": "swiftui",
+          "minQuality": 70
+        }
+      },
+      "runs": 3,
+      "successes": 3,
+      "failures": 0,
+      "p50_ms": 39.38,
+      "p90_ms": 42.59,
+      "p99_ms": 42.59,
+      "min_ms": 37.61,
+      "max_ms": 42.59,
+      "mean_ms": 39.86,
+      "errors": []
+    }
+  ],
+  "warm": [
+    {
+      "scenario": {
+        "name": "list sources",
+        "tool": "list_content_sources",
+        "args": {}
+      },
+      "runs": 3,
+      "successes": 3,
+      "failures": 0,
+      "p50_ms": 2.06,
+      "p90_ms": 13.35,
+      "p99_ms": 13.35,
+      "min_ms": 1.37,
+      "max_ms": 13.35,
+      "mean_ms": 5.59,
+      "errors": []
+    },
+    {
+      "scenario": {
+        "name": "enable unknown source (error path)",
+        "tool": "enable_source",
+        "args": {
+          "source": "invalid_source_xyz"
+        }
+      },
+      "runs": 3,
+      "successes": 3,
+      "failures": 0,
+      "p50_ms": 1.17,
+      "p90_ms": 5.52,
+      "p99_ms": 5.52,
+      "min_ms": 0.61,
+      "max_ms": 5.52,
+      "mean_ms": 2.43,
+      "errors": []
+    },
+    {
+      "scenario": {
+        "name": "search swift content",
+        "tool": "search_swift_content",
+        "args": {
+          "query": "async await"
+        }
+      },
+      "runs": 3,
+      "successes": 3,
+      "failures": 0,
+      "p50_ms": 7.23,
+      "p90_ms": 10.9,
+      "p99_ms": 10.9,
+      "min_ms": 5.67,
+      "max_ms": 10.9,
+      "mean_ms": 7.93,
+      "errors": []
+    },
+    {
+      "scenario": {
+        "name": "get swift pattern",
+        "tool": "get_swift_pattern",
+        "args": {
+          "topic": "swiftui",
+          "minQuality": 70
+        }
+      },
+      "runs": 3,
+      "successes": 3,
+      "failures": 0,
+      "p50_ms": 2.56,
+      "p90_ms": 2.76,
+      "p99_ms": 2.76,
+      "min_ms": 2.2,
+      "max_ms": 2.76,
+      "mean_ms": 2.51,
+      "errors": []
+    }
+  ]
+}
