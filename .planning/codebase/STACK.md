@@ -1,175 +1,110 @@
 # Technology Stack
 
-**Analysis Date:** 2026-01-29
+**Analysis Date:** 2026-02-07
 
 ## Languages
 
 **Primary:**
-- TypeScript 5.9.3 - Main development language, used throughout `src/`
-- JavaScript - Runtime execution (Node.js)
+- TypeScript 5.9.3 - All source code in `src/`
+- JavaScript - Build output, CLI scripts
 
 **Secondary:**
-- Shell/Bash - CLI setup and authentication scripts
+- Bash - Build and installation scripts
 
 ## Runtime
 
 **Environment:**
-- Node.js >= 18.0.0 (required in `package.json`)
-- ES2022 target (TypeScript compiler target in `tsconfig.json`)
+- Node.js >= 18.0.0 (from `package.json` engines)
 
 **Package Manager:**
-- npm (with lock file: `package-lock.json`)
-- Module format: ES modules (type: "module" in `package.json`)
+- npm - Managed via `package-lock.json`
+- Lockfile: present at `/Users/home/Documents/GitHub/swift-mcp/package-lock.json`
 
 ## Frameworks
 
 **Core:**
-- @modelcontextprotocol/sdk 1.25.3 - MCP server framework for Claude integration
-  - Provides Server, StdioServerTransport, and tool/request handling
-  - Located in `src/index.ts` entry point
-
-**Semantic Search & Memory:**
-- @xenova/transformers 2.17.2 - Embeddings for semantic search
-  - Uses Xenova/all-MiniLM-L6-v2 model for feature extraction
-  - Located in `src/utils/semantic-recall.ts`
-
-- @memvid/sdk 2.0.153 - Persistent semantic memory database
-  - Stores and searches patterns with full-text and semantic capabilities
-  - Located in `src/utils/memvid-memory.ts`
-
-**Content Processing:**
-- rss-parser 3.13.0 - Parse RSS feeds from free sources (Sundell, van der Lee, etc.)
-  - Located in `src/sources/free/rssPatternSource.ts`
-
-- linkedom 0.18.12 - DOM parsing for HTML content extraction
-  - Used in `src/sources/free/vanderlee.ts` for web scraping
-
-- string-strip-html 13.5.3 - HTML sanitization and stripping
-  - Paired with linkedom for clean text extraction
+- @modelcontextprotocol/sdk 1.25.3 - MCP server framework, provides Server and transport layer at `src/index.ts`
+- Model Context Protocol - Communication protocol for AI integration
 
 **Testing:**
-- vitest 3.2.4 - Test runner and framework
-  - Config: `vitest.config.ts`
-  - Run: `npm run test`
+- Vitest 3.2.4 - Unit and integration test runner, configured via tsconfig and run with `npm test`
 
 **Build/Dev:**
-- TypeScript 5.9.3 - Compiler with strict mode enabled
-  - Build output: `build/` directory
-  - Source maps and declarations included
-
-- ESLint 9.39.2 + typescript-eslint 8.54.0 - Code linting
-  - Config: `eslint.config.js`
-  - Run: `npm run lint`
-
-- tsc - TypeScript compiler
-  - Watch mode: `npm run watch`
+- TypeScript 5.9.3 - Compilation from `src/` to `build/` (tsc builds to ES2022)
+- ESLint 9.39.2 + @typescript-eslint/8.54.0 - Linting configured in `eslint.config.js`
 
 ## Key Dependencies
 
 **Critical:**
-- pino 9.5.0 - Structured logging
-  - Logger initialized with service name and configurable log level
-  - Located in `src/utils/logger.ts`
+- @memvid/sdk 2.0.153 - Persistent semantic memory storage, used in `src/utils/memvid-memory.ts` for pattern caching and recall
+- @xenova/transformers 2.17.2 - Embeddings model (Xenova/all-MiniLM-L6-v2) for semantic recall fallback in `src/utils/semantic-recall.ts`
+- rss-parser 3.13.0 - RSS feed parsing for free sources (Sundell, van der Lee, etc.) in `src/sources/free/rssPatternSource.ts`
 
-- zod 3.25.76 - Runtime schema validation
-  - Used for type-safe environment variable validation and API responses
-
-**HTTP & Networking:**
-- undici 7.19.2 - High-performance HTTP client
-  - Wraps `fetch` API used throughout the application
-  - Located in `src/utils/fetch.ts`
-
-- playwright 1.58.0 - Browser automation (optional, for premium sources)
-  - Available for patreon content scraping if needed
+**Search & Analysis:**
+- minisearch 7.2.0 - Full-text lexical search index in `src/utils/search.ts`
+- natural 8.1.0 - NLP utilities: Porter Stemmer, Levenshtein distance for fuzzy matching
+- ml-distance 4.0.1 - Distance/similarity calculations for semantic search in `src/utils/semantic-recall.ts`
 
 **Infrastructure:**
-- dotenv 17.2.3 - Environment variable loading
-  - Imported at top of `src/index.ts` for config management
+- undici 7.19.2 - HTTP client (base for fetch wrapper in `src/utils/fetch.ts`)
+- linkedom 0.18.12 - DOM parsing for HTML content extraction in `src/sources/free/vanderlee.ts`
+- keytar 7.9.0 - Secure credential storage via OS keychain (macOS/Linux/Windows) for Patreon OAuth tokens in `src/sources/premium/patreon-oauth.ts`
+- pino 9.5.0 - Structured JSON logging throughout codebase, configured in `src/utils/logger.ts`
+- quick-lru 7.3.0 - In-memory LRU cache for frequently accessed data in `src/utils/cache.ts`
+- adm-zip 0.5.16 - ZIP file handling for source registry in `src/tools/handlers/`
+- string-strip-html 13.5.3 - HTML cleaning and text extraction
+- p-limit 7.2.0 - Concurrency limiting for parallel operations
+- dotenv 17.2.3 - Environment variable loading (loaded in `src/index.ts`)
+- zod 3.25.76 - Schema validation for configuration and API responses
 
-- keytar 7.9.0 - Secure credential storage (platform-specific)
-  - Stores Patreon OAuth tokens in system keychain/keyring
-  - Gracefully handles missing system libraries on Linux
-  - Located in `src/sources/premium/patreon-oauth.ts`
-
-- adm-zip 0.5.16 - ZIP file handling
-  - Used for extracting Patreon download archives
-  - Located in `src/sources/premium/patreon-dl.ts`
-
-**Search & Utilities:**
-- minisearch 7.2.0 - Lightweight full-text search library
-  - Used for lexical pattern searching
-  - Located in `src/utils/search.ts`
-
-- ml-distance 4.0.1 - Distance calculations for embeddings
-  - Cosine similarity for semantic search
-  - Located in `src/utils/semantic-recall.ts`
-
-- quick-lru 7.3.0 - In-memory LRU cache
-  - Part of `FileCache` hybrid memory/disk caching system
-  - Located in `src/utils/cache.ts`
-
-- natural 8.1.0 - Natural language processing
-  - Available for NLP tasks (currently integrated but usage may vary)
+**CLI Tools:**
+- playwright 1.58.0 - Browser automation (used in Patreon OAuth flow setup in `src/sources/premium/patreon-oauth.ts`)
 
 ## Configuration
 
 **Environment:**
-- `.env` - Runtime configuration (secrets)
-  - PATREON_CLIENT_ID, PATREON_CLIENT_SECRET - OAuth credentials
-  - YOUTUBE_API_KEY - YouTube Data API access
-  - LOG_LEVEL - Logging verbosity (default: 'info')
-
-- `.env.example` - Template for required variables
+- `.env` file support via dotenv package
+- Required env vars documented in `.env.example`:
+  - `PATREON_CLIENT_ID` - OAuth credentials
+  - `PATREON_CLIENT_SECRET` - OAuth credentials
+  - `YOUTUBE_API_KEY` - YouTube Data API v3 access
+  - `LOG_LEVEL` - Logging verbosity (default: info)
 
 **Build:**
-- `tsconfig.json` - TypeScript compilation settings
+- `tsconfig.json` at root:
   - Target: ES2022
-  - Strict mode enabled
-  - Module resolution: Node16
-  - Output directory: `./build`
+  - Module: Node16 (ES modules)
+  - Strict type checking enabled
+  - Declaration maps and source maps enabled
+  - Output directory: `./build/`
 
-- `eslint.config.js` - ESLint configuration
-  - Files checked: `src/**/*.ts`
-  - TypeScript strict rules enabled with some relaxations
-  - Unused vars ignored if prefixed with `_`
-
-- `vitest.config.ts` - Vitest test runner configuration
-  - Excludes: node_modules, build, dist
-
-**Distribution:**
-- `package.json` bin entry - Executable at `build/index.js`
-  - Command: `swift-patterns-mcp`
+**TypeScript Compilation:**
+```bash
+npm run build          # Compile src/ to build/
+npm run watch          # Watch mode during development
+```
 
 ## Platform Requirements
 
 **Development:**
-- Node.js 20 (used in CI/CD)
-- On Linux: libsecret for keytar (optional for token storage)
-- npm for dependency management
+- Node.js 18.0.0 or higher
+- npm 8.0.0 or higher
+- For Patreon OAuth: macOS, Linux, or Windows with native keystore support (graceful fallback if keytar unavailable)
+- For semantic embeddings: Download ~30MB ONNX model on first use (cached locally)
 
 **Production:**
-- Node.js >= 18.0.0
-- stdio transport for MCP protocol communication
-- Optional: System keychain/keyring for credential storage
-- Optional: Internet connection for OAuth flows and API calls
+- Node.js 18.0.0 or higher
+- Deployable as MCP server via stdio transport (`src/index.ts` line 212)
+- Environment variables for Patreon/YouTube (optional)
+- Cache directory in user home: `~/.swift-patterns-mcp/`
 
-## Optional Features
-
-**Patreon Integration:**
-- Requires OAuth 2.0 credentials from https://www.patreon.com/portal/registration/register-clients
-- Uses local HTTP server on port 9876 for OAuth callback
-- Token refresh: 5 minutes before expiry
-
-**YouTube Integration:**
-- Requires API key from https://console.cloud.google.com
-- YouTube Data API v3 for video discovery and metadata
-- 1-hour cache TTL for video data
-
-**Semantic Features:**
-- Requires model download on first use (Xenova/all-MiniLM-L6-v2)
-- Optional memvid persistent memory for cross-session recall
-- Optional embedding-based semantic search as fallback
+**Filesystem:**
+- Cache directory structure: `~/.swift-patterns-mcp/cache/{namespace}/`
+- Persistent config: `~/.swift-patterns-mcp/config.json`
+- Semantic embeddings cache: `~/.swift-patterns-mcp/semantic-embeddings/`
+- Memvid memory database: `~/.swift-patterns-mcp/swift-patterns-memory.mv2`
+- Patreon tokens: Stored in OS keychain (keytar wrapper)
 
 ---
 
-*Stack analysis: 2026-01-29*
+*Stack analysis: 2026-02-07*

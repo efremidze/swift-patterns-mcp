@@ -1,208 +1,182 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-01-29
+**Analysis Date:** 2026-02-07
 
 ## Naming Patterns
 
 **Files:**
-- Handlers use verb-noun pattern: `getSwiftPattern.ts`, `searchSwiftContent.ts`, `listContentSources.ts`, `enableSource.ts`
-- Utility files use descriptive names: `cache.ts`, `logger.ts`, `search.ts`, `response-helpers.ts`
-- Source implementations use domain names: `sundell.ts`, `vanderlee.ts`, `patreon.ts`, `youtube.ts`
-- Test files co-located with source using `__tests__` directory: `src/utils/__tests__/cache.test.ts`
+- PascalCase for source classes: `SundellSource`, `PatreonSource`, `VanderLeeSource`
+- camelCase for utility/handler files: `cache.ts`, `logger.ts`, `search.ts`, `response-helpers.ts`
+- camelCase for handler functions: `getSwiftPattern.ts`, `searchSwiftContent.ts`, `enableSource.ts`
+- Test files placed in `__tests__` subdirectories with `.test.ts` suffix: `cache.test.ts`, `registry.test.ts`
 
 **Functions:**
-- Handlers exported as const with camelCase: `export const getSwiftPatternHandler`
-- Exported helper functions use camelCase: `searchMultipleSources()`, `formatTopicPatterns()`, `createTextResponse()`
-- Private functions also camelCase: `trySemanticRecall()`, `recordError()`, `clearError()`
-- Async functions clearly async: `async function`, `Promise<T>` return types
+- camelCase for all functions and methods: `getSwiftPatternHandler`, `searchPatterns`, `createTextResponse`
+- Prefixed utility functions for clear intent: `createErrorResponse`, `toErrorMessage`, `logError`
+- Handler functions follow naming convention: `[verb][Noun]Handler`: `getSwiftPatternHandler`, `searchSwiftContentHandler`
+- Internal/private functions use leading underscore or are simply unexported
 
 **Variables:**
-- Constants use SCREAMING_SNAKE_CASE: `DEFAULT_TTL`, `DEFAULT_MAX_MEMORY_ENTRIES`, `CLEANUP_INTERVAL_MS`, `SEMANTIC_TIMEOUT_MS`
-- Module-level singletons use lowercase: `const handlers = new Map()`
-- Cache entries/typed objects use descriptive names: `memEntry`, `cacheData`, `intentKey`, `semanticResults`
+- camelCase for all variables: `topic`, `minQuality`, `wantsCode`, `sourceManager`
+- SCREAMING_SNAKE_CASE for constants: `DEFAULT_TTL`, `DEFAULT_MAX_MEMORY_ENTRIES`, `CLEANUP_INTERVAL_MS`
+- Descriptive names for caches and registries: `memoryCache`, `inFlightFetches`, `sourceInstanceCache`
 
 **Types:**
-- Interfaces for external contracts and APIs: `ToolContext`, `ToolResponse`, `ToolHandler`, `PatreonPattern`
-- PascalCase for type names: `ToolHandler`, `PatreonPattern`, `CreatorInfo`, `FileCache`
-- Interfaces for internal structures: `SemanticRecallOptions`, `CacheEntry<T>`, `YouTubeStatus`
-- Type aliases use `Type` suffix when appropriate: `IntentKey`, `StorableCachedSearchResult`
+- PascalCase for interfaces and types: `ToolHandler`, `ToolContext`, `CacheEntry`, `FreeSource`, `IntentKey`
+- Union types with descriptive names: `FreeSourceName = 'sundell' | 'vanderlee' | 'nilcoalescing' | 'pointfree'`
+- Generic type parameters use single uppercase letters or descriptive names: `<T>`, `<SearchableDocument>`
 
 ## Code Style
 
 **Formatting:**
-- Prettier automatically applied (no config file present, uses defaults)
-- Default Prettier settings: 80 character line width (observed from code)
-- Semicolons enforced
-- Single quotes not strictly enforced in configs (mixed usage)
-- Trailing commas in multiline structures
+- ESLint with TypeScript strict mode enabled
+- 2-space indentation (standard TypeScript)
+- Imported via `@eslint/js` and `typescript-eslint` packages
+- ecmaVersion: 2020, Node globals enabled
 
 **Linting:**
-- ESLint with TypeScript support via `@eslint/js` and `typescript-eslint`
-- Config: `eslint.config.js` (flat config format, ES modules)
-- Unused variable warning: `@typescript-eslint/no-unused-vars` with `argsIgnorePattern: "^_"` (prefix with `_` to ignore)
-- Explicit any is allowed: `@typescript-eslint/no-explicit-any: "off"`
-- Warn on require imports: `@typescript-eslint/no-require-imports: "warn"`
-- Warn on unused expressions and `var` declarations
-- Focus on catching actual issues rather than strict style enforcement
+- TypeScript compiler set to strict mode: `"strict": true`
+- Module resolution: Node16
+- Target: ES2022
+- Unused variables with leading underscore are ignored: `@typescript-eslint/no-unused-vars` with `argsIgnorePattern: "^_"`
+- `@typescript-eslint/no-explicit-any` is OFF (permissive)
+- No require imports warned at `warn` level
+- Prefer spread operators and avoid `var` declarations
+
+**ESLint Rules:**
+- `no-unused-vars`: warn (allows `_prefixed` names)
+- `no-explicit-any`: off
+- `no-require-imports`: warn
+- `no-unused-expressions`: warn
+- `no-var`: warn
+- `prefer-spread`: warn
 
 ## Import Organization
 
 **Order:**
-1. Built-in Node modules: `import fs from 'fs'`, `import path from 'path'`
-2. External packages: `import pino from 'pino'`, `import { Server } from "@modelcontextprotocol/sdk/server/index.js"`
-3. Type imports from project: `import type { ToolHandler } from '../types.js'`
-4. Value imports from project: `import SourceManager from '../../config/sources.js'`
-5. Relative imports further in path
+1. Node.js built-in modules: `import fs from 'fs'`, `import path from 'path'`
+2. Third-party dependencies: `import pino from 'pino'`, `import QuickLRU from 'quick-lru'`
+3. Internal absolute paths with `.js` extension: `import { FileCache } from '../cache.js'`
+4. Type imports grouped together: `import type { ToolHandler } from '../types.js'`
 
 **Path Aliases:**
-- No path aliases configured; all imports use relative paths with explicit `.js` extensions for ES module compatibility
-- Pattern: `'../../utils/cache.js'`, `'./registry.js'` (always include `.js`)
-
-**Example Import Block:**
-```typescript
-// src/tools/handlers/getSwiftPattern.ts
-import type { ToolHandler } from '../types.js';
-import { getSourceNames, searchMultipleSources, type FreeSourceName } from '../../utils/source-registry.js';
-import { formatTopicPatterns, COMMON_FORMAT_OPTIONS, detectCodeIntent } from '../../utils/pattern-formatter.js';
-import { createTextResponse } from '../../utils/response-helpers.js';
-import { intentCache, type IntentKey, type StorableCachedSearchResult } from '../../utils/intent-cache.js';
-import type { BasePattern } from '../../sources/free/rssPatternSource.js';
-import { getMemvidMemory } from '../../utils/memvid-memory.js';
-import SourceManager from '../../config/sources.js';
-import logger from '../../utils/logger.js';
-```
+- No path aliases configured; uses relative imports with explicit `.js` extensions for ES module compatibility
+- Example: `import { getHandler, ToolContext } from './tools/index.js'`
+- Always reference with `.js` extension for compiled output
 
 ## Error Handling
 
 **Patterns:**
-- Use `logError()` utility for consistent error logging: `logError('ContextName', error, { details })`
-- Type-safe error message extraction: `toErrorMessage(error: unknown): string` converts any error to string
-- Best-effort error recovery with fallback returns: `catch { return [] }` instead of rethrowing
-- Error responses use `createErrorResponseFromError()` helper for MCP tool responses
-- Errors logged with structured context and optional details for debugging
+- Centralized error utilities in `src/utils/errors.ts`:
+  - `isError()`: Type guard checking `instanceof Error`
+  - `toErrorMessage()`: Safely extracts error message from unknown values
+  - `logError()`: Structured error logging with context
 
-**Example Error Handling:**
-```typescript
-// src/sources/premium/youtube.ts
-try {
-  // operation
-} catch (error) {
-  recordError(toErrorMessage(error));
-  logError('YouTube', error, { channelId });
-}
-
-// src/tools/handlers/searchSwiftContent.ts
-async function trySemanticRecallInner(options: SemanticRecallOptions): Promise<BasePattern[]> {
+**Try-catch usage:**
+- Silent catches with no operation are common for non-critical operations:
+  ```typescript
   try {
-    // semantic recall logic
+    await fsp.writeFile(cachePath, JSON.stringify(entry));
   } catch {
-    // Semantic recall is best-effort; return empty on any failure
-    return [];
+    // Cache write failed, continue without caching
   }
-}
-```
+  ```
+- Error context logged via `logger.error()` from pino
+
+**Async error propagation:**
+- Promise rejections in background operations use `.catch(() => {})` pattern:
+  ```typescript
+  this.clearExpired().catch(() => {});
+  ```
 
 ## Logging
 
-**Framework:** Pino (`pino` v9.5.0)
+**Framework:** Pino (`pino`)
 
 **Configuration:**
-- Configured in `src/utils/logger.ts`
-- Log level from `LOG_LEVEL` env var or default `info`
-- Service name: `swift-patterns-mcp`
+- Initialized in `src/utils/logger.ts`
+- Base service name: `'swift-patterns-mcp'`
+- Log level controlled by `LOG_LEVEL` env var (default: `'info'`)
 
 **Patterns:**
-- Use `logger.info()`, `logger.warn()`, `logger.error()` with structured payloads
-- Include error objects: `logger.error({ err: error }, message)`
-- Fire-and-forget warning logs: `.catch(err => { logger.warn({ err }, 'message') })`
-- Always use `logError(context, error, details?)` helper for consistency
-
-**Example Logging:**
-```typescript
-logger.warn({ err }, 'Failed to store patterns in memvid');
-logger.error({ ...payload, err: error }, message);
-logger.info({ service: 'swift-patterns-mcp' }, 'Startup');
-```
+- Use named logger instance: `import logger from './logger.js'`
+- Standard pino methods: `logger.info()`, `logger.error()`, `logger.warn()`
+- Error logging includes structured context:
+  ```typescript
+  logger.error({ context, ...details, err: error }, message)
+  ```
+- Info messages with object context:
+  ```typescript
+  logger.info('Patreon auto-enabled (credentials detected)')
+  ```
 
 ## Comments
 
 **When to Comment:**
-- Complex algorithms or unintuitive logic get explanatory comments
-- Intent clarification for error handling: `// Semantic recall is best-effort; return empty on any failure`
-- State management explanations: `// Cache hit - use cached patterns`
-- Business logic reasoning: `// Filter by quality`, `// Sort by relevance`
-- Line-level comments for non-obvious transformations
-- Avoid commenting obvious code (e.g., variable assignments)
+- JSDoc comments on exported functions and types
+- Inline comments for complex algorithms or non-obvious logic
+- Section dividers using ASCII art for visual organization:
+  ```typescript
+  // ─── get / set basics ───
+  // ─── memory vs file cache ───
+  ```
 
 **JSDoc/TSDoc:**
-- Used for public exported functions and complex interfaces
-- Document function purpose, parameters, return type:
-  ```typescript
-  /**
-   * Register a tool handler by name
-   */
-  export function registerHandler(name: string, handler: ToolHandler): void
-  ```
-- Type definitions include purpose comments:
-  ```typescript
-  /**
-   * Context passed to tool handlers
-   */
-  export interface ToolContext { }
-  ```
-- Utility functions document behavior:
+- Used extensively for public APIs
+- Document parameters, return types, and purpose
+- Example from `src/utils/errors.ts`:
   ```typescript
   /**
    * Safely extracts an error message from any thrown value.
+   * Returns error.message if Error, String(error) otherwise.
    */
   export function toErrorMessage(error: unknown): string
   ```
 
 ## Function Design
 
-**Size:**
-- Most functions 10-50 lines for readability
-- Handler functions 50-100 lines acceptable when implementing complete tool logic
-- Complex multi-step operations broken into helper functions
-- Example: `getSwiftPatternHandler` is 101 lines implementing full pattern fetching, caching, and memvid integration
+**Size:** Functions are focused and typically under 50 lines; longer logic broken into helpers
 
 **Parameters:**
-- Handlers use destructured args pattern: `(args: Record<string, unknown>, context: ToolContext)`
-- Type-safe casting in handler: `const topic = args?.topic as string`
-- Options objects for multiple parameters: `interface SemanticRecallOptions { ... }`
-- Optional context passed in second parameter instead of globally
+- Accept specific parameters, avoid large options objects in most cases
+- Use type inference where appropriate: `args?.topic as string`
+- Generic types for reusable utilities: `async get<T>(key: string): Promise<T | null>`
 
 **Return Values:**
-- Handlers return typed `ToolResponse`: `{ content: [{ type: string; text: string }], isError?: boolean }`
-- Async operations return `Promise<T>` with clear type
-- Cache operations return `T | null` for miss detection
-- Search/fetch operations return arrays: `Promise<BasePattern[]>`
+- Explicit return types in function signatures
+- Nullable returns use `| null`: `Promise<T | null>`
+- Union types for multiple possible returns: `Promise<BasePattern[]>`
+- Response objects standardized via helpers: `createTextResponse()`, `createErrorResponse()`
 
 ## Module Design
 
 **Exports:**
-- Each file exports one primary thing (class, function, constant set)
-- Handler files export single `Handler` const: `export const getSwiftPatternHandler: ToolHandler`
-- Utility files export multiple functions: `export function get...`, `export function set...`
-- Registry file exports named functions not default: `export function registerHandler()`, `export function getHandler()`
+- Named exports for most utilities and handlers
+- Default exports for class-based modules: `export default FileCache`, `export default SundellSource`
+- Type exports use `export type`: `export type FreeSourceName`
 
 **Barrel Files:**
-- Minimal barrel file usage
-- Main entry: `src/index.ts` imports and registers all tools
-- Tools directory has `src/tools/index.js` for re-exports to make imports cleaner
+- Minimal barrel file in `src/tools/index.ts` re-exports key types and getters
+- Used for cleaner imports: `import { getHandler, ToolContext } from './tools/index.js'`
 
-**Example Module:**
-```typescript
-// src/utils/response-helpers.ts
-export function createTextResponse(text: string): ToolResponse { }
-export function createErrorResponseFromError(error: unknown): ToolResponse { }
+## Async Patterns
 
-// src/tools/registry.ts
-export function registerHandler(name: string, handler: ToolHandler): void { }
-export function getHandler(name: string): ToolHandler | undefined { }
-export function hasHandler(name: string): boolean { }
-```
+**Promise handling:**
+- Use `async/await` consistently for readability
+- `Promise.allSettled()` for multiple independent async operations that may fail:
+  ```typescript
+  const results = await Promise.allSettled(
+    names.map(name => dedupSearch(name, getSource(name), query))
+  );
+  ```
+- Deduplication of concurrent identical fetches via `InflightDeduper` pattern
+
+**Fire-and-forget:**
+- Background operations use `.catch(() => {})` for silent error suppression:
+  ```typescript
+  fsp.unlink(cachePath).catch(() => {});
+  ```
 
 ---
 
-*Convention analysis: 2026-01-29*
+*Convention analysis: 2026-02-07*

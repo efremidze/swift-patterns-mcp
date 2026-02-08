@@ -1,53 +1,35 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-01-29
+**Analysis Date:** 2026-02-07
 
 ## Test Framework
 
 **Runner:**
 - Vitest 3.2.4
 - Config: `vitest.config.ts`
-- Fast, ESM-native test runner for TypeScript/Node projects
 
 **Assertion Library:**
-- Vitest built-in assertions: `expect()`
-- No separate assertion library configured
+- Vitest built-in expect() API
 
 **Run Commands:**
 ```bash
-npm run test                    # Run all tests once
-npm test                        # Alias for above
-npm run pretest && npm test     # Build then test
-npm run watch                   # Watch mode not configured, use npx vitest --watch
+npm test                 # Run all tests with vitest run
+npm run build && npm test  # Ensure build before tests
 ```
 
-**Configuration:** `vitest.config.ts`
-```typescript
-import { defineConfig } from 'vitest/config';
-
-export default defineConfig({
-  test: {
-    exclude: [
-      '**/node_modules/**',
-      '**/build/**',
-      '**/dist/**',
-    ],
-  },
-});
-```
+**Setup:**
+- `vitest.setup.ts` loads environment variables via `dotenv/config` before tests run
+- This ensures `process.env` is populated for all tests
 
 ## Test File Organization
 
 **Location:**
-- Co-located with source: `src/utils/__tests__/cache.test.ts` next to `src/utils/cache.ts`
-- Pattern: Source at `src/[dir]/filename.ts`, tests at `src/[dir]/__tests__/filename.test.ts`
-- Integration tests in `src/integration/__tests__/`
-- Handler tests in `src/tools/handlers/__tests__/`
+- Co-located in `__tests__` subdirectories alongside source code
+- Pattern: `src/[module]/__tests__/[name].test.ts`
 
 **Naming:**
-- Test files use `.test.ts` suffix: `cache.test.ts`, `handlers.test.ts`
-- Alternative `.spec.ts` also supported but not used in codebase
-- Directory prefix indicates test type: `__tests__` (standard co-located pattern)
+- Test files use `.test.ts` suffix: `cache.test.ts`, `registry.test.ts`
+- Match the module they test: `cache.ts` → `cache.test.ts`
 
 **Structure:**
 ```
@@ -55,288 +37,194 @@ src/
 ├── utils/
 │   ├── cache.ts
 │   └── __tests__/
-│       ├── cache.test.ts
-│       ├── search.test.ts
-│       └── semantic-recall.test.ts
+│       └── cache.test.ts
 ├── tools/
 │   ├── handlers/
 │   │   ├── getSwiftPattern.ts
 │   │   └── __tests__/
 │   │       └── handlers.test.ts
-└── integration/
-    └── __tests__/
-        ├── mcp-client.test.ts
-        └── response-quality.test.ts
+│   └── __tests__/
+│       └── registry.test.ts
+└── sources/
+    └── free/
+        ├── sundell.ts
+        └── __tests__/
+            └── sundell.test.ts
 ```
 
 ## Test Structure
 
 **Suite Organization:**
 ```typescript
-// src/tools/__tests__/registry.test.ts
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-describe('Tool Registry', () => {
-  it('should register and retrieve handlers', async () => {
-    const { registerHandler, getHandler } = await import('../registry.js');
-
-    const mockHandler = async () => ({ content: [{ type: 'text', text: 'test' }] });
-    registerHandler('test_tool', mockHandler);
-
-    const retrieved = getHandler('test_tool');
-    expect(retrieved).toBe(mockHandler);
-  });
-});
-```
-
-**Patterns:**
-- Top-level `describe()` for test suite: `describe('Tool Registry', () => { })`
-- Nested `describe()` for grouping related tests: `describe('get/set basics', () => { })`
-- Individual tests with `it()`: `it('should register and retrieve handlers', async () => { })`
-- Clear test names describing expected behavior
-
-**Setup and Teardown:**
-- `beforeEach()` for test initialization: `beforeEach(() => { cache = new FileCache(...) })`
-- `afterEach()` for cleanup: `afterEach(async () => { await cache.clear() })`
-- `beforeAll()` for expensive setup (integration tests): `beforeAll(async () => { client.start() })`
-- `afterAll()` for resource cleanup: `afterAll(async () => { client.stop() })`
-
-**Example Full Test Suite:**
-```typescript
-// src/utils/__tests__/cache.test.ts
-describe('FileCache', () => {
-  let cache: FileCache;
-
+describe('FeatureName', () => {
+  // Optional setup
   beforeEach(() => {
-    cache = new FileCache(uniqueNamespace(), 50);
+    // Reset state
   });
 
   afterEach(async () => {
-    await cache.clear();
+    // Cleanup
   });
 
-  describe('get/set basics', () => {
-    it('should return null for non-existent key', async () => {
-      const result = await cache.get('missing');
-      expect(result).toBeNull();
-    });
-
-    it('should store and retrieve a string value', async () => {
-      await cache.set('key1', 'hello');
-      const result = await cache.get<string>('key1');
-      expect(result).toBe('hello');
+  describe('specific behavior', () => {
+    it('should do something specific', () => {
+      expect(result).toBe(expected);
     });
   });
 });
 ```
 
+**Patterns:**
+- Top-level `describe()` wraps entire test suite
+- Nested `describe()` for organizing related tests by behavior
+- Flat structure within describe blocks with simple comments when no grouping needed
+- Comments use ASCII dividers for visual organization:
+  ```typescript
+  // ─── get / set basics ───
+  describe('get/set basics', () => { /* tests */ });
+
+  // ─── memory vs file cache ───
+  describe('memory vs file cache', () => { /* tests */ });
+  ```
+
+**Setup/Teardown:**
+- `beforeEach()`: Initialize fresh test state (e.g., new FileCache instance)
+- `afterEach()`: Async cleanup operations (e.g., `await cache.clear()`)
+- Module-level constants for test data (e.g., `MOCK_PATTERNS`, `testDocs`)
+
 ## Mocking
 
-**Framework:** Vitest's `vi` module
+**Framework:** Vitest `vi` module
 
 **Patterns:**
+
+1. **Module mocking with `vi.mock()`:**
 ```typescript
-// Mock entire modules
-vi.mock('../../../sources/free/sundell.js', () => ({
-  default: class SundellSourceMock {
-    searchPatterns = vi.fn().mockResolvedValue(MOCK_PATTERNS.sundell);
+vi.mock('rss-parser', () => {
+  return {
+    default: class Parser {
+      async parseURL(_url: string) {
+        return {
+          items: [
+            { guid: '1', title: 'Test', link: 'https://example.com/1' }
+          ]
+        };
+      }
+    }
+  };
+});
+```
+
+2. **Function mocking with `vi.fn()`:**
+```typescript
+vi.mock('../cache.js', () => ({
+  rssCache: {
+    get: vi.fn(async () => undefined),
+    set: vi.fn(async () => undefined),
   },
 }));
+```
 
-// Mock with spies
-const mockHandler = async () => ({ content: [{ type: 'text', text: 'test' }] });
-registerHandler('test_tool', mockHandler);
+3. **Spy and track calls:**
+```typescript
+let called = false;
+const fetcher = async () => {
+  called = true;
+  return 42;
+};
 
-// Fake timers for async/time-based tests
-vi.useFakeTimers();
-try {
-  await cache.set('ttl-key', 'value', 1); // 1 second TTL
-  vi.advanceTimersByTime(2000);
-  const after = await cache.get('ttl-key');
-  expect(after).toBeNull();
-} finally {
-  vi.useRealTimers();
-}
+const result = await cache.getOrFetch('fetch-key', fetcher);
+expect(called).toBe(true);
 ```
 
 **What to Mock:**
-- External API calls and HTTP requests
-- File system operations (use actual FileCache in tests though)
-- Time-dependent behavior (fake timers)
-- Source implementations (return known test fixtures)
+- External dependencies (RSS parsers, HTTP clients, file I/O)
+- Cross-module dependencies when testing in isolation
+- Network requests and APIs
 
 **What NOT to Mock:**
-- Core utility functions being tested
-- Cache implementation (test real FileCache behavior)
-- Response helpers and formatters
-- Error handling utilities
+- Core cache functionality (test real cache behavior)
+- In-memory data structures when testing the implementation
+- Module-level exported functions (import fresh when testing state isolation)
 
 ## Fixtures and Factories
 
 **Test Data:**
 ```typescript
-// src/tools/handlers/__tests__/handlers.test.ts
+const testDocs: SearchableDocument[] = [
+  {
+    id: 'doc1',
+    title: 'Building async SwiftUI apps',
+    content: 'Learn how to use async/await with SwiftUI views',
+    topics: ['swiftui', 'concurrency'],
+  },
+  // ... more test documents
+];
+
 const MOCK_PATTERNS = {
   sundell: [
     {
       id: 'sundell-1',
       title: 'Advanced SwiftUI Patterns',
       url: 'https://swiftbysundell.com/swiftui',
-      excerpt: 'Learn advanced SwiftUI patterns for production apps',
-      content: 'Full content about SwiftUI state management and views',
+      excerpt: 'Learn advanced SwiftUI patterns',
+      content: 'Full content...',
       topics: ['swiftui', 'architecture'],
       relevanceScore: 85,
       hasCode: true,
       publishDate: '2024-01-15T00:00:00Z',
     },
-    // ... more patterns
   ],
-  vanderlee: [ /* ... */ ],
 };
+```
 
-// Helper function to generate unique test namespaces
+**Location:**
+- Test data defined at module level (top of test file) as constants
+- Reused across multiple test cases within that file
+- Named with UPPER_CASE or camelCase descriptively: `MOCK_PATTERNS`, `testDocs`, `uniqueNamespace()`
+
+**Helpers:**
+```typescript
 function uniqueNamespace(): string {
   return `cache-test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 ```
 
-**Location:**
-- Test fixtures defined at top of test file or in test suite
-- Constants for reusable mock data: `MOCK_PATTERNS`, test configuration
-- Helper functions for setup: `uniqueNamespace()` for cache isolation
-- No separate fixtures directory; fixtures inline to keep tests self-contained
-
 ## Coverage
 
-**Requirements:** None enforced
+**Requirements:** Not enforced
 
 **View Coverage:**
-- No coverage reporting configured
-- Run tests: `npm test` (no coverage output)
-- To add coverage: Would need `@vitest/coverage-v8` or similar package
+- Coverage reports not configured (vitest omits coverage config)
+- Run with `vitest` for standard execution
 
 ## Test Types
 
 **Unit Tests:**
-- Scope: Individual functions and classes in isolation
-- Approach: Mock dependencies, test single responsibility
-- Examples: `cache.test.ts` tests FileCache get/set/clear in isolation with mocked filesystem
-- Location: `src/[module]/__tests__/[module].test.ts`
-- Pattern: Test public interface with known inputs and outputs
+- Scope: Individual functions and classes
+- Approach: Mock external dependencies, test behavior in isolation
+- Examples: `cache.test.ts`, `search.test.ts`, `registry.test.ts`
+- Location: `src/[module]/__tests__/[name].test.ts`
 
 **Integration Tests:**
-- Scope: Multiple components working together (handlers + sources + caching)
-- Approach: Use real implementations, test full workflows
-- Examples: `handlers.test.ts` tests handlers with mocked sources, `response-quality.test.ts`
-- Location: `src/tools/handlers/__tests__/` or `src/integration/__tests__/`
-- Pattern: Test tool handlers with real SourceManager and mocked external sources
+- Scope: Multiple modules working together (e.g., source registry with handlers)
+- Approach: Test MCP protocol handshake, tool invocation, real data flow
+- Framework: Uses `MCPTestClient` from `src/integration/test-client.ts`
+- Conditional skipping on CI: `const describeIntegration = isCI ? describe.skip : describe`
+- Examples: `src/integration/__tests__/mcp-client.test.ts`, `src/integration/__tests__/response-quality.test.ts`
+- Longer timeouts: `it('...', async () => {...}, 60000)` for slow operations
 
 **E2E Tests:**
-- Framework: None formally, but MCP client integration test in `src/integration/__tests__/mcp-client.test.ts`
-- Scope: Full server lifecycle and protocol compliance
-- Approach: Start actual MCP server, call tools via protocol, verify responses
-- Skip condition: `describe.skip` when `isCI` is true (native dependency: keytar)
-- Pattern: Test handshake, tool listing, tool invocation
+- Framework: Not used
+- Alternative: Patreon integration test at `src/sources/premium/__tests__/patreon-integration.test.ts`
+- Manual E2E script: `npm run test:patreon` (runs `scripts/test-patreon-e2e.ts`)
 
-**Example E2E Test:**
+## Async Testing
+
+**Pattern:**
 ```typescript
-// src/integration/__tests__/mcp-client.test.ts
-const describeIntegration = isCI ? describe.skip : describe;
-
-describeIntegration('MCP Server Integration', () => {
-  let client: MCPTestClient;
-
-  beforeAll(async () => {
-    client = new MCPTestClient();
-    await client.start();
-  }, 10000);
-
-  afterAll(async () => {
-    await client.stop();
-  });
-
-  it('should initialize with correct protocol version', async () => {
-    const response = await client.initialize();
-    expect(response.result).toBeDefined();
-  });
-});
-```
-
-## Common Patterns
-
-**Async Testing:**
-```typescript
-// Mark test as async
-it('should return cached value without calling fetcher', async () => {
-  await cache.set('pre-cached', 'existing');
-
-  let called = false;
-  const result = await cache.getOrFetch('pre-cached', async () => {
-    called = true;
-    return 'new';
-  });
-
-  expect(called).toBe(false);
-  expect(result).toBe('existing');
-});
-
-// Promise.all for concurrent tests
-const promises = Array.from({ length: 5 }, () =>
-  cache.getOrFetch('dedup-key', fetcher)
-);
-const results = await Promise.all(promises);
-```
-
-**Error Testing:**
-```typescript
-// Test error handling by catching and asserting
-try {
-  // operation that might throw
-  expect(result).toBe(expected);
-} finally {
-  vi.useRealTimers();
-}
-
-// For best-effort patterns (no throw), test fallback behavior
-async function trySemanticRecallInner(options: SemanticRecallOptions): Promise<BasePattern[]> {
-  try {
-    // logic
-  } catch {
-    // Semantic recall is best-effort; return empty on any failure
-    return [];
-  }
-}
-// Test: expect empty array on error
-```
-
-**Parametric Testing:**
-```typescript
-// Not explicitly used in codebase, but vitest supports it:
-// Could do: it.each(testCases)('test $name', ({ input, expected }) => { })
-
-// Instead, codebase uses multiple it() blocks:
-it('should fetch separately for different keys', async () => {
-  let fetchCount = 0;
-  const fetcher = (id: string) => async () => {
-    fetchCount++;
-    return id;
-  };
-
-  const [a, b] = await Promise.all([
-    cache.getOrFetch('key-a', fetcher('a')),
-    cache.getOrFetch('key-b', fetcher('b')),
-  ]);
-
-  expect(fetchCount).toBe(2);
-  expect(a).toBe('a');
-  expect(b).toBe('b');
-});
-```
-
-**Mocking Time:**
-```typescript
-import { vi } from 'vitest';
-
 it('should return null after TTL expires', async () => {
   vi.useFakeTimers();
   try {
@@ -345,7 +233,6 @@ it('should return null after TTL expires', async () => {
     const before = await cache.get('ttl-key');
     expect(before).toBe('value');
 
-    // Advance time past expiry
     vi.advanceTimersByTime(2000);
 
     const after = await cache.get('ttl-key');
@@ -356,80 +243,115 @@ it('should return null after TTL expires', async () => {
 });
 ```
 
-## Manual Testing
+**Time control:**
+- `vi.useFakeTimers()`: Switch to fake timers for controlled time advancement
+- `vi.advanceTimersByTime(ms)`: Move time forward by specified milliseconds
+- `vi.useRealTimers()`: Restore real timers in finally block
+- Essential for testing TTL expiration and time-dependent behavior
 
-### Query Tester (`scripts/test-query.ts`)
+**Promise handling:**
+- Tests use `await` for async operations
+- `Promise.all()` for parallel test setup
+- `Promise.allSettled()` used in source code, tests verify both fulfilled and rejected results
 
-Interactive CLI for probing any MCP tool with any query. Starts the MCP server as a subprocess, calls tools via JSON-RPC, and prints results.
+## Error Testing
 
-```bash
-# Search all tools with a query
-npx tsx scripts/test-query.ts "Apple Books Hero Effect"
+**Pattern:**
+```typescript
+it('should handle cache write failures gracefully', async () => {
+  // Arrange
+  const mockWriteFile = vi.spyOn(fsp, 'writeFile').mockRejectedValueOnce(
+    new Error('ENOSPC: disk full')
+  );
 
-# Target a specific tool
-npx tsx scripts/test-query.ts "SwiftUI navigation" --tool get_swift_pattern
+  // Act
+  await cache.set('error-key', 'data');
 
-# Filter results
-npx tsx scripts/test-query.ts "async await" --code --min-quality 70 --source sundell
-
-# Patreon-only (via MCP)
-npx tsx scripts/test-query.ts "Hero Effect" --patreon
-
-# Bypass MCP, call PatreonSource directly (faster, shows raw patterns)
-npx tsx scripts/test-query.ts "LoopingScrollView" --direct --limit 10
-
-# Raw JSON output for debugging
-npx tsx scripts/test-query.ts "testing" --tool search_swift_content --json
-
-# List available tools (verifies Patreon auto-registration)
-npx tsx scripts/test-query.ts --tools
+  // Assert
+  expect(mockWriteFile).toHaveBeenCalled();
+  // Cache operation continues despite write failure
+  const result = await cache.get('error-key');
+  expect(result).toBe('data'); // Still in memory
+});
 ```
 
-**Options:**
+**Error scenarios tested:**
+- Cache read failures (file corruption, missing file)
+- Write failures (permission denied, disk full)
+- Async operation failures in Promise.allSettled
+- Unknown tools and invalid parameters in handler tests
 
-| Flag | Description |
-|------|-------------|
-| `--tool <name>` | Call a specific tool (`get_swift_pattern`, `search_swift_content`, `get_patreon_patterns`) |
-| `--code` | Only return results with code examples |
-| `--min-quality <n>` | Minimum quality score (default: 0) |
-| `--source <id>` | Specific free source (`sundell`, `vanderlee`, `nilcoalescing`, `pointfree`) |
-| `--patreon` | Query Patreon source only (via MCP tool) |
-| `--direct` | Bypass MCP server, call `PatreonSource` directly |
-| `--limit <n>` | Max results to display (default: 5) |
-| `--json` | Output raw JSON response |
-| `--tools` | Just list available tools |
+**Assertion patterns:**
+- `expect(error).toContain('message')`: Check error message text
+- `expect(called).toBe(true/false)`: Verify error was caught
+- `expect(result).toBeNull()`: Verify fallback behavior
+- `expect(results).toHaveLength(n)`: Verify result count after filtering/cleanup
 
-### Patreon E2E (`scripts/test-patreon-e2e.ts`)
+## Integration Test Examples
 
-End-to-end verification of the Patreon premium source integration.
+**MCP Protocol Tests:**
+```typescript
+describe('Protocol Handshake', () => {
+  it('should initialize with correct protocol version', async () => {
+    const response = await client.initialize();
 
-```bash
-npm run test:patreon
-# or
-npx tsx scripts/test-patreon-e2e.ts
+    expect(response.error).toBeUndefined();
+    const result = response.result as { protocolVersion: string };
+    expect(result.protocolVersion).toBe('2024-11-05');
+  });
+
+  it('should list available tools', async () => {
+    const response = await client.listTools();
+
+    const result = response.result as { tools: Array<{ name: string }> };
+    expect(result.tools.length).toBeGreaterThanOrEqual(4);
+    expect(result.tools.map(t => t.name)).toContain('get_swift_pattern');
+  });
+});
 ```
 
-**Prerequisites:**
-- `YOUTUBE_API_KEY` env var (or in `.env`)
-- `PATREON_CLIENT_ID` env var
-- `PATREON_CLIENT_SECRET` env var
-- Downloaded content in `~/.swift-patterns-mcp/patreon-content/` (for offline tests)
+**Tool Invocation Tests:**
+```typescript
+it('should call get_swift_pattern with topic', async () => {
+  const response = await client.callTool('get_swift_pattern', {
+    topic: 'swiftui',
+    minQuality: 70,
+  });
 
-**What it tests:**
-1. Configuration — env vars, creators registry
-2. Local content scanning — downloaded post indexing, zip extraction
-3. YouTube discovery — channel video fetching, Patreon link extraction
-4. PatreonSource operations — `searchPatterns()`, `fetchPatterns()`
-5. End-to-end — full flow from query to Swift code
-
-### Patreon Integration Tests
-
-```bash
-npm test -- src/sources/premium/__tests__/patreon-integration.test.ts
+  expect(response.error).toBeUndefined();
+  const result = response.result as { content: Array<{ type: string; text: string }> };
+  expect(result.content[0].text.length).toBeGreaterThan(0);
+}, 60000); // 60 second timeout for real network operations
 ```
 
-Skipped on CI (`SKIP_PATREON_TESTS=1` or `CI=true`). Requires all Patreon env vars. Tests the same areas as the E2E script but within the Vitest framework with assertions.
+**CI/CD Considerations:**
+- Integration tests skipped on CI due to native dependency issues (keytar)
+- `isCI` detection via environment: `const isCI = process.env.CI === 'true'`
+- Example: `const describeIntegration = isCI ? describe.skip : describe`
+
+## Common Test Assertion Patterns
+
+**Type assertions in tests:**
+```typescript
+const result = response.result as { content: Array<{ type: string; text: string }> };
+expect(result.content).toBeDefined();
+expect(result.content[0].type).toBe('text');
+```
+
+**Array and collection assertions:**
+```typescript
+expect(patterns).toHaveLength(2);
+expect(results.some(r => r.item.id === 'doc1')).toBe(true);
+expect(toolNames).toContain('get_swift_pattern');
+```
+
+**Score and numeric assertions:**
+```typescript
+expect(patterns[0].relevanceScore).toBeGreaterThanOrEqual(65);
+expect(fetchCount).toBe(1);
+expect(allResults.length).toBeGreaterThanOrEqual(filteredResults.length);
+```
 
 ---
 
-*Testing analysis: 2026-01-30*
+*Testing analysis: 2026-02-07*
