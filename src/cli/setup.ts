@@ -10,6 +10,13 @@ import { stdin as input, stdout as output } from 'process';
 type InstallMode = 'npx' | 'local' | 'global';
 type Client = 'cursor' | 'claude' | 'windsurf' | 'vscode';
 type Scope = 'local' | 'global';
+type PatreonChoice = 'yes' | 'no';
+
+interface SetupOptions {
+  clients?: Client[];
+  scope?: Scope;
+  installMode?: InstallMode;
+}
 
 function printUsage(): void {
   console.log('swift-patterns-mcp setup\n');
@@ -18,6 +25,11 @@ function printUsage(): void {
   console.log('  swift-patterns-mcp setup');
   console.log('  swift-patterns-mcp onboarding');
   console.log('  swift-patterns-mcp setup --patreon    Alias for: swift-patterns-mcp patreon setup');
+  console.log('\nNon-interactive options:');
+  console.log('  --cursor | --claude | --windsurf | --vscode | --all');
+  console.log('  --global | -g   Use global MCP config location');
+  console.log('  --local  | -l   Use local MCP config location');
+  console.log('  --npx | --install-local | --install-global');
 }
 
 async function askChoice<T extends string>(
@@ -109,6 +121,101 @@ function printVerificationSteps(): void {
   console.log('  4. Optional local test: npm run build && npx tsx scripts/test-query.ts "swiftui navigation"');
 }
 
+function printClientInstructions(
+  client: Client,
+  scope: Scope,
+  installMode: InstallMode
+): void {
+  const { command, args, installHint } = getServerCommand(installMode);
+  const configPath = getConfigPath(client, scope);
+  const snippet = buildSnippet(client, command, args);
+
+  const clientName: Record<Client, string> = {
+    cursor: 'Cursor',
+    claude: 'Claude Code',
+    windsurf: 'Windsurf',
+    vscode: 'VS Code',
+  };
+  console.log(`\n## ${clientName[client]}`);
+  if (installHint) {
+    console.log(`Install command: ${installHint}`);
+  } else {
+    console.log('No install needed. The command runs on demand.');
+  }
+
+  if (client === 'claude' && scope === 'global') {
+    if (installMode === 'npx') {
+      console.log('Recommended command:');
+      console.log('  claude mcp add swift-patterns -- npx -y swift-patterns-mcp@latest');
+    } else if (installMode === 'local') {
+      console.log('Recommended command:');
+      console.log('  claude mcp add swift-patterns -- npx swift-patterns-mcp');
+    } else {
+      console.log('Recommended command:');
+      console.log('  claude mcp add swift-patterns -- swift-patterns-mcp');
+    }
+    return;
+  }
+
+  console.log(`Config file: ${configPath}`);
+  console.log('Add this snippet:');
+  console.log(`\n${snippet}\n`);
+}
+
+function printPlan(options: Required<SetupOptions> & { wantsPatreon: PatreonChoice }): void {
+  console.log('\n# Next Steps\n');
+  for (const client of options.clients) {
+    printClientInstructions(client, options.scope, options.installMode);
+  }
+
+  if (options.wantsPatreon === 'yes') {
+    console.log('\nRun next: swift-patterns-mcp patreon setup');
+  }
+
+  printVerificationSteps();
+  console.log('');
+}
+
+function parseOptions(args: string[]): SetupOptions {
+  const has = (flag: string) => args.includes(flag);
+  const scope: Scope | undefined = has('--global') || has('-g')
+    ? 'global'
+    : has('--local') || has('-l')
+      ? 'local'
+      : undefined;
+
+  const installMode: InstallMode | undefined = has('--install-local')
+    ? 'local'
+    : has('--install-global')
+      ? 'global'
+      : has('--npx')
+        ? 'npx'
+        : undefined;
+
+  const selectedClients: Client[] = [];
+  if (has('--cursor')) selectedClients.push('cursor');
+  if (has('--claude')) selectedClients.push('claude');
+  if (has('--windsurf')) selectedClients.push('windsurf');
+  if (has('--vscode')) selectedClients.push('vscode');
+  if (has('--all')) {
+    return {
+      clients: ['cursor', 'claude', 'windsurf', 'vscode'],
+      scope,
+      installMode,
+    };
+  }
+
+  return {
+    clients: selectedClients.length > 0 ? selectedClients : undefined,
+    scope,
+    installMode,
+  };
+}
+
+function shouldRunNonInteractive(options: SetupOptions): boolean {
+  return !!(options.clients?.length || options.scope || options.installMode);
+}
+
 async function runPatreonSetupAlias(): Promise<void> {
   console.log('\nRouting to Patreon setup...\n');
   process.argv = [...process.argv.slice(0, 2), 'setup'];
@@ -139,37 +246,17 @@ async function runWizard(): Promise<void> {
       { value: 'global', label: 'Global for all projects' },
     ], 'local');
 
-    const { command, args, installHint } = getServerCommand(installMode);
-    const configPath = getConfigPath(client, scope);
-    const snippet = buildSnippet(client, command, args);
-
-    console.log('\n# Next Steps\n');
-    if (installHint) {
-      console.log(`Install command: ${installHint}`);
-    } else {
-      console.log('No install needed. The command runs on demand.');
-    }
-
-    if (client === 'claude' && scope === 'global') {
-      console.log('Recommended command:');
-      console.log('  claude mcp add swift-patterns -- npx -y swift-patterns-mcp@latest');
-    } else {
-      console.log(`Config file: ${configPath}`);
-      console.log('Add this snippet:');
-      console.log(`\n${snippet}\n`);
-    }
-
     const wantsPatreon = await askChoice(rl, 'Set up Patreon premium integration now?', [
       { value: 'no', label: 'No, skip for now' },
       { value: 'yes', label: 'Yes, I want premium sources' },
     ], 'no');
 
-    if (wantsPatreon === 'yes') {
-      console.log('\nRun next: swift-patterns-mcp patreon setup');
-    }
-
-    printVerificationSteps();
-    console.log('');
+    printPlan({
+      clients: [client],
+      scope,
+      installMode,
+      wantsPatreon,
+    });
   } finally {
     rl.close();
   }
@@ -186,9 +273,23 @@ if (args.includes('--patreon')) {
   process.exit(0);
 }
 
+const parsedOptions = parseOptions(args);
+const nonInteractive = shouldRunNonInteractive(parsedOptions);
+
+if (nonInteractive) {
+  printPlan({
+    clients: parsedOptions.clients ?? ['cursor'],
+    scope: parsedOptions.scope ?? 'local',
+    installMode: parsedOptions.installMode ?? 'npx',
+    wantsPatreon: 'no',
+  });
+  process.exit(0);
+}
+
 if (!process.stdin.isTTY) {
   console.log('Non-interactive environment detected.');
   console.log('Run: swift-patterns-mcp setup');
+  console.log('Or pass flags, e.g.: swift-patterns-mcp setup --cursor --global');
   console.log('Or configure manually with: npx -y swift-patterns-mcp@latest');
   process.exit(0);
 }
