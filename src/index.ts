@@ -8,6 +8,8 @@ import 'dotenv/config';
 const CLI_COMMANDS: Record<string, string> = {
   sources: './cli/sources.js',
   patreon: './cli/patreon.js',
+  setup: './cli/setup.js',
+  onboarding: './cli/setup.js',
 };
 
 const subcommand = process.argv[2];
