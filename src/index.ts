@@ -12,6 +12,7 @@ const CLI_COMMANDS: Record<string, string> = {
   onboarding: './cli/setup.js',
 };
 
+const SERVER_FLAGS = new Set(['--server', '--stdio', 'serve', 'server']);
 const subcommand = process.argv[2];
 if (subcommand && subcommand in CLI_COMMANDS) {
   // Strip the subcommand from argv so CLI modules see correct args
@@ -19,6 +20,20 @@ if (subcommand && subcommand in CLI_COMMANDS) {
   process.argv.splice(2, 1);
   await import(CLI_COMMANDS[subcommand]);
   process.exit(0); // Fallback if CLI module doesn't exit explicitly
+}
+
+const args = process.argv.slice(2);
+const forceServerMode = args.some(arg => SERVER_FLAGS.has(arg));
+const shouldRunInteractiveWizard =
+  !forceServerMode &&
+  args.length === 0 &&
+  process.stdin.isTTY &&
+  process.stdout.isTTY &&
+  process.env.SWIFT_PATTERNS_SKIP_WIZARD !== '1';
+
+if (shouldRunInteractiveWizard) {
+  await import('./cli/setup.js');
+  process.exit(0);
 }
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
