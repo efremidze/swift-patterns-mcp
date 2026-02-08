@@ -18,6 +18,17 @@ export function createTextResponse(text: string): ToolResponse {
 }
 
 /**
+ * Create a markdown response with a title and body sections.
+ */
+export function createMarkdownResponse(title: string, ...sections: Array<string | undefined>): ToolResponse {
+  const body = sections
+    .filter((section): section is string => Boolean(section && section.trim()))
+    .join('\n\n');
+
+  return createTextResponse(`# ${title}${body ? `\n\n${body}` : ''}`);
+}
+
+/**
  * Create an error response
  */
 export function createErrorResponse(message: string): ToolResponse {
