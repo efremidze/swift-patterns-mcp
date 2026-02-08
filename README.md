@@ -78,6 +78,18 @@ Access exclusive content from top iOS educators: **Kavsoft**, **SwiftUI Codes**,
 npx -y swift-patterns-mcp@latest
 ```
 
+### Interactive Setup Wizard
+
+```bash
+swift-patterns-mcp setup
+```
+
+The wizard helps you choose:
+- Run mode (`npx`, project-local install, or global install)
+- MCP client (Cursor, Claude Code, Windsurf, VS Code)
+- Config scope (local project vs global)
+- Optional Patreon setup prompt
+
 ### Configure Your AI Assistant
 
 #### Cursor
@@ -358,6 +370,9 @@ Patreon requires OAuth apps to be registered by creators. You don't need to laun
 ```bash
 # List all content sources and status
 swift-patterns-mcp sources
+
+# Interactive onboarding/configuration wizard
+swift-patterns-mcp setup
 
 # Patreon integration
 swift-patterns-mcp patreon setup     # Connect your Patreon account
