@@ -15,7 +15,6 @@ type PatreonChoice = 'yes' | 'no';
 interface SetupOptions {
   clients?: Client[];
   scope?: Scope;
-  installMode?: InstallMode;
 }
 
 function printUsage(): void {
@@ -29,7 +28,6 @@ function printUsage(): void {
   console.log('  --cursor | --claude | --windsurf | --vscode | --all');
   console.log('  --global | -g   Use global MCP config location');
   console.log('  --local  | -l   Use local MCP config location');
-  console.log('  --npx | --install-local | --install-global');
 }
 
 async function askChoice<T extends string>(
@@ -123,10 +121,9 @@ function printVerificationSteps(): void {
 
 function printClientInstructions(
   client: Client,
-  scope: Scope,
-  installMode: InstallMode
+  scope: Scope
 ): void {
-  const { command, args, installHint } = getServerCommand(installMode);
+  const { command, args, installHint } = getServerCommand('npx');
   const configPath = getConfigPath(client, scope);
   const snippet = buildSnippet(client, command, args);
 
@@ -144,16 +141,8 @@ function printClientInstructions(
   }
 
   if (client === 'claude' && scope === 'global') {
-    if (installMode === 'npx') {
-      console.log('Recommended command:');
-      console.log('  claude mcp add swift-patterns -- npx -y swift-patterns-mcp@latest');
-    } else if (installMode === 'local') {
-      console.log('Recommended command:');
-      console.log('  claude mcp add swift-patterns -- npx swift-patterns-mcp');
-    } else {
-      console.log('Recommended command:');
-      console.log('  claude mcp add swift-patterns -- swift-patterns-mcp');
-    }
+    console.log('Recommended command:');
+    console.log('  claude mcp add swift-patterns -- npx -y swift-patterns-mcp@latest');
     return;
   }
 
@@ -165,7 +154,7 @@ function printClientInstructions(
 function printPlan(options: Required<SetupOptions> & { wantsPatreon: PatreonChoice }): void {
   console.log('\n# Next Steps\n');
   for (const client of options.clients) {
-    printClientInstructions(client, options.scope, options.installMode);
+    printClientInstructions(client, options.scope);
   }
 
   if (options.wantsPatreon === 'yes') {
@@ -184,14 +173,6 @@ function parseOptions(args: string[]): SetupOptions {
       ? 'local'
       : undefined;
 
-  const installMode: InstallMode | undefined = has('--install-local')
-    ? 'local'
-    : has('--install-global')
-      ? 'global'
-      : has('--npx')
-        ? 'npx'
-        : undefined;
-
   const selectedClients: Client[] = [];
   if (has('--cursor')) selectedClients.push('cursor');
   if (has('--claude')) selectedClients.push('claude');
@@ -201,19 +182,17 @@ function parseOptions(args: string[]): SetupOptions {
     return {
       clients: ['cursor', 'claude', 'windsurf', 'vscode'],
       scope,
-      installMode,
     };
   }
 
   return {
     clients: selectedClients.length > 0 ? selectedClients : undefined,
     scope,
-    installMode,
   };
 }
 
 function shouldRunNonInteractive(options: SetupOptions): boolean {
-  return !!(options.clients?.length || options.scope || options.installMode);
+  return !!(options.clients?.length || options.scope);
 }
 
 async function runPatreonSetupAlias(): Promise<void> {
@@ -228,11 +207,10 @@ async function runWizard(): Promise<void> {
   try {
     console.log('\n# swift-patterns-mcp Setup Wizard\n');
 
-    const installMode = await askChoice(rl, 'How should the MCP server run?', [
-      { value: 'npx', label: 'Run with npx @latest (recommended)' },
-      { value: 'local', label: 'Install in this project (dev dependency)' },
-      { value: 'global', label: 'Install globally (npm -g)' },
-    ], 'npx');
+    const scope = await askChoice(rl, 'Configuration scope?', [
+      { value: 'local', label: 'Local project only' },
+      { value: 'global', label: 'Global for all projects' },
+    ], 'local');
 
     const client = await askChoice(rl, 'Which MCP client are you configuring?', [
       { value: 'cursor', label: 'Cursor' },
@@ -240,11 +218,6 @@ async function runWizard(): Promise<void> {
       { value: 'windsurf', label: 'Windsurf' },
       { value: 'vscode', label: 'VS Code' },
     ], 'cursor');
-
-    const scope = await askChoice(rl, 'Configuration scope?', [
-      { value: 'local', label: 'Local project only' },
-      { value: 'global', label: 'Global for all projects' },
-    ], 'local');
 
     const wantsPatreon = await askChoice(rl, 'Set up Patreon premium integration now?', [
       { value: 'no', label: 'No, skip for now' },
@@ -254,7 +227,6 @@ async function runWizard(): Promise<void> {
     printPlan({
       clients: [client],
       scope,
-      installMode,
       wantsPatreon,
     });
   } finally {
@@ -280,7 +252,6 @@ if (nonInteractive) {
   printPlan({
     clients: parsedOptions.clients ?? ['cursor'],
     scope: parsedOptions.scope ?? 'local',
-    installMode: parsedOptions.installMode ?? 'npx',
     wantsPatreon: 'no',
   });
   process.exit(0);
