@@ -72,7 +72,7 @@ Access exclusive content from top iOS educators: **Kavsoft**, **SwiftUI Codes**,
 
 ## 🚀 Quick Start
 
-### Install
+### Run Setup
 
 ```bash
 npx -y swift-patterns-mcp@latest
@@ -82,6 +82,12 @@ In an interactive terminal, this opens the setup wizard.
 When launched by an MCP client (non-interactive stdio), it runs as the MCP server automatically.
 
 ### Interactive Setup Wizard
+
+```bash
+npx -y swift-patterns-mcp@latest setup
+```
+
+If installed globally, you can also run:
 
 ```bash
 swift-patterns-mcp setup
@@ -490,4 +496,4 @@ MIT License - Copyright (c) 2026 Lasha Efremidze
 
 **Made with ❤️ for the Swift community**
 
-[⭐ Star this repo](https://github.com/efremidze/swift-patterns-mcp) • [🐛 Report Bug](./issues) • [✨ Request Feature](./issues)
+[⭐ Star this repo](https://github.com/efremidze/swift-patterns-mcp) • [🐛 Report Bug](https://github.com/efremidze/swift-patterns-mcp/issues) • [✨ Request Feature](https://github.com/efremidze/swift-patterns-mcp/issues)
