@@ -7,7 +7,7 @@ import { createTextResponse } from '../../utils/response-helpers.js';
 import { intentCache, type IntentKey, type StorableCachedSearchResult } from '../../utils/intent-cache.js';
 import type { BasePattern } from '../../sources/free/rssPatternSource.js';
 import { SemanticRecallIndex, type SemanticRecallConfig } from '../../utils/semantic-recall.js';
-import SourceManager from '../../config/sources.js';
+import type SourceManager from '../../config/sources.js';
 import { getMemvidMemory } from '../../utils/memvid-memory.js';
 import logger from '../../utils/logger.js';
 
@@ -30,6 +30,7 @@ interface SemanticRecallOptions {
 }
 
 const SEMANTIC_TIMEOUT_MS = 5_000;
+const PATREON_UNIFIED_TIMEOUT_MS = 5_000;
 
 /**
  * Attempt semantic recall with a timeout.
@@ -83,7 +84,7 @@ async function trySemanticRecallInner(options: SemanticRecallOptions): Promise<B
   }
 }
 
-export const searchSwiftContentHandler: ToolHandler = async (args) => {
+export const searchSwiftContentHandler: ToolHandler = async (args, context) => {
   const query = args?.query as string;
   const requireCode = args?.requireCode as boolean;
   const wantsCode = detectCodeIntent(args, query);
@@ -94,13 +95,21 @@ export const searchSwiftContentHandler: ToolHandler = async (args) => {
 Usage: search_swift_content({ query: "async await" })`);
   }
 
+  const enabledSourceIds = context.sourceManager.getEnabledSources().map(s => s.id);
+  const patreonEnabled = enabledSourceIds.includes('patreon') && !!context.patreonSource;
+
   // Build intent key for caching
-  // This handler always uses 'all' sources and default minQuality of 0
+  // This handler always uses default minQuality of 0.
+  // Sources vary based on whether Patreon is enabled.
+  const sourcesForCache = [
+    ...getSourceNames('all'),
+    ...(patreonEnabled ? ['patreon'] : []),
+  ].sort();
   const intentKey: IntentKey = {
     tool: 'search_swift_content',
     query,
     minQuality: 0,
-    sources: getSourceNames('all'),
+    sources: sourcesForCache,
     requireCode: requireCode || false,
   };
 
@@ -124,10 +133,41 @@ Usage: search_swift_content({ query: "async await" })`);
     filtered = requireCode
       ? results.filter(r => r.hasCode)
       : results;
+
+    // If Patreon is enabled, include Patreon search results in unified search.
+    if (patreonEnabled && context.patreonSource) {
+      try {
+        const patreon = new context.patreonSource();
+        const patreonResults = await Promise.race([
+          patreon.searchPatterns(query, {
+            mode: 'fast',
+          }),
+          new Promise<[]>(resolve => setTimeout(() => resolve([]), PATREON_UNIFIED_TIMEOUT_MS)),
+        ]);
+        const patreonFiltered = requireCode
+          ? patreonResults.filter(r => r.hasCode)
+          : patreonResults;
+
+        if (patreonFiltered.length > 0) {
+          const existingIds = new Set(filtered.map(p => p.id));
+          const existingUrls = new Set(filtered.map(p => p.url));
+          const dedupedPatreon = patreonFiltered.filter(p =>
+            !existingIds.has(p.id) &&
+            !existingUrls.has(p.url)
+          );
+          filtered = [...filtered, ...dedupedPatreon];
+        }
+      } catch (error) {
+        // Patreon search should never break free-source search.
+        logger.warn({ err: error }, 'Patreon search failed in unified search');
+      }
+    }
+
+    filtered.sort((a, b) => b.relevanceScore - a.relevanceScore);
   }
 
   // Semantic recall: supplement lexical results when enabled and not cached
-  const sourceManager = new SourceManager();
+  const sourceManager = context.sourceManager;
   const semanticConfig = sourceManager.getSemanticRecallConfig();
 
   let finalResults = filtered;
