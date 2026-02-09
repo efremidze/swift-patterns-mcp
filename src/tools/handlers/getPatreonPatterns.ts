@@ -1,26 +1,30 @@
 // src/tools/handlers/getPatreonPatterns.ts
 
 import type { ToolHandler, PatreonPattern } from '../types.js';
-import { createTextResponse } from '../../utils/response-helpers.js';
+import { createTextResponse, formatMarkdownDocument } from '../../utils/response-helpers.js';
 import { getYouTubeStatus } from '../../sources/premium/youtube.js';
-
-function getMissingEnvVars(): string[] {
-  const required = ['YOUTUBE_API_KEY', 'PATREON_CLIENT_ID', 'PATREON_CLIENT_SECRET'];
-  return required.filter(key => !process.env[key]);
-}
+import { PATREON_SEARCH_ENV_VARS, getMissingEnvVars, formatEnvExportHints } from '../../utils/patreon-env.js';
 
 export const getPatreonPatternsHandler: ToolHandler = async (args, context) => {
   // Check for missing environment variables and give specific feedback
-  const missingVars = getMissingEnvVars();
+  const missingVars = getMissingEnvVars(PATREON_SEARCH_ENV_VARS);
   if (missingVars.length > 0) {
-    return createTextResponse(`Patreon integration missing required environment variables:
-
-${missingVars.map(v => `  - ${v}`).join('\n')}
-
-Add these to your .env file or environment:
-${missingVars.map(v => `  export ${v}="your_${v.toLowerCase()}"`).join('\n')}
-
-For setup instructions: https://github.com/efremidze/swift-patterns-mcp#patreon-setup`);
+    return createTextResponse(formatMarkdownDocument(
+      'Patreon Integration',
+      [
+        {
+          lines: [
+            'Patreon integration missing required environment variables:',
+            ...missingVars.map(v => `- ${v}`),
+          ],
+        },
+        {
+          heading: 'Add To Environment',
+          lines: formatEnvExportHints(missingVars),
+        },
+      ],
+      'For setup instructions: https://github.com/efremidze/swift-patterns-mcp#patreon-setup'
+    ));
   }
 
   if (!context.patreonSource) {
@@ -62,11 +66,18 @@ ${p.excerpt}...
       ? `\n> **Note:** YouTube API error: ${ytStatus.lastError}. Some results may be missing.\n`
       : '';
 
-  return createTextResponse(`# Patreon Patterns${topic ? `: ${topic}` : ''}
-${ytWarning}
-Found ${patterns.length} posts from your subscriptions:
+  const title = `Patreon Patterns${topic ? `: ${topic}` : ''}`;
+  const totalLine = `Found ${patterns.length} posts from your subscriptions:`;
+  const footer = patterns.length > 10 ? `*Showing top 10 of ${patterns.length} results*` : '';
 
-${formatted}
-
-${patterns.length > 10 ? `\n*Showing top 10 of ${patterns.length} results*` : ''}`);
+  return createTextResponse(formatMarkdownDocument(title, [
+    {
+      lines: [
+        ytWarning.trim(),
+        totalLine,
+        '',
+        formatted,
+      ],
+    },
+  ], footer));
 };
