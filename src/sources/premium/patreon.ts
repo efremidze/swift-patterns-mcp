@@ -232,6 +232,43 @@ function getPatreonSearchCacheKey(query: string): string {
   return `patreon-search::${base}`;
 }
 
+function canonicalizePatternUrl(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl);
+
+    if (parsed.hostname.includes('youtube.com')) {
+      const videoId = parsed.searchParams.get('v');
+      if (videoId) return `youtube:${videoId}`;
+    }
+
+    if (parsed.hostname.includes('patreon.com')) {
+      const pathname = parsed.pathname.replace(/\/+$/, '');
+      if (pathname.includes('/posts/')) {
+        return `patreon-post:${parsed.origin}${pathname}`;
+      }
+      return `patreon-page:${parsed.origin}${pathname}`;
+    }
+
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return rawUrl.trim();
+  }
+}
+
+function buildPatternDedupKey(pattern: PatreonPattern): string {
+  if (pattern.url.startsWith('file://')) {
+    return `file:${pattern.url}`;
+  }
+
+  const normalizedUrl = canonicalizePatternUrl(pattern.url);
+  if (normalizedUrl.startsWith('patreon-page:')) {
+    // Many videos map to a single creator page URL; include creator to keep one best per creator page.
+    return `${normalizedUrl}::${pattern.creator.toLowerCase()}`;
+  }
+
+  return normalizedUrl;
+}
+
 
 export class PatreonSource {
   private clientId: string;
@@ -496,8 +533,14 @@ export class PatreonSource {
 
     const byKey = new Map<string, PatreonPattern>();
     for (const pattern of [...enrichedPatterns, ...downloadedPatterns]) {
-      const key = `${pattern.id}::${pattern.url}`;
-      if (!byKey.has(key)) {
+      const key = buildPatternDedupKey(pattern);
+      const existing = byKey.get(key);
+
+      if (
+        !existing ||
+        pattern.relevanceScore > existing.relevanceScore ||
+        (pattern.relevanceScore === existing.relevanceScore && pattern.hasCode && !existing.hasCode)
+      ) {
         byKey.set(key, pattern);
       }
     }
