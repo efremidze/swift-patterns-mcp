@@ -118,6 +118,51 @@ function mapVideoItems(items: Array<{
   });
 }
 
+function extractVideoIds(items: Array<{ id?: { videoId?: string } }>): string {
+  return items
+    .map(i => i.id?.videoId)
+    .filter((id): id is string => Boolean(id))
+    .join(',');
+}
+
+async function fetchFullVideoItems(
+  apiKey: string,
+  videoIds: string
+): Promise<Array<{ id?: string; snippet?: YouTubeSnippet }> | null> {
+  const videosUrl = `${API_BASE}/videos?key=${apiKey}&id=${videoIds}&part=snippet`;
+  const videosRes = await fetchWithTimeout(videosUrl);
+
+  if (!videosRes.ok) {
+    return null;
+  }
+
+  const videosData = await videosRes.json() as {
+    items: Array<{
+      id?: string;
+      snippet?: YouTubeSnippet;
+    }>;
+  };
+  return videosData.items;
+}
+
+async function hydrateSearchItems(
+  apiKey: string,
+  searchItems: Array<{
+    id?: { videoId?: string };
+    snippet?: YouTubeSnippet;
+  }>
+): Promise<Video[]> {
+  const videoIds = extractVideoIds(searchItems);
+  if (!videoIds) return [];
+
+  const fullItems = await fetchFullVideoItems(apiKey, videoIds);
+  if (!fullItems) {
+    return mapSearchItems(searchItems);
+  }
+
+  return mapVideoItems(fullItems);
+}
+
 export async function getChannelVideos(
   channelId: string,
   maxResults = 50
@@ -152,31 +197,10 @@ async function _fetchChannelVideos(apiKey: string, channelId: string, maxResults
         snippet?: YouTubeSnippet;
       }>;
     };
-
-    const videoIds = searchData.items
-      .map(i => i.id?.videoId)
-      .filter((id): id is string => Boolean(id))
-      .join(',');
-    if (!videoIds) return [];
-
-    // Get full video details (includes tags)
-    const videosUrl = `${API_BASE}/videos?key=${apiKey}&id=${videoIds}&part=snippet`;
-    const videosRes = await fetchWithTimeout(videosUrl);
-
-    if (!videosRes.ok) {
-      // Fallback to search results
-      return mapSearchItems(searchData.items);
-    }
-
-    const videosData = await videosRes.json() as {
-      items: Array<{
-        id?: string;
-        snippet?: YouTubeSnippet;
-      }>;
-    };
-
+    // Get full video details (includes tags and complete description), fallback to search snippets.
+    const videos = await hydrateSearchItems(apiKey, searchData.items);
     clearError();
-    return mapVideoItems(videosData.items);
+    return videos;
   } catch (error) {
     recordError(toErrorMessage(error));
     logError('YouTube', error, { channelId });
@@ -220,31 +244,10 @@ async function _fetchSearchVideos(apiKey: string, query: string, channelId: stri
         snippet?: YouTubeSnippet;
       }>;
     };
-
-    const videoIds = searchData.items
-      .map(i => i.id?.videoId)
-      .filter((id): id is string => Boolean(id))
-      .join(',');
-    if (!videoIds) return [];
-
-    // Fetch full video details to get complete descriptions (search returns truncated)
-    const videosUrl = `${API_BASE}/videos?key=${apiKey}&id=${videoIds}&part=snippet`;
-    const videosRes = await fetchWithTimeout(videosUrl);
-
-    if (!videosRes.ok) {
-      // Fallback to search results (truncated descriptions)
-      return mapSearchItems(searchData.items);
-    }
-
-    const videosData = await videosRes.json() as {
-      items: Array<{
-        id?: string;
-        snippet?: YouTubeSnippet;
-      }>;
-    };
-
+    // Fetch full details; fallback to search snippets when videos API misses/fails.
+    const videos = await hydrateSearchItems(apiKey, searchData.items);
     clearError();
-    return mapVideoItems(videosData.items);
+    return videos;
   } catch (error) {
     recordError(toErrorMessage(error));
     return [];
