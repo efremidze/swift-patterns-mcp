@@ -101,7 +101,7 @@ const PATREON_SEARCH_STALE_SECONDS = 1800;
 const QUERY_OVERLAP_SCORE_CAP = 8;
 const QUERY_OVERLAP_RELEVANCE_MULTIPLIER = 1.5;
 const PATREON_DEEP_MAX_ENRICHED_POSTS = 5;
-const PATREON_DOWNLOADED_RESULTS_LIMIT = 300;
+const PATREON_DOWNLOADED_RESULTS_LIMIT = 100;
 
 function isSwiftRelated(name: string, summary?: string): boolean {
   const text = `${name} ${summary || ''}`.toLowerCase();
