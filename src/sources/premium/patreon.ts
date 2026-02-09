@@ -2,13 +2,15 @@
 
 import { loadTokens, getValidAccessToken } from './patreon-oauth.js';
 import { searchVideos, Video } from './youtube.js';
-import { downloadPost, DownloadedPost, DownloadedFile } from './patreon-dl.js';
+import { downloadPost, scanDownloadedContent, DownloadedPost, DownloadedFile } from './patreon-dl.js';
 import { CREATORS, withYouTube } from '../../config/creators.js';
 import { detectTopics, hasCodeContent, calculateRelevance } from '../../utils/swift-analysis.js';
 import { createSourceConfig } from '../../config/swift-keywords.js';
 import { logError } from '../../utils/errors.js';
 import { fetch } from '../../utils/fetch.js';
 import logger from '../../utils/logger.js';
+import { normalizeTokens } from '../../utils/search-terms.js';
+import { FileCache } from '../../utils/cache.js';
 
 const PATREON_API = 'https://www.patreon.com/api/oauth2/v2';
 
@@ -30,6 +32,17 @@ export interface CreatorInfo {
   name: string;
   url: string;
   isSwiftRelated: boolean;
+}
+
+type PatreonSearchMode = 'fast' | 'deep';
+
+interface PatreonSearchOptions {
+  mode?: PatreonSearchMode;
+}
+
+interface InternalPatreonSearchOptions {
+  enrichLinkedPosts: boolean;
+  includeDownloadedFallback: boolean;
 }
 
 interface PatreonCampaign {
@@ -71,11 +84,88 @@ const PATREON_CODE_BONUS = 10;
 const PATREON_BASE_SCORE = 50;
 const PATREON_EXCERPT_LENGTH = 300;
 const PATREON_DEFAULT_QUERY = 'swiftui';
+const MAX_QUERY_VARIANTS = 4;
+const MAX_VIDEOS_PER_CREATOR = 25;
+const PATREON_SEARCH_CACHE_TTL_SECONDS = 1800;
+const patreonSearchCache = new FileCache('patreon-search', 200);
+const patreonRefreshInFlight = new Map<string, Promise<void>>();
 
 function isSwiftRelated(name: string, summary?: string): boolean {
   const text = `${name} ${summary || ''}`.toLowerCase();
   const keywords = ['swift', 'swiftui', 'ios', 'apple', 'xcode', 'uikit', 'iphone', 'ipad'];
   return keywords.some(k => text.includes(k));
+}
+
+function canonicalizeToken(token: string): string {
+  if (token.endsWith('ing') && token.length > 5) {
+    const stemmed = token.slice(0, -3);
+    if (stemmed.endsWith('ll')) return stemmed;
+    return stemmed;
+  }
+  if (token.endsWith('s') && token.length > 4) {
+    return token.slice(0, -1);
+  }
+  return token;
+}
+
+function buildQueryVariants(query: string): string[] {
+  const original = query.trim();
+  const out: string[] = [];
+  const seen = new Set<string>();
+
+  const push = (q: string): void => {
+    const normalized = q.trim().replace(/\s+/g, ' ');
+    if (!normalized) return;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(normalized);
+  };
+
+  push(original);
+
+  const tokens = normalizeTokens(original).map(canonicalizeToken);
+  if (tokens.length > 0) {
+    push(tokens.join(' '));
+  }
+
+  const priorityTerms = ['swiftui', 'parallax', 'carousel', 'scroll', 'card', 'animation'];
+  const prioritized = priorityTerms.filter(t => tokens.includes(t));
+  const remaining = tokens.filter(t => !prioritized.includes(t));
+  const focused = [...prioritized, ...remaining].slice(0, 4);
+  if (focused.length > 0) {
+    push(focused.join(' '));
+  }
+
+  // Keep a broad fallback if no meaningful variant exists.
+  if (out.length === 0) {
+    push(PATREON_DEFAULT_QUERY);
+  }
+
+  return out.slice(0, MAX_QUERY_VARIANTS);
+}
+
+function selectCreatorsForQuery(query: string) {
+  const creators = withYouTube();
+  const q = query.toLowerCase();
+  const matched = creators.filter(c =>
+    q.includes(c.id.toLowerCase()) ||
+    q.includes(c.name.toLowerCase())
+  );
+  return matched.length > 0 ? matched : creators;
+}
+
+function hasQueryOverlap(text: string, query: string): boolean {
+  const terms = normalizeTokens(query).map(canonicalizeToken);
+  if (terms.length === 0) return true;
+  const haystack = text.toLowerCase();
+  return terms.some(term => haystack.includes(term));
+}
+
+function getPatreonSearchCacheKey(query: string): string {
+  const normalized = normalizeTokens(query).map(canonicalizeToken).sort().join(' ');
+  const base = normalized || query.trim().toLowerCase();
+  return `patreon-search::${base}`;
 }
 
 
@@ -189,6 +279,25 @@ export class PatreonSource {
     });
   }
 
+  private getDownloadedPatterns(query: string): PatreonPattern[] {
+    try {
+      const posts = scanDownloadedContent();
+      if (posts.length === 0) return [];
+
+      const patterns = posts.flatMap(post => this.downloadedPostToPatterns(post));
+      const filtered = patterns.filter(pattern =>
+        hasQueryOverlap(
+          `${pattern.title} ${pattern.excerpt} ${pattern.content} ${pattern.topics.join(' ')}`,
+          query
+        )
+      );
+      return filtered.sort((a, b) => b.relevanceScore - a.relevanceScore);
+    } catch (error) {
+      logError('Patreon', error, { query, source: 'downloaded-content' });
+      return [];
+    }
+  }
+
 
   private videoToPattern(video: Video, creatorName: string): PatreonPattern {
     const text = `${video.title} ${video.description}`;
@@ -210,14 +319,75 @@ export class PatreonSource {
     };
   }
 
-  async searchPatterns(query: string): Promise<PatreonPattern[]> {
-    // Search YouTube for all known creators in parallel
-    const creators = withYouTube();
+  private async refreshFastCache(query: string, cacheKey: string): Promise<void> {
+    if (patreonRefreshInFlight.has(cacheKey)) {
+      return;
+    }
+
+    const refreshPromise = (async () => {
+      try {
+        const refreshed = await this.searchPatternsInternal(query, {
+          enrichLinkedPosts: false,
+          includeDownloadedFallback: true,
+        });
+        if (refreshed.length > 0) {
+          await patreonSearchCache.set(cacheKey, refreshed, PATREON_SEARCH_CACHE_TTL_SECONDS);
+        }
+      } catch (error) {
+        logError('Patreon', error, { query, mode: 'fast-refresh' });
+      } finally {
+        patreonRefreshInFlight.delete(cacheKey);
+      }
+    })();
+
+    patreonRefreshInFlight.set(cacheKey, refreshPromise);
+  }
+
+  private async searchPatternsInternal(
+    query: string,
+    options: InternalPatreonSearchOptions
+  ): Promise<PatreonPattern[]> {
+    const { enrichLinkedPosts, includeDownloadedFallback } = options;
+
+    // Search YouTube for creators in parallel, using query variants to handle long natural prompts.
+    const creators = selectCreatorsForQuery(query);
+    const queryVariants = buildQueryVariants(query);
+
+    logger.info({ query, queryVariants, creators: creators.map(c => c.name) }, 'Patreon search variants');
+
     const results = await Promise.allSettled(
-      creators.map(creator =>
-        searchVideos(query, creator.youtubeChannelId!, 25)
-          .then(videos => videos.map(video => this.videoToPattern(video, creator.name)))
-      )
+      creators.map(async (creator) => {
+        const byId = new Map<string, ReturnType<typeof this.videoToPattern>>();
+
+        for (const variant of queryVariants) {
+          const videos = await searchVideos(variant, creator.youtubeChannelId!, MAX_VIDEOS_PER_CREATOR);
+          for (const video of videos) {
+            if (!byId.has(video.id)) {
+              byId.set(video.id, this.videoToPattern(video, creator.name));
+            }
+          }
+
+          // Stop early once we have enough candidates for this creator.
+          if (byId.size >= MAX_VIDEOS_PER_CREATOR) {
+            break;
+          }
+        }
+
+        // Basic relevance gate: keep patterns that overlap with query terms,
+        // but allow all if overlap filtering would remove everything.
+        const queryTerms = normalizeTokens(query).map(canonicalizeToken);
+        const allPatterns = Array.from(byId.values());
+        if (queryTerms.length === 0 || allPatterns.length === 0) {
+          return allPatterns;
+        }
+
+        const overlapped = allPatterns.filter(pattern => {
+          const haystack = `${pattern.title} ${pattern.excerpt} ${pattern.topics.join(' ')}`.toLowerCase();
+          return queryTerms.some(term => haystack.includes(term));
+        });
+
+        return overlapped.length > 0 ? overlapped : allPatterns;
+      })
     );
 
     const patterns: PatreonPattern[] = [];
@@ -230,9 +400,60 @@ export class PatreonSource {
       }
     }
 
-    // Fetch actual content for patterns with Patreon links
-    const enrichedPatterns = await this.enrichPatternsWithContent(patterns);
-    return enrichedPatterns;
+    // Fetch actual content for patterns with Patreon links (expensive, only for deep mode).
+    const enrichedPatterns = enrichLinkedPosts
+      ? await this.enrichPatternsWithContent(patterns)
+      : patterns;
+
+    // Also search local downloaded Patreon content as a resilient fallback path.
+    const downloadedPatterns = includeDownloadedFallback
+      ? this.getDownloadedPatterns(query)
+      : [];
+
+    const byKey = new Map<string, PatreonPattern>();
+    for (const pattern of [...enrichedPatterns, ...downloadedPatterns]) {
+      const key = `${pattern.id}::${pattern.url}`;
+      if (!byKey.has(key)) {
+        byKey.set(key, pattern);
+      }
+    }
+
+    return Array.from(byKey.values()).sort((a, b) => b.relevanceScore - a.relevanceScore);
+  }
+
+  async searchPatterns(query: string, options: PatreonSearchOptions = {}): Promise<PatreonPattern[]> {
+    const mode: PatreonSearchMode = options.mode ?? 'deep';
+    const cacheKey = getPatreonSearchCacheKey(query);
+
+    if (mode === 'fast') {
+      const localMatches = this.getDownloadedPatterns(query);
+      if (localMatches.length > 0) {
+        // Serve local cache immediately; refresh network-backed cache in background.
+        void this.refreshFastCache(query, cacheKey);
+        return localMatches;
+      }
+
+      const cached = await patreonSearchCache.get<PatreonPattern[]>(cacheKey);
+      if (cached && cached.length > 0) {
+        void this.refreshFastCache(query, cacheKey);
+        return cached;
+      }
+
+      // No cache hit yet; return quickly and warm cache asynchronously.
+      void this.refreshFastCache(query, cacheKey);
+      return [];
+    }
+
+    const deepResults = await this.searchPatternsInternal(query, {
+      enrichLinkedPosts: true,
+      includeDownloadedFallback: true,
+    });
+
+    if (deepResults.length > 0) {
+      await patreonSearchCache.set(cacheKey, deepResults, PATREON_SEARCH_CACHE_TTL_SECONDS);
+    }
+
+    return deepResults;
   }
 
   /**
