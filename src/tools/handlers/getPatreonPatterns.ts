@@ -32,7 +32,7 @@ For setup instructions: https://github.com/efremidze/swift-patterns-mcp#patreon-
 
   const patreon = new context.patreonSource();
   let patterns: PatreonPattern[] = topic
-    ? await patreon.searchPatterns(topic)
+    ? await patreon.searchPatterns(topic, { mode: 'deep' })
     : await patreon.fetchPatterns();
 
   if (requireCode) {
