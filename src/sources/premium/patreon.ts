@@ -10,7 +10,7 @@ import { logError } from '../../utils/errors.js';
 import { fetch } from '../../utils/fetch.js';
 import logger from '../../utils/logger.js';
 import { normalizeTokens } from '../../utils/search-terms.js';
-import { FileCache } from '../../utils/cache.js';
+import { createCache, type Cache } from 'async-cache-dedupe';
 
 const PATREON_API = 'https://www.patreon.com/api/oauth2/v2';
 
@@ -87,8 +87,7 @@ const PATREON_DEFAULT_QUERY = 'swiftui';
 const MAX_QUERY_VARIANTS = 4;
 const MAX_VIDEOS_PER_CREATOR = 25;
 const PATREON_SEARCH_CACHE_TTL_SECONDS = 1800;
-const patreonSearchCache = new FileCache('patreon-search', 200);
-const patreonRefreshInFlight = new Map<string, Promise<void>>();
+const PATREON_SEARCH_STALE_SECONDS = 1800;
 
 function isSwiftRelated(name: string, summary?: string): boolean {
   const text = `${name} ${summary || ''}`.toLowerCase();
@@ -172,10 +171,33 @@ function getPatreonSearchCacheKey(query: string): string {
 export class PatreonSource {
   private clientId: string;
   private clientSecret: string;
+  private fastSearchCache: Cache & {
+    fastSearch: (query: string) => Promise<PatreonPattern[]>;
+  };
 
   constructor() {
     this.clientId = process.env.PATREON_CLIENT_ID || '';
     this.clientSecret = process.env.PATREON_CLIENT_SECRET || '';
+
+    this.fastSearchCache = createCache({
+      storage: { type: 'memory', options: { size: 200 } },
+      ttl: PATREON_SEARCH_CACHE_TTL_SECONDS,
+      stale: PATREON_SEARCH_STALE_SECONDS,
+      onError: (err: unknown) => {
+        logError('Patreon', err, { source: 'fast-cache' });
+      },
+    }).define('fastSearch', {
+      ttl: PATREON_SEARCH_CACHE_TTL_SECONDS,
+      stale: PATREON_SEARCH_STALE_SECONDS,
+      serialize: (q: string) => getPatreonSearchCacheKey(q),
+    }, async (q: string) => {
+      return this.searchPatternsInternal(q, {
+        enrichLinkedPosts: false,
+        includeDownloadedFallback: true,
+      });
+    }) as Cache & {
+      fastSearch: (query: string) => Promise<PatreonPattern[]>;
+    };
   }
 
   async isConfigured(): Promise<boolean> {
@@ -319,30 +341,6 @@ export class PatreonSource {
     };
   }
 
-  private async refreshFastCache(query: string, cacheKey: string): Promise<void> {
-    if (patreonRefreshInFlight.has(cacheKey)) {
-      return;
-    }
-
-    const refreshPromise = (async () => {
-      try {
-        const refreshed = await this.searchPatternsInternal(query, {
-          enrichLinkedPosts: false,
-          includeDownloadedFallback: true,
-        });
-        if (refreshed.length > 0) {
-          await patreonSearchCache.set(cacheKey, refreshed, PATREON_SEARCH_CACHE_TTL_SECONDS);
-        }
-      } catch (error) {
-        logError('Patreon', error, { query, mode: 'fast-refresh' });
-      } finally {
-        patreonRefreshInFlight.delete(cacheKey);
-      }
-    })();
-
-    patreonRefreshInFlight.set(cacheKey, refreshPromise);
-  }
-
   private async searchPatternsInternal(
     query: string,
     options: InternalPatreonSearchOptions
@@ -423,37 +421,21 @@ export class PatreonSource {
 
   async searchPatterns(query: string, options: PatreonSearchOptions = {}): Promise<PatreonPattern[]> {
     const mode: PatreonSearchMode = options.mode ?? 'deep';
-    const cacheKey = getPatreonSearchCacheKey(query);
 
     if (mode === 'fast') {
       const localMatches = this.getDownloadedPatterns(query);
       if (localMatches.length > 0) {
-        // Serve local cache immediately; refresh network-backed cache in background.
-        void this.refreshFastCache(query, cacheKey);
+        // Keep low-latency local results first; cache handles stale refresh for misses.
         return localMatches;
       }
 
-      const cached = await patreonSearchCache.get<PatreonPattern[]>(cacheKey);
-      if (cached && cached.length > 0) {
-        void this.refreshFastCache(query, cacheKey);
-        return cached;
-      }
-
-      // No cache hit yet; return quickly and warm cache asynchronously.
-      void this.refreshFastCache(query, cacheKey);
-      return [];
+      return this.fastSearchCache.fastSearch(query);
     }
 
-    const deepResults = await this.searchPatternsInternal(query, {
+    return this.searchPatternsInternal(query, {
       enrichLinkedPosts: true,
       includeDownloadedFallback: true,
     });
-
-    if (deepResults.length > 0) {
-      await patreonSearchCache.set(cacheKey, deepResults, PATREON_SEARCH_CACHE_TTL_SECONDS);
-    }
-
-    return deepResults;
   }
 
   /**
