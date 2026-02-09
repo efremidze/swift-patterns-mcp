@@ -160,7 +160,7 @@ describe('getPatreonPatternsHandler', () => {
 
       await getPatreonPatternsHandler({ topic: 'SwiftUI scrollview' }, createContext(MockClass));
 
-      expect(searchPatterns).toHaveBeenCalledWith('SwiftUI scrollview');
+      expect(searchPatterns).toHaveBeenCalledWith('SwiftUI scrollview', { mode: 'deep' });
       expect(fetchPatterns).not.toHaveBeenCalled();
     });
 
