@@ -80,10 +80,12 @@ describeIntegration('MCP Server Integration', () => {
     it('should handle unknown tool gracefully', async () => {
       const response = await client.callTool('nonexistent_tool');
 
+      expect(response.error).toBeUndefined();
+      expect(response.result).toBeDefined();
+
       const result = response.result as { content: Array<{ text: string }>; isError?: boolean };
-      if (result.isError) {
-        expect(result.content[0].text).toContain('Unknown tool');
-      }
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Unknown tool');
     });
 
     // missing required arguments test removed — covered by unit test in handlers.test.ts
