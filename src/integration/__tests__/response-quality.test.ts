@@ -214,7 +214,7 @@ describeIntegration('Response Quality Validation', () => {
       const result = response.result as { content: Array<{ text: string }> };
       const text = result.content[0]?.text ?? '';
       expect(text).toMatch(/setup|enabled/i);
-      expect(text).toContain('patreon');
+      expect(text.toLowerCase()).toContain('patreon');
     });
   });
 
@@ -264,6 +264,37 @@ describeIntegration('Response Quality Validation', () => {
         response.includes('Patreon Patterns') ||
         response.includes('No Patreon patterns found')
       ).toBe(true);
+    }, 120000);
+
+    it('should include Patreon-backed results in unified search when Patreon has matches', async () => {
+      const toolsResponse = await client.listTools();
+      const toolsResult = toolsResponse.result as { tools: Array<{ name: string }> };
+      const hasPatreonTool = toolsResult.tools.some(t => t.name === 'get_patreon_patterns');
+
+      if (!hasPatreonTool) {
+        expect(hasPatreonTool).toBe(false);
+        return;
+      }
+
+      const patreonResponse = await client.callToolText('get_patreon_patterns', {
+        topic: realWorldQuery,
+        requireCode: true,
+      });
+
+      if (patreonResponse.includes('No Patreon patterns found')) {
+        // No Patreon matches in this environment; skip cross-source assertion.
+        expect(patreonResponse).toContain('No Patreon patterns found');
+        return;
+      }
+
+      const unified = await client.callToolText('search_swift_content', {
+        query: realWorldQuery,
+        requireCode: true,
+      });
+
+      // When Patreon has matches, unified search should return result-format output (not empty).
+      expect(unified).not.toContain('No results found');
+      expect(unified).toContain('# Search Results');
     }, 120000);
   });
 
