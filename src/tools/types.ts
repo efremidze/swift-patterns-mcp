@@ -35,7 +35,12 @@ export interface PatreonSourceInstance {
   isConfigured(): Promise<boolean>;
   isAvailable(): boolean;
   fetchPatterns(creatorId?: string): Promise<PatreonPattern[]>;
-  searchPatterns(query: string): Promise<PatreonPattern[]>;
+  searchPatterns(
+    query: string,
+    options?: {
+      mode?: 'fast' | 'deep';
+    }
+  ): Promise<PatreonPattern[]>;
 }
 
 /**
