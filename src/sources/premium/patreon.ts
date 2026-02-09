@@ -2,7 +2,7 @@
 
 import { loadTokens, getValidAccessToken } from './patreon-oauth.js';
 import { searchVideos, Video } from './youtube.js';
-import { downloadPost, scanDownloadedContent, DownloadedPost, DownloadedFile } from './patreon-dl.js';
+import { downloadPost, extractPostId, scanDownloadedContent, DownloadedPost, DownloadedFile } from './patreon-dl.js';
 import { CREATORS, withYouTube } from '../../config/creators.js';
 import { detectTopics, hasCodeContent, calculateRelevance } from '../../utils/swift-analysis.js';
 import { createSourceConfig } from '../../config/swift-keywords.js';
@@ -109,6 +109,7 @@ const QUERY_OVERLAP_SCORE_CAP = 8;
 const QUERY_OVERLAP_RELEVANCE_MULTIPLIER = 1.5;
 const PATREON_DEEP_MAX_ENRICHED_POSTS = 5;
 const PATREON_DOWNLOADED_RESULTS_LIMIT = 100;
+const PATREON_DIRECT_URL_TIMEOUT_MS = 4000;
 
 function isSwiftRelated(name: string, summary?: string): boolean {
   const text = `${name} ${summary || ''}`.toLowerCase();
@@ -240,6 +241,10 @@ function applyOverlapBoost(baseScore: number, overlapScore: number): number {
 function getPositiveIntEnv(name: string, fallback: number): number {
   const raw = Number.parseInt(process.env[name] || '', 10);
   return Number.isFinite(raw) && raw > 0 ? raw : fallback;
+}
+
+function isPatreonPostUrl(query: string): boolean {
+  return /patreon\.com\/posts\//i.test(query);
 }
 
 function getPatreonSearchCacheKey(query: string): string {
@@ -485,6 +490,48 @@ export class PatreonSource {
     });
   }
 
+  private async searchDirectPostUrl(query: string, mode: PatreonSearchMode): Promise<PatreonPattern[] | null> {
+    if (!isPatreonPostUrl(query)) return null;
+
+    const postId = extractPostId(query);
+    const posts = scanDownloadedContent();
+
+    if (postId) {
+      const existing = posts.find(post =>
+        post.postId === postId ||
+        post.dirName === postId ||
+        post.dirName?.startsWith(`${postId} -`) ||
+        post.dirName?.startsWith(`${postId}-`)
+      );
+      if (existing) {
+        return this.downloadedPostToPatterns(existing)
+          .sort((a, b) => b.relevanceScore - a.relevanceScore);
+      }
+    }
+
+    if (mode === 'fast') {
+      // Unified search should remain low-latency and avoid direct download side effects.
+      return [];
+    }
+
+    const timeoutMs = getPositiveIntEnv('PATREON_DIRECT_URL_TIMEOUT_MS', PATREON_DIRECT_URL_TIMEOUT_MS);
+    const downloadResult = await Promise.race([
+      downloadPost(query, 'Patreon'),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), timeoutMs)),
+    ]);
+
+    if (!downloadResult || !downloadResult.success || !downloadResult.files || downloadResult.files.length === 0) {
+      return [];
+    }
+
+    return this.filesToPatterns(downloadResult.files, {
+      id: postId ? `direct-${postId}` : `direct-${Date.now()}`,
+      title: postId ? `Patreon Post ${postId}` : 'Patreon Post',
+      publishDate: new Date().toISOString(),
+      creator: 'Patreon',
+    }).sort((a, b) => b.relevanceScore - a.relevanceScore);
+  }
+
   private getDownloadedPatterns(query: string, profile?: QueryProfile): PatreonPattern[] {
     try {
       const posts = scanDownloadedContent();
@@ -619,6 +666,10 @@ export class PatreonSource {
 
   async searchPatterns(query: string, options: PatreonSearchOptions = {}): Promise<PatreonPattern[]> {
     const mode: PatreonSearchMode = options.mode ?? 'deep';
+    const directPatterns = await this.searchDirectPostUrl(query, mode);
+    if (directPatterns !== null) {
+      return directPatterns;
+    }
 
     if (mode === 'fast') {
       const localMatches = this.getDownloadedPatterns(query);
