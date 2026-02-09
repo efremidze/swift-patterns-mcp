@@ -95,11 +95,13 @@ const PATREON_BASE_SCORE = 50;
 const PATREON_EXCERPT_LENGTH = 300;
 const PATREON_DEFAULT_QUERY = 'swiftui';
 const MAX_QUERY_VARIANTS = 4;
-const MAX_VIDEOS_PER_CREATOR = 25;
+const MAX_VIDEOS_PER_CREATOR = 15;
 const PATREON_SEARCH_CACHE_TTL_SECONDS = 1800;
 const PATREON_SEARCH_STALE_SECONDS = 1800;
 const QUERY_OVERLAP_SCORE_CAP = 8;
 const QUERY_OVERLAP_RELEVANCE_MULTIPLIER = 1.5;
+const PATREON_DEEP_MAX_ENRICHED_POSTS = 5;
+const PATREON_DOWNLOADED_RESULTS_LIMIT = 300;
 
 function isSwiftRelated(name: string, summary?: string): boolean {
   const text = `${name} ${summary || ''}`.toLowerCase();
@@ -231,6 +233,11 @@ function hasQueryOverlap(text: string, profile: QueryProfile): boolean {
 function applyOverlapBoost(baseScore: number, overlapScore: number): number {
   const boost = Math.round(Math.min(overlapScore, QUERY_OVERLAP_SCORE_CAP) * QUERY_OVERLAP_RELEVANCE_MULTIPLIER);
   return Math.min(100, baseScore + boost);
+}
+
+function getPositiveIntEnv(name: string, fallback: number): number {
+  const raw = Number.parseInt(process.env[name] || '', 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : fallback;
 }
 
 function getPatreonSearchCacheKey(query: string): string {
@@ -452,7 +459,11 @@ export class PatreonSource {
         }
       }
 
-      return deduped;
+      const maxDownloadedResults = getPositiveIntEnv(
+        'PATREON_MAX_DOWNLOADED_RESULTS',
+        PATREON_DOWNLOADED_RESULTS_LIMIT
+      );
+      return deduped.slice(0, maxDownloadedResults);
     } catch (error) {
       logError('Patreon', error, { query, source: 'downloaded-content' });
       return [];
@@ -556,10 +567,25 @@ export class PatreonSource {
       }
     }
 
-    // Fetch actual content for patterns with Patreon links (expensive, only for deep mode).
-    const enrichedPatterns = enrichLinkedPosts
-      ? await this.enrichPatternsWithContent(patterns)
-      : patterns;
+    // Fetch actual content for a bounded top subset of Patreon post links.
+    // This keeps deep mode useful while preventing large downloads in MCP flows.
+    let enrichedPatterns = patterns;
+    if (enrichLinkedPosts) {
+      const sorted = [...patterns].sort((a, b) => b.relevanceScore - a.relevanceScore);
+      const maxEnrichedPosts = getPositiveIntEnv(
+        'PATREON_DEEP_MAX_ENRICHED_POSTS',
+        PATREON_DEEP_MAX_ENRICHED_POSTS
+      );
+
+      const toEnrich = sorted
+        .filter(pattern => pattern.url.includes('patreon.com/posts/'))
+        .slice(0, maxEnrichedPosts);
+      const enrichKeys = new Set(toEnrich.map(pattern => `${pattern.id}::${pattern.url}`));
+      const passthrough = sorted.filter(pattern => !enrichKeys.has(`${pattern.id}::${pattern.url}`));
+
+      const enrichedSubset = await this.enrichPatternsWithContent(toEnrich);
+      enrichedPatterns = [...enrichedSubset, ...passthrough];
+    }
 
     // Also search local downloaded Patreon content as a resilient fallback path.
     const downloadedPatterns = includeDownloadedFallback
@@ -609,6 +635,7 @@ export class PatreonSource {
     const concurrencyRaw = Number.parseInt(process.env.PATREON_ENRICH_CONCURRENCY || '3', 10);
     const concurrency = Number.isFinite(concurrencyRaw) && concurrencyRaw > 0 ? concurrencyRaw : 1;
     const outputs: PatreonPattern[][] = new Array(patterns.length);
+    const downloadMemo = new Map<string, Promise<PatreonPattern[]>>();
     let index = 0;
 
     const worker = async () => {
@@ -622,27 +649,38 @@ export class PatreonSource {
           continue;
         }
 
-        try {
-          logger.info({ url: pattern.url }, 'Fetching Patreon post content');
-          const result = await downloadPost(pattern.url, pattern.creator);
-
-          if (result.success && result.files && result.files.length > 0) {
-            // Create patterns from downloaded files
-            const filePatterns = this.filesToPatterns(result.files, {
-              id: pattern.id,
-              title: pattern.title,
-              publishDate: pattern.publishDate,
-              creator: pattern.creator,
-            });
-            outputs[currentIndex] = filePatterns.length > 0 ? filePatterns : [pattern];
-          } else {
-            // Keep original pattern if download failed or no files
-            outputs[currentIndex] = [pattern];
-          }
-        } catch (error) {
-          logError('Patreon', error, { url: pattern.url });
-          outputs[currentIndex] = [pattern];
+        const existing = downloadMemo.get(pattern.url);
+        if (existing) {
+          outputs[currentIndex] = await existing;
+          continue;
         }
+
+        const downloadPromise = (async (): Promise<PatreonPattern[]> => {
+          try {
+            logger.info({ url: pattern.url }, 'Fetching Patreon post content');
+            const result = await downloadPost(pattern.url, pattern.creator);
+
+            if (result.success && result.files && result.files.length > 0) {
+              // Create patterns from downloaded files
+              const filePatterns = this.filesToPatterns(result.files, {
+                id: pattern.id,
+                title: pattern.title,
+                publishDate: pattern.publishDate,
+                creator: pattern.creator,
+              });
+              return filePatterns.length > 0 ? filePatterns : [pattern];
+            }
+
+            // Keep original pattern if download failed or no files
+            return [pattern];
+          } catch (error) {
+            logError('Patreon', error, { url: pattern.url });
+            return [pattern];
+          }
+        })();
+
+        downloadMemo.set(pattern.url, downloadPromise);
+        outputs[currentIndex] = await downloadPromise;
       }
     };
 
