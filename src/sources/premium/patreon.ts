@@ -45,6 +45,16 @@ interface InternalPatreonSearchOptions {
   includeDownloadedFallback: boolean;
 }
 
+interface QueryProfile {
+  compiledQueries: string[];
+  weightedTokens: Array<{ token: string; weight: number }>;
+}
+
+interface QueryOverlap {
+  score: number;
+  matchedTokens: number;
+}
+
 interface PatreonCampaign {
   id: string;
   type: 'campaign';
@@ -107,7 +117,7 @@ function canonicalizeToken(token: string): string {
   return token;
 }
 
-function buildQueryVariants(query: string): string[] {
+function buildQueryProfile(query: string): QueryProfile {
   const original = query.trim();
   const out: string[] = [];
   const seen = new Set<string>();
@@ -121,19 +131,40 @@ function buildQueryVariants(query: string): string[] {
     out.push(normalized);
   };
 
-  push(original);
-
-  const tokens = normalizeTokens(original).map(canonicalizeToken);
-  if (tokens.length > 0) {
-    push(tokens.join(' '));
+  if (original.length > 0) {
+    push(original);
   }
 
-  const priorityTerms = ['swiftui', 'parallax', 'carousel', 'scroll', 'card', 'animation'];
-  const prioritized = priorityTerms.filter(t => tokens.includes(t));
-  const remaining = tokens.filter(t => !prioritized.includes(t));
-  const focused = [...prioritized, ...remaining].slice(0, 4);
-  if (focused.length > 0) {
-    push(focused.join(' '));
+  const tokens = normalizeTokens(original).map(canonicalizeToken);
+  const tokenStats = new Map<string, { count: number; firstIndex: number }>();
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    const existing = tokenStats.get(token);
+    if (!existing) {
+      tokenStats.set(token, { count: 1, firstIndex: i });
+    } else {
+      existing.count += 1;
+    }
+  }
+
+  const weightedTokens = Array.from(tokenStats.entries())
+    .map(([token, stat]) => {
+      const positionBoost = 1 - (stat.firstIndex / Math.max(tokens.length, 1));
+      const specificityBoost = Math.min(token.length, 12) / 12;
+      const weight = (stat.count * 2) + positionBoost + specificityBoost;
+      return { token, weight: Number(weight.toFixed(3)) };
+    })
+    .sort((a, b) => b.weight - a.weight);
+
+  if (weightedTokens.length > 0) {
+    const normalized = weightedTokens.map(t => t.token).join(' ');
+    push(normalized);
+
+    const top3 = weightedTokens.slice(0, 3).map(t => t.token).join(' ');
+    if (top3) push(top3);
+
+    const top5 = weightedTokens.slice(0, 5).map(t => t.token).join(' ');
+    if (top5) push(top5);
   }
 
   // Keep a broad fallback if no meaningful variant exists.
@@ -141,7 +172,10 @@ function buildQueryVariants(query: string): string[] {
     push(PATREON_DEFAULT_QUERY);
   }
 
-  return out.slice(0, MAX_QUERY_VARIANTS);
+  return {
+    compiledQueries: out.slice(0, MAX_QUERY_VARIANTS),
+    weightedTokens,
+  };
 }
 
 function selectCreatorsForQuery(query: string) {
@@ -154,11 +188,42 @@ function selectCreatorsForQuery(query: string) {
   return matched.length > 0 ? matched : creators;
 }
 
-function hasQueryOverlap(text: string, query: string): boolean {
-  const terms = normalizeTokens(query).map(canonicalizeToken);
-  if (terms.length === 0) return true;
+function computeQueryOverlap(text: string, profile: QueryProfile): QueryOverlap {
+  if (profile.weightedTokens.length === 0) {
+    return { score: 0, matchedTokens: 0 };
+  }
   const haystack = text.toLowerCase();
-  return terms.some(term => haystack.includes(term));
+  let score = 0;
+  let matchedTokens = 0;
+
+  for (const token of profile.weightedTokens) {
+    if (haystack.includes(token.token)) {
+      score += token.weight;
+      matchedTokens += 1;
+    }
+  }
+
+  return { score, matchedTokens };
+}
+
+function isStrongQueryOverlap(overlap: QueryOverlap, profile: QueryProfile): boolean {
+  const tokenCount = profile.weightedTokens.length;
+
+  if (tokenCount === 0) return false;
+  if (tokenCount <= 2) return overlap.matchedTokens >= 1;
+
+  // Long prompts should match multiple weighted terms, not just "swiftui".
+  const topWeights = profile.weightedTokens
+    .slice(0, Math.min(4, tokenCount))
+    .reduce((sum, token) => sum + token.weight, 0);
+  const minScore = topWeights * 0.35;
+
+  return overlap.matchedTokens >= 2 && overlap.score >= minScore;
+}
+
+function hasQueryOverlap(text: string, profile: QueryProfile): boolean {
+  const overlap = computeQueryOverlap(text, profile);
+  return isStrongQueryOverlap(overlap, profile);
 }
 
 function getPatreonSearchCacheKey(query: string): string {
@@ -301,16 +366,17 @@ export class PatreonSource {
     });
   }
 
-  private getDownloadedPatterns(query: string): PatreonPattern[] {
+  private getDownloadedPatterns(query: string, profile?: QueryProfile): PatreonPattern[] {
     try {
       const posts = scanDownloadedContent();
       if (posts.length === 0) return [];
 
+      const queryProfile = profile ?? buildQueryProfile(query);
       const patterns = posts.flatMap(post => this.downloadedPostToPatterns(post));
       const filtered = patterns.filter(pattern =>
         hasQueryOverlap(
           `${pattern.title} ${pattern.excerpt} ${pattern.content} ${pattern.topics.join(' ')}`,
-          query
+          queryProfile
         )
       );
       return filtered.sort((a, b) => b.relevanceScore - a.relevanceScore);
@@ -346,12 +412,18 @@ export class PatreonSource {
     options: InternalPatreonSearchOptions
   ): Promise<PatreonPattern[]> {
     const { enrichLinkedPosts, includeDownloadedFallback } = options;
+    const queryProfile = buildQueryProfile(query);
 
     // Search YouTube for creators in parallel, using query variants to handle long natural prompts.
     const creators = selectCreatorsForQuery(query);
-    const queryVariants = buildQueryVariants(query);
+    const queryVariants = queryProfile.compiledQueries;
 
-    logger.info({ query, queryVariants, creators: creators.map(c => c.name) }, 'Patreon search variants');
+    logger.info({
+      query,
+      queryVariants,
+      weightedTokens: queryProfile.weightedTokens.slice(0, 5),
+      creators: creators.map(c => c.name),
+    }, 'Patreon search variants');
 
     const results = await Promise.allSettled(
       creators.map(async (creator) => {
@@ -371,18 +443,32 @@ export class PatreonSource {
           }
         }
 
-        // Basic relevance gate: keep patterns that overlap with query terms,
-        // but allow all if overlap filtering would remove everything.
-        const queryTerms = normalizeTokens(query).map(canonicalizeToken);
         const allPatterns = Array.from(byId.values());
-        if (queryTerms.length === 0 || allPatterns.length === 0) {
+        if (queryProfile.weightedTokens.length === 0 || allPatterns.length === 0) {
           return allPatterns;
         }
 
-        const overlapped = allPatterns.filter(pattern => {
+        const scored = allPatterns.map(pattern => {
           const haystack = `${pattern.title} ${pattern.excerpt} ${pattern.topics.join(' ')}`.toLowerCase();
-          return queryTerms.some(term => haystack.includes(term));
+          const overlap = computeQueryOverlap(haystack, queryProfile);
+          const boost = Math.round(Math.min(overlap.score, 8) * 1.5);
+          return {
+            pattern: {
+              ...pattern,
+              relevanceScore: Math.min(100, pattern.relevanceScore + boost),
+            },
+            overlap,
+          };
         });
+
+        const overlapped = scored
+          .filter(({ overlap }) => isStrongQueryOverlap(overlap, queryProfile))
+          .sort((a, b) =>
+            b.overlap.score !== a.overlap.score
+              ? b.overlap.score - a.overlap.score
+              : b.pattern.relevanceScore - a.pattern.relevanceScore
+          )
+          .map(({ pattern }) => pattern);
 
         return overlapped.length > 0 ? overlapped : allPatterns;
       })
@@ -405,7 +491,7 @@ export class PatreonSource {
 
     // Also search local downloaded Patreon content as a resilient fallback path.
     const downloadedPatterns = includeDownloadedFallback
-      ? this.getDownloadedPatterns(query)
+      ? this.getDownloadedPatterns(query, queryProfile)
       : [];
 
     const byKey = new Map<string, PatreonPattern>();
