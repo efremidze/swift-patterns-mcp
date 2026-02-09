@@ -1,17 +1,24 @@
 // src/tools/handlers/setupPatreon.ts
 
 import type { ToolHandler } from '../types.js';
-import { createTextResponse } from '../../utils/response-helpers.js';
+import { createTextResponse, formatMarkdownDocument } from '../../utils/response-helpers.js';
+import { PATREON_CORE_ENV_VARS } from '../../utils/patreon-env.js';
 
 export const setupPatreonHandler: ToolHandler = async (args, context) => {
   if (!context.patreonSource) {
-    return createTextResponse(`Patreon integration not available.
-
-Please ensure:
-1. PATREON_CLIENT_ID is set in environment
-2. PATREON_CLIENT_SECRET is set in environment
-
-Get credentials at: https://www.patreon.com/portal/registration/register-clients`);
+    return createTextResponse(formatMarkdownDocument(
+      'Patreon Integration',
+      [
+        {
+          lines: [
+            'Patreon integration not available.',
+            'Please ensure:',
+            ...PATREON_CORE_ENV_VARS.map((name, idx) => `${idx + 1}. ${name} is set in environment`),
+          ],
+        },
+      ],
+      'Get credentials at: https://www.patreon.com/portal/registration/register-clients'
+    ));
   }
 
   const action = (args?.action as string) || 'start';
@@ -25,21 +32,34 @@ Get credentials at: https://www.patreon.com/portal/registration/register-clients
 Run: swift-patterns-mcp patreon setup`);
   }
 
-  return createTextResponse(`Patreon Setup
-
-To set up Patreon integration, run:
-\`\`\`bash
-swift-patterns-mcp patreon setup
-\`\`\`
-
-This will:
-1. Open your browser for Patreon OAuth
-2. Connect your subscriptions
-3. Analyze your content
-4. Enable premium patterns
-
-After setup, you'll have access to:
-- High-quality patterns from creators you support
-- Automatic code extraction from zips
-- Advanced filtering and search`);
+  return createTextResponse(formatMarkdownDocument(
+    'Patreon Setup',
+    [
+      {
+        lines: [
+          'To set up Patreon integration, run:',
+          '```bash',
+          'swift-patterns-mcp patreon setup',
+          '```',
+        ],
+      },
+      {
+        heading: 'This Will',
+        lines: [
+          '1. Open your browser for Patreon OAuth',
+          '2. Connect your subscriptions',
+          '3. Analyze your content',
+          '4. Enable premium patterns',
+        ],
+      },
+      {
+        heading: 'After Setup',
+        lines: [
+          '- High-quality patterns from creators you support',
+          '- Automatic code extraction from zips',
+          '- Advanced filtering and search',
+        ],
+      },
+    ]
+  ));
 };
