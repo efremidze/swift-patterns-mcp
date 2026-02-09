@@ -98,6 +98,8 @@ const MAX_QUERY_VARIANTS = 4;
 const MAX_VIDEOS_PER_CREATOR = 25;
 const PATREON_SEARCH_CACHE_TTL_SECONDS = 1800;
 const PATREON_SEARCH_STALE_SECONDS = 1800;
+const QUERY_OVERLAP_SCORE_CAP = 8;
+const QUERY_OVERLAP_RELEVANCE_MULTIPLIER = 1.5;
 
 function isSwiftRelated(name: string, summary?: string): boolean {
   const text = `${name} ${summary || ''}`.toLowerCase();
@@ -226,6 +228,11 @@ function hasQueryOverlap(text: string, profile: QueryProfile): boolean {
   return isStrongQueryOverlap(overlap, profile);
 }
 
+function applyOverlapBoost(baseScore: number, overlapScore: number): number {
+  const boost = Math.round(Math.min(overlapScore, QUERY_OVERLAP_SCORE_CAP) * QUERY_OVERLAP_RELEVANCE_MULTIPLIER);
+  return Math.min(100, baseScore + boost);
+}
+
 function getPatreonSearchCacheKey(query: string): string {
   const normalized = normalizeTokens(query).map(canonicalizeToken).sort().join(' ');
   const base = normalized || query.trim().toLowerCase();
@@ -257,7 +264,7 @@ function canonicalizePatternUrl(rawUrl: string): string {
 
 function buildPatternDedupKey(pattern: PatreonPattern): string {
   if (pattern.url.startsWith('file://')) {
-    return `file:${pattern.url}`;
+    return `file-title:${pattern.creator.toLowerCase()}::${pattern.title.toLowerCase()}`;
   }
 
   const normalizedUrl = canonicalizePatternUrl(pattern.url);
@@ -410,13 +417,42 @@ export class PatreonSource {
 
       const queryProfile = profile ?? buildQueryProfile(query);
       const patterns = posts.flatMap(post => this.downloadedPostToPatterns(post));
-      const filtered = patterns.filter(pattern =>
-        hasQueryOverlap(
-          `${pattern.title} ${pattern.excerpt} ${pattern.content} ${pattern.topics.join(' ')}`,
-          queryProfile
+
+      const ranked = patterns
+        .map(pattern => {
+          const haystack = `${pattern.title} ${pattern.excerpt} ${pattern.content} ${pattern.topics.join(' ')}`.toLowerCase();
+          const overlap = computeQueryOverlap(haystack, queryProfile);
+          if (!isStrongQueryOverlap(overlap, queryProfile)) {
+            return null;
+          }
+
+          return {
+            pattern: {
+              ...pattern,
+              relevanceScore: applyOverlapBoost(pattern.relevanceScore, overlap.score),
+            },
+            overlap,
+          };
+        })
+        .filter((entry): entry is { pattern: PatreonPattern; overlap: QueryOverlap } => entry !== null)
+        .sort((a, b) =>
+          b.overlap.score !== a.overlap.score
+            ? b.overlap.score - a.overlap.score
+            : b.pattern.relevanceScore - a.pattern.relevanceScore
         )
-      );
-      return filtered.sort((a, b) => b.relevanceScore - a.relevanceScore);
+        .map(entry => entry.pattern);
+
+      const deduped: PatreonPattern[] = [];
+      const seenKeys = new Set<string>();
+      for (const pattern of ranked) {
+        const key = buildPatternDedupKey(pattern);
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          deduped.push(pattern);
+        }
+      }
+
+      return deduped;
     } catch (error) {
       logError('Patreon', error, { query, source: 'downloaded-content' });
       return [];
@@ -488,11 +524,10 @@ export class PatreonSource {
         const scored = allPatterns.map(pattern => {
           const haystack = `${pattern.title} ${pattern.excerpt} ${pattern.topics.join(' ')}`.toLowerCase();
           const overlap = computeQueryOverlap(haystack, queryProfile);
-          const boost = Math.round(Math.min(overlap.score, 8) * 1.5);
           return {
             pattern: {
               ...pattern,
-              relevanceScore: Math.min(100, pattern.relevanceScore + boost),
+              relevanceScore: applyOverlapBoost(pattern.relevanceScore, overlap.score),
             },
             overlap,
           };
