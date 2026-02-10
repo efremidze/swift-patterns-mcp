@@ -3,34 +3,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import NilCoalescingSource from '../nilcoalescing.js';
 
-vi.mock('rss-parser', () => {
-  return {
-    default: class Parser {
-      async parseURL(_url: string) {
-        return {
-          items: [
-            {
-              guid: '1',
-              title: 'SwiftUI Navigation Patterns',
-              link: 'https://example.com/1',
-              pubDate: '2026-01-01',
-              contentSnippet: 'Navigation and layout tips for SwiftUI',
-              content: '<p>Some content <code>NavigationStack</code></p>',
-            },
-            {
-              guid: '2',
-              title: 'Snapshot Testing in Swift',
-              link: 'https://example.com/2',
-              pubDate: '2026-01-02',
-              contentSnippet: 'Snapshot testing for UIKit and SwiftUI',
-              content: '<p>Testing <pre>assertSnapshot()</pre></p>',
-            },
-          ],
-        };
-      }
-    },
-  };
-});
+const mockFetch = vi.hoisted(() => vi.fn());
+
+vi.mock('../../../utils/fetch.js', () => ({
+  fetch: (...args: unknown[]) => mockFetch(...args),
+}));
 
 vi.mock('../../../utils/cache.js', () => ({
   rssCache: {
@@ -39,9 +16,35 @@ vi.mock('../../../utils/cache.js', () => ({
   },
 }));
 
+const rssXml = `<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <guid>1</guid>
+      <title>SwiftUI Navigation Patterns</title>
+      <link>https://example.com/1</link>
+      <pubDate>2026-01-01</pubDate>
+      <description><![CDATA[<p>Some content <code>NavigationStack</code></p>]]></description>
+    </item>
+    <item>
+      <guid>2</guid>
+      <title>Snapshot Testing in Swift</title>
+      <link>https://example.com/2</link>
+      <pubDate>2026-01-02</pubDate>
+      <description><![CDATA[<p>Testing <pre>assertSnapshot()</pre></p>]]></description>
+    </item>
+  </channel>
+</rss>`;
+
 describe('NilCoalescingSource', () => {
   let source: NilCoalescingSource;
+
   beforeEach(() => {
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      text: async () => rssXml,
+    });
     source = new NilCoalescingSource();
   });
 

@@ -3,6 +3,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RssPatternSource, BasePattern } from '../rssPatternSource.js';
 
+const mockFetch = vi.hoisted(() => vi.fn());
+
+vi.mock('../../../utils/fetch.js', () => ({
+  fetch: (...args: unknown[]) => mockFetch(...args),
+}));
+
 // Mock dependencies
 vi.mock('../../../utils/cache.js', () => ({
   rssCache: {
@@ -15,34 +21,25 @@ vi.mock('../../../utils/cache.js', () => ({
   },
 }));
 
-vi.mock('rss-parser', () => {
-  return {
-    default: class Parser {
-      async parseURL(_url: string) {
-        return {
-          items: [
-            {
-              guid: '1',
-              title: 'How to test Swift code',
-              link: 'https://example.com/1',
-              pubDate: '2026-01-01',
-              contentSnippet: 'A guide to testing in Swift',
-              content: '<p>Some content <code>let x = 1</code></p>',
-            },
-            {
-              guid: '2',
-              title: 'SwiftUI Patterns',
-              link: 'https://example.com/2',
-              pubDate: '2026-01-02',
-              contentSnippet: 'SwiftUI best practices',
-              content: '<p>SwiftUI <pre>struct ContentView: View {}</pre></p>',
-            },
-          ],
-        };
-      }
-    },
-  };
-});
+const rssXml = `<?xml version="1.0"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <guid>1</guid>
+      <title>How to test Swift code</title>
+      <link>https://example.com/1</link>
+      <pubDate>2026-01-01</pubDate>
+      <description><![CDATA[<p>Some content <code>let x = 1</code></p>]]></description>
+    </item>
+    <item>
+      <guid>2</guid>
+      <title>SwiftUI Patterns</title>
+      <link>https://example.com/2</link>
+      <pubDate>2026-01-02</pubDate>
+      <description><![CDATA[<p>SwiftUI <pre>struct ContentView: View {}</pre></p>]]></description>
+    </item>
+  </channel>
+</rss>`;
 
 // Minimal options for testing
 const testTopicKeywords = {
@@ -70,7 +67,13 @@ class TestSource extends RssPatternSource<TestPattern> {
 
 describe('RssPatternSource', () => {
   let source: TestSource;
+
   beforeEach(() => {
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      text: async () => rssXml,
+    });
     source = new TestSource();
   });
 

@@ -44,14 +44,16 @@ export abstract class RssPatternSource<T extends BasePattern> {
       const { cacheKey, rssCacheTtl = 3600, fetchFullArticle } = this.options;
       const cached = await rssCache.get<T[]>(cacheKey);
       if (cached) return cached;
-      
-      const feed = await this.parser.parseURL(this.options.feedUrl);
+
+      const headers = buildHeaders('swift-patterns-mcp/1.0 (RSS Reader)');
+      const xml = await fetchText(this.options.feedUrl, { headers });
+      const feed = await this.parser.parseString(xml);
       const patterns = await Promise.all(
         feed.items.map(item =>
           fetchFullArticle ? this.processArticle(item) : this.processRssItem(item)
         )
       );
-      
+
       await rssCache.set(cacheKey, patterns, rssCacheTtl);
       // Invalidate search index after fetching new patterns
       this.cachedSearch.invalidate();
@@ -113,7 +115,7 @@ export abstract class RssPatternSource<T extends BasePattern> {
     const { articleCacheTtl = 86400, extractContentFn } = this.options;
     const cached = await articleCache.get<string>(url);
     if (cached) return cached;
-    
+
     const headers = buildHeaders('swift-patterns-mcp/1.0 (RSS Reader)');
     const html = await fetchText(url, { headers });
     const content = extractContentFn ? extractContentFn(html) : html;
