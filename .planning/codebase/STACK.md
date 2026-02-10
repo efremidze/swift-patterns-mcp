@@ -1,110 +1,131 @@
 # Technology Stack
 
-**Analysis Date:** 2026-02-07
+**Analysis Date:** 2026-02-09
 
 ## Languages
 
 **Primary:**
 - TypeScript 5.9.3 - All source code in `src/`
-- JavaScript - Build output, CLI scripts
+- JavaScript (ES2022) - Build output and CLI tools
 
 **Secondary:**
-- Bash - Build and installation scripts
+- HTML - Used in OAuth callback responses (`src/sources/premium/patreon-oauth.ts`)
 
 ## Runtime
 
 **Environment:**
-- Node.js >= 18.0.0 (from `package.json` engines)
+- Node.js >= 18.0.0 (specified in `package.json`)
 
 **Package Manager:**
-- npm - Managed via `package-lock.json`
-- Lockfile: present at `/Users/home/Documents/GitHub/swift-mcp/package-lock.json`
+- npm 10+ (with package-lock.json)
+- Lockfile: present (`package-lock.json`)
 
 ## Frameworks
 
 **Core:**
-- @modelcontextprotocol/sdk 1.25.3 - MCP server framework, provides Server and transport layer at `src/index.ts`
-- Model Context Protocol - Communication protocol for AI integration
+- @modelcontextprotocol/sdk 1.25.3 - MCP server implementation (`src/index.ts`)
+  - Uses `Server`, `StdioServerTransport`, tool request/response handlers
+- TypeScript 5.9.3 - Compilation and type checking
 
 **Testing:**
-- Vitest 3.2.4 - Unit and integration test runner, configured via tsconfig and run with `npm test`
+- Vitest 3.2.4 - Test runner (`vitest.config.ts`, `vitest.setup.ts`)
+- Tests: `.test.ts` and `.test.ts` files in `src/**/__tests__/`
 
 **Build/Dev:**
-- TypeScript 5.9.3 - Compilation from `src/` to `build/` (tsc builds to ES2022)
-- ESLint 9.39.2 + @typescript-eslint/8.54.0 - Linting configured in `eslint.config.js`
+- TypeScript compiler (tsc) - Compiles `src/` to `build/`
+- ESLint 9.39.2 - Linting with typescript-eslint
+- Node.js built-in modules: fs, path, http, readline, crypto, child_process
 
 ## Key Dependencies
 
 **Critical:**
-- @memvid/sdk 2.0.153 - Persistent semantic memory storage, used in `src/utils/memvid-memory.ts` for pattern caching and recall
-- @xenova/transformers 2.17.2 - Embeddings model (Xenova/all-MiniLM-L6-v2) for semantic recall fallback in `src/utils/semantic-recall.ts`
-- rss-parser 3.13.0 - RSS feed parsing for free sources (Sundell, van der Lee, etc.) in `src/sources/free/rssPatternSource.ts`
+- @memvid/sdk 2.0.153 - Persistent semantic memory storage (`src/utils/memvid-memory.ts`)
+- @xenova/transformers 2.17.2 - Embedding model for semantic search (`src/utils/semantic-recall.ts`)
+  - Uses Xenova/all-MiniLM-L6-v2 model for feature extraction
+- rss-parser 3.13.0 - RSS feed parsing (`src/sources/free/rssPatternSource.ts`)
+
+**HTTP & Fetching:**
+- undici 7.19.2 - HTTP client (`src/utils/fetch.ts`)
+- playwright 1.58.0 - Browser automation for Patreon cookie extraction (`src/tools/extract-cookie.ts`)
 
 **Search & Analysis:**
-- minisearch 7.2.0 - Full-text lexical search index in `src/utils/search.ts`
-- natural 8.1.0 - NLP utilities: Porter Stemmer, Levenshtein distance for fuzzy matching
-- ml-distance 4.0.1 - Distance/similarity calculations for semantic search in `src/utils/semantic-recall.ts`
+- minisearch 7.2.0 - Full-text search indexing (`src/utils/search.ts`)
+- natural 8.1.0 - NLP utilities for tokenization and stemming
+- ml-distance 4.0.1 - Cosine similarity for semantic search (`src/utils/semantic-recall.ts`)
+- linkedom 0.18.12 - DOM parsing for HTML content extraction
 
-**Infrastructure:**
-- undici 7.19.2 - HTTP client (base for fetch wrapper in `src/utils/fetch.ts`)
-- linkedom 0.18.12 - DOM parsing for HTML content extraction in `src/sources/free/vanderlee.ts`
-- keytar 7.9.0 - Secure credential storage via OS keychain (macOS/Linux/Windows) for Patreon OAuth tokens in `src/sources/premium/patreon-oauth.ts`
-- pino 9.5.0 - Structured JSON logging throughout codebase, configured in `src/utils/logger.ts`
-- quick-lru 7.3.0 - In-memory LRU cache for frequently accessed data in `src/utils/cache.ts`
-- adm-zip 0.5.16 - ZIP file handling for source registry in `src/tools/handlers/`
-- string-strip-html 13.5.3 - HTML cleaning and text extraction
-- p-limit 7.2.0 - Concurrency limiting for parallel operations
-- dotenv 17.2.3 - Environment variable loading (loaded in `src/index.ts`)
-- zod 3.25.76 - Schema validation for configuration and API responses
+**Authentication:**
+- keytar 7.9.0 - Secure credential storage (macOS/Linux/Windows) (`src/sources/premium/patreon-oauth.ts`)
+  - Falls back gracefully if system keyring unavailable
 
-**CLI Tools:**
-- playwright 1.58.0 - Browser automation (used in Patreon OAuth flow setup in `src/sources/premium/patreon-oauth.ts`)
+**Utilities:**
+- dotenv 17.2.3 - Environment variable loading
+- zod 3.25.76 - Schema validation
+- adm-zip 0.5.16 - ZIP file handling
+- async-cache-dedupe 3.4.0 - Cache deduplication
+- quick-lru 7.3.0 - LRU memory cache
+- string-strip-html 13.5.3 - HTML cleanup
+- p-limit 7.2.0 - Concurrency control
+- pino 9.5.0 - Structured logging
 
 ## Configuration
 
 **Environment:**
-- `.env` file support via dotenv package
-- Required env vars documented in `.env.example`:
-  - `PATREON_CLIENT_ID` - OAuth credentials
-  - `PATREON_CLIENT_SECRET` - OAuth credentials
-  - `YOUTUBE_API_KEY` - YouTube Data API v3 access
-  - `LOG_LEVEL` - Logging verbosity (default: info)
+- Loaded via `dotenv` in `src/index.ts`
+- Configuration file: `.env` (not committed)
+- Example: `.env.example`
+
+**Required env vars:**
+- `PATREON_CLIENT_ID` - OAuth client ID (optional, for premium content)
+- `PATREON_CLIENT_SECRET` - OAuth client secret (optional, for premium content)
+- `YOUTUBE_API_KEY` - YouTube Data API key (optional, for video content)
 
 **Build:**
-- `tsconfig.json` at root:
+- `tsconfig.json` - TypeScript configuration
   - Target: ES2022
-  - Module: Node16 (ES modules)
-  - Strict type checking enabled
-  - Declaration maps and source maps enabled
-  - Output directory: `./build/`
+  - Module: Node16
+  - Strict mode enabled
+  - Declaration maps enabled (for type hints)
+  - Source maps enabled
 
-**TypeScript Compilation:**
-```bash
-npm run build          # Compile src/ to build/
-npm run watch          # Watch mode during development
-```
+**Linting:**
+- `eslint.config.js` - ESLint configuration
+  - Parser: typescript-eslint
+  - Files: `src/**/*.ts`
+  - Rules: strict TypeScript checks with some flexibility (no-explicit-any allowed)
 
 ## Platform Requirements
 
 **Development:**
-- Node.js 18.0.0 or higher
-- npm 8.0.0 or higher
-- For Patreon OAuth: macOS, Linux, or Windows with native keystore support (graceful fallback if keytar unavailable)
-- For semantic embeddings: Download ~30MB ONNX model on first use (cached locally)
+- Node.js >= 18.0.0
+- npm or compatible package manager
+- macOS/Linux: keytar requires libsecret (Linux) or Keychain (macOS)
+- For Patreon OAuth: macOS only (uses `open` command to launch browser)
 
 **Production:**
-- Node.js 18.0.0 or higher
-- Deployable as MCP server via stdio transport (`src/index.ts` line 212)
-- Environment variables for Patreon/YouTube (optional)
-- Cache directory in user home: `~/.swift-patterns-mcp/`
+- Node.js >= 18.0.0
+- No external databases required
+- Persistent storage: local filesystem only (cache files, memvid memory, patreon profiles)
 
-**Filesystem:**
-- Cache directory structure: `~/.swift-patterns-mcp/cache/{namespace}/`
-- Persistent config: `~/.swift-patterns-mcp/config.json`
-- Semantic embeddings cache: `~/.swift-patterns-mcp/semantic-embeddings/`
-- Memvid memory database: `~/.swift-patterns-mcp/swift-patterns-memory.mv2`
-- Patreon tokens: Stored in OS keychain (keytar wrapper)
+## Storage & Caching
+
+**Local Filesystem:**
+- Cache directory: `~/.swift-patterns-mcp/` (created by `src/utils/paths.js`)
+  - `cache/rss/` - RSS feed cache
+  - `cache/articles/` - Article content cache
+  - `cache/youtube/` - YouTube API response cache
+  - `cache/semantic-embeddings/` - Embedding vectors (24-hour TTL)
+  - `swift-patterns-memory.mv2` - Memvid persistent memory database
+
+**Profile Directory:**
+- `.patreon-profile/` - Playwright persistent context (local working directory)
+- `.patreon-session` - Session cookie file (plaintext, overwritten per session)
+
+**Tokens:**
+- Stored in system keyring via keytar (macOS/Windows/Linux with libsecret)
+- Fallback: in-memory only if keytar unavailable
+- Path: `~/.swift-patterns-mcp/tokens.json` (legacy)
 
 ---
 
-*Stack analysis: 2026-02-07*
+*Stack analysis: 2026-02-09*

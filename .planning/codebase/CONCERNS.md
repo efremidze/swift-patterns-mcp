@@ -1,213 +1,222 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-02-07
+**Analysis Date:** 2026-02-09
 
 ## Tech Debt
 
-**Module-level singleton state management:**
-- Issue: Multiple modules maintain module-level singletons without cleanup mechanisms. `semanticIndex` in `src/tools/handlers/searchSwiftContent.ts` and `sourceInstanceCache` in `src/utils/source-registry.ts` persist across requests without clear lifecycle management.
-- Files: `src/tools/handlers/searchSwiftContent.ts` (line 14-22), `src/utils/source-registry.ts` (line 35)
-- Impact: Long-running processes may accumulate stale state; difficult to reset or test in isolation; potential memory growth in production with high request volume
-- Fix approach: Implement explicit lifecycle management with reset/cleanup methods; consider dependency injection instead of module-level singletons; add memory monitoring tests
+**Patreon OAuth Token Storage Fragility:**
+- Issue: OAuth tokens are stored via `keytar` (system keyring), but fall back to complete no-op if unavailable
+- Files: `src/sources/premium/patreon-oauth.ts` (lines 52-60, 62-75)
+- Impact: On Linux systems without libsecret, or when keytar fails, tokens won't persist across sessions despite appearing to save successfully
+- Fix approach: Add explicit error handling and user warning when keytar is unavailable; consider fallback encrypted file storage with clear warnings
 
-**Cached scan result expires silently:**
-- Issue: `cachedScanResult` in `src/sources/premium/patreon-dl.ts` uses a simple timestamp-based TTL (30 seconds) but only invalidates on explicit calls. If `scanDownloadedContent()` is called after expiry but without a download in between, stale cache isn't detected.
-- Files: `src/sources/premium/patreon-dl.ts` (lines 25-41)
-- Impact: Users may see outdated Patreon content listings; inconsistent state between actual downloads and cached metadata
-- Fix approach: Add file system mtime checks; implement explicit cache invalidation on external changes; add logging when cache expires
+**Module-Level Error State in YouTube Client:**
+- Issue: YouTube API errors are tracked globally in `youtubeStatus` object, creating implicit state management
+- Files: `src/sources/premium/youtube.ts` (lines 14-29)
+- Impact: Error state persists across calls and may mislead users about which specific operations failed; concurrent requests share mutable state
+- Fix approach: Return error status with each request result instead of maintaining module-level state; use structured error tracking per-call
 
-**Unhandled promise from background prefetch:**
-- Issue: In `src/index.ts` (line 218), prefetch runs as fire-and-forget with only `.catch()` logging. If prefetch fails and processes exit during startup, state may be incomplete.
-- Files: `src/index.ts` (lines 216-225)
-- Impact: First request may hit stale cache or fail if sources aren't loaded; no retry mechanism for failed prefetches
-- Fix approach: Add retry logic with exponential backoff; track prefetch status and warn on first request if incomplete; consider blocking startup on critical source prefetch failures
+**Broad Error Suppression in Search Index:**
+- Issue: Many search operations return empty array `[]` on any error without logging context
+- Files: `src/sources/premium/youtube.ts` (lines 103, 115, 173, 191, 207, 219, 238, 253)
+- Impact: Errors are silently hidden, making debugging difficult; failed requests look identical to "no results"
+- Fix approach: Log all unexpected errors with context; differentiate between "no results" (intentional) and "error prevented search" (unexpected)
+
+**Patreon Post Matching Logic Duplication:**
+- Issue: Post ID matching logic repeated in 3 locations with identical patterns
+- Files: `src/sources/premium/patreon-dl.ts` (lines 137-142, 169-173) and `src/sources/premium/patreon.ts` (lines 500-504)
+- Impact: Bug fixes must be made in multiple places; inconsistency risk when modifying matching logic
+- Fix approach: Extract into utility function `matchesDownloadedPost()` in `patreon-dl.ts` and reuse
+
+**Large File Complexity - Patreon Source:**
+- Issue: `patreon.ts` is 792 lines with multiple concerns mixed together
+- Files: `src/sources/premium/patreon.ts`
+- Impact: Hard to test individual features; multiple scoring strategies (query overlap, quality signals) intermingled; difficult to modify ranking logic
+- Fix approach: Extract scoring logic into separate module; split search variants from result ranking; separate enrichment from base search
 
 ## Known Bugs
 
-**OAuth server port collision not handled:**
-- Symptoms: If port 9876 is already in use, OAuth flow silently fails without clear error message
-- Files: `src/sources/premium/patreon-oauth.ts` (line 232)
-- Trigger: Run Patreon setup while another process uses port 9876
-- Workaround: Kill process using port 9876; no dynamic port allocation fallback
+**Cache Key Collision Risk:**
+- Issue: Cache keys are sanitized by replacing non-alphanumeric chars with `_`, potentially creating collisions
+- Files: `src/utils/cache.ts` (lines 52-59)
+- Example: Both `query-1` and `query_1` become `query_1`
+- Trigger: Any two different cache keys that differ only in special characters
+- Workaround: Use hashing for all keys to avoid collision; hash is already implemented for long keys
+- Priority: Medium
 
-**Cookie validation regex too strict:**
-- Symptoms: Valid Patreon session cookies may fail validation if they contain URL-encoded characters or certain formats
-- Files: `src/sources/premium/patreon-dl.ts` (line 22)
-- Trigger: Copy-paste cookie with special encoding from browser DevTools
-- Workaround: Manually decode cookie before entering; validation regex at line 22 only allows `[a-zA-Z0-9_-]`
+**OAuth Server Port Conflict:**
+- Issue: OAuth callback server hardcoded to port 9876 without conflict checking
+- Files: `src/sources/premium/patreon-oauth.ts` (line 13)
+- Impact: If port is already in use, OAuth flow silently fails or hangs
+- Fix approach: Try multiple ports, detect in-use via EADDRINUSE error, provide clear error message with suggested alternatives
 
-**Semantic recall timeout silently returns empty results:**
-- Symptoms: When semantic recall takes >5 seconds, search appears to have no semantic results without any indication of timeout
-- Files: `src/tools/handlers/searchSwiftContent.ts` (lines 32-44)
-- Trigger: First run with large dataset when embedding model isn't cached; slow system
-- Workaround: None; timeout is hard-coded at 5 seconds
+**YouTube API Error Not Propagated:**
+- Issue: `fetchWithTimeout` silently fails with network errors but `recordError` not called in some paths
+- Files: `src/sources/premium/youtube.ts` (lines 36-40, 132-136)
+- Impact: Module state shows no error while YouTube API is actually unreachable
+- Fix approach: Ensure all fetch failures call `recordError()` consistently
 
 ## Security Considerations
 
-**OAuth tokens stored in system keychain without encryption verification:**
-- Risk: Tokens saved to keytar but no validation that keytar was successful; falls back to no-op on Linux/WSL
-- Files: `src/sources/premium/patreon-oauth.ts` (lines 52-74)
-- Current mitigation: Tokens only in memory after refresh; refresh token used to get new access token
-- Recommendations: Log keytar success/failure; add explicit error on Linux if keytar unavailable; consider warning users about platform-specific storage
+**Cookie Validation Insufficient:**
+- Risk: Cookie validation regex `^[a-zA-Z0-9_-]+$` is overly permissive and may allow injection via later API usage
+- Files: `src/sources/premium/patreon-dl.ts` (line 22)
+- Current mitigation: Cookie is passed to `execFile` without shell interpolation (safe)
+- Recommendations: Add length limits (currently max 256); validate against Patreon session_id format more strictly; consider additional checks before passing to child processes
 
-**HTTP server in OAuth flow doesn't validate referer or origin:**
-- Risk: Any local process can POST to http://localhost:9876/callback and potentially intercept OAuth codes
-- Files: `src/sources/premium/patreon-oauth.ts` (lines 144-230)
-- Current mitigation: Only listens on 127.0.0.1; timeout after 60 seconds
-- Recommendations: Add state parameter validation (PKCE); log all callback attempts; add rate limiting
+**OAuth Callback HTML Not Escaped:**
+- Risk: Error messages displayed in HTML without escaping (lines 157, 168)
+- Files: `src/sources/premium/patreon-oauth.ts` (lines 155-158, 166-169)
+- Current mitigation: Error values come from OAuth provider parameters, not user input
+- Recommendations: HTML-escape error messages before rendering; use templating engine or DOMPurify for safety
 
-**Cookie values read directly from filesystem without atomic guarantees:**
-- Risk: If another process modifies `.patreon-session` mid-read, corrupted cookie could be passed to patreon-dl
-- Files: `src/sources/premium/patreon-dl.ts` (lines 148, 199)
-- Current mitigation: Cookie validated against regex after read; validation happens twice (lines 150, 201)
-- Recommendations: Read-lock file before parsing; add retry with backoff on validation failure
+**HTTP Server Port Binding:**
+- Risk: OAuth flow creates HTTP server on localhost without CSRF protection; token exchange payload not validated against timing attacks
+- Files: `src/sources/premium/patreon-oauth.ts` (lines 144-220)
+- Current mitigation: Redirect URI must match registered OAuth app; state parameter not currently used (spec compliance gap)
+- Recommendations: Add `state` parameter to auth URL and validate in callback; implement PKCE flow instead of simple code exchange
 
-**No URL validation on feed sources:**
-- Risk: RSS feed URLs are passed directly to parser without scheme/domain validation; parser could be exploited with `file://` or SSRF URLs
-- Files: `src/sources/free/rssPatternSource.ts` (line 48)
-- Current mitigation: Only hardcoded feed URLs in source files; no user input
-- Recommendations: Still add URL validation (scheme, domain whitelist) as defensive measure; add sanitization for content extraction
+**Keytar Dependency Missing on Linux:**
+- Risk: Required system library (libsecret) often missing on Linux, causing silent fallback to no-op
+- Files: `src/sources/premium/patreon-oauth.ts` (lines 17-25)
+- Current mitigation: None; users unaware tokens aren't persisting
+- Recommendations: Fail loudly with setup instructions; document libsecret requirement; provide alternative storage option
 
 ## Performance Bottlenecks
 
-**Semantic recall indexes all patterns on every search:**
-- Problem: `index()` in `src/utils/semantic-recall.ts` (lines 94-149) processes all high-quality patterns, even if unchanged. With 1000+ patterns, embedding generation is expensive.
-- Files: `src/utils/semantic-recall.ts` (lines 94-149), `src/tools/handlers/searchSwiftContent.ts` (lines 65-69)
-- Cause: No content-hash cache persistence; every search re-indexes all patterns
-- Improvement path: Persist indexed pattern hashes to disk; skip re-indexing patterns with matching hashes; batch embedding generation
+**Directory Traversal on Every Scan:**
+- Problem: `scanDownloadedContent()` walks entire Patreon download directory recursively every call
+- Files: `src/sources/premium/patreon-dl.ts` (lines 221-249)
+- Cause: No persistent index; scan called during every search operation
+- Current: 30-second in-memory cache mitigates but still re-scans after expiry
+- Improvement path: Maintain persistent metadata file (manifest.json) instead of re-scanning; use file watcher to invalidate
 
-**Patreon content scanning traverses entire directory tree on each call:**
-- Problem: `scanDownloadedContent()` does recursive directory walk even with cache. With hundreds of posts, this is O(n) on each download attempt.
-- Files: `src/sources/premium/patreon-dl.ts` (lines 221-250, 255-279)
-- Cause: TTL-based cache only (30 seconds); no persistent index of downloaded posts
-- Improvement path: Write manifest file on download; lazy-load post metadata; add db-like index of postIds to file paths
+**YouTube Search Variants Serial:**
+- Problem: When searching with query variants, videos are searched one variant at a time then merged
+- Files: `src/sources/premium/patreon.ts` (lines 604-615)
+- Cause: Variants loop is sequential; early exit on reaching `MAX_VIDEOS_PER_CREATOR`
+- Improvement path: Run variant searches in parallel with `Promise.all`; merge results and dedupe once
 
-**Promise.allSettled on all sources even for single-source queries:**
-- Problem: `searchMultipleSources()` in `src/utils/source-registry.ts` (lines 108-121) uses `Promise.allSettled` even when only 1 source requested, causing unnecessary parallel waits.
-- Files: `src/utils/source-registry.ts` (lines 113-115)
-- Cause: Always uses Promise.allSettled for consistency; no shortcut for single source
-- Improvement path: Single-source queries should bypass allSettled; benchmark if meaningful
+**Patreon Post Enrichment Concurrency:**
+- Problem: `enrichPatternsWithContent()` uses configurable concurrency but default is 3
+- Files: `src/sources/premium/patreon.ts` (lines 693-750)
+- Cause: Manual worker pool implementation instead of using concurrency library
+- Improvement path: Use `p-limit` (already in dependencies) for cleaner, tested concurrency management
 
-**Large file cache reads into memory without streaming:**
-- Problem: Cache uses JSON.parse on entire file; large pattern arrays (5000+ items) loaded fully into memory
-- Files: `src/utils/cache.ts` (lines 79-80, 181-182)
-- Cause: Simple JSON serialization; no pagination or streaming
-- Improvement path: Implement streaming JSON parser for large caches; add pagination to intentCache
+**Cache Hit Rate Unknown:**
+- Problem: No observability into how often caches are hit vs. missed
+- Files: `src/utils/cache.ts`, `src/utils/memvid-memory.ts`
+- Impact: Can't tell if caching is effective; can't identify stale patterns
+- Improvement path: Add metrics tracking (cache hits/misses); periodic logging of cache stats
 
 ## Fragile Areas
 
-**Inflight dedup depends on Promise identity:**
-- Files: `src/utils/inflight-dedup.ts`
-- Why fragile: If same key is requested before promise settles, shared promise is returned. Any mutation on result affects all waiters. Error from one caller affects all.
-- Safe modification: Treat results as immutable; clone deeply before returning; consider separate Promise chains for each caller
-- Test coverage: No tests for concurrent access or error propagation; `src/utils/__tests__/inflight-dedup.ts` doesn't exist
+**YouTube API Dependency Chain:**
+- Files: `src/sources/premium/youtube.ts` (entire file), `src/sources/premium/patreon.ts` (lines 562-579)
+- Why fragile: YouTube API requires valid `YOUTUBE_API_KEY` env var; any API outage breaks Patreon video search entirely
+- Safe modification: Test all code paths with mocked YouTube API; add circuit breaker for repeated failures
+- Test coverage: `src/sources/premium/__tests__/patreon-integration.test.ts` does some mocking but limited
 
-**Patreon OAuth state not validated:**
-- Files: `src/sources/premium/patreon-oauth.ts` (lines 129-258)
-- Why fragile: No CSRF protection; state parameter not used; same port always 9876; no nonce validation
-- Safe modification: Add state parameter generation in `startOAuthFlow`; validate on callback; use random port with dynamic fallback
-- Test coverage: No integration tests for OAuth flow; `src/sources/premium/__tests__/patreon-integration.test.ts` mocks downloads but not OAuth
+**Query Profile Builder:**
+- Files: `src/sources/premium/patreon.ts` (lines 132-191)
+- Why fragile: Complex token stemming and weighting logic with multiple heuristics (position boost, specificity boost, min score thresholds)
+- Safe modification: Add comprehensive tests for edge cases (empty query, very long query, special characters); test scoring against known queries
+- Test coverage: `src/tools/handlers/__tests__/getPatreonPatterns.test.ts` has some coverage but not exhaustive
 
-**SourceManager config synchronization across instances:**
-- Files: `src/config/sources.ts` (lines 147-261)
-- Why fragile: Multiple SourceManager instances can be created; each maintains separate in-memory config; writes from one instance don't reflect in others without reload
-- Safe modification: Use singleton pattern; add file watch for external changes; implement config version tracking
-- Test coverage: `src/config/__tests__/sources.test.ts` tests individual methods but not concurrent instance behavior
+**Pattern Deduplication Logic:**
+- Files: `src/sources/premium/patreon.ts` (lines 279-357)
+- Why fragile: Multiple canonicalization strategies (URL parsing, patreon-page vs youtube detection, file:// handling)
+- Safe modification: Add tests for all URL formats; test dedup with conflicting quality scores; ensure "prefer-best" strategy is deterministic
+- Test coverage: No dedicated test for `buildPatternDedupKey()` or `dedupePatterns()`
 
-**Memvid memory file locked during entire search operation:**
-- Files: `src/utils/memvid-memory.ts`, `src/tools/handlers/searchSwiftContent.ts` (lines 154-195)
-- Why fragile: If memvid locks the file for read, multiple searches can queue; if store fails, partial data may be written
-- Safe modification: Add lock timeout; implement read-write lock; add transaction semantics
-- Test coverage: Memvid integration tested in `src/utils/__tests__/semantic-recall.test.ts` but not for concurrent access
+**Oauth Flow Race Condition:**
+- Files: `src/sources/premium/patreon-oauth.ts` (lines 144-220)
+- Why fragile: `serverClosed` flag checked in async handler; if user hits callback twice or closes server manually, state becomes inconsistent
+- Safe modification: Use Promise-based cleanup; test server closes reliably; handle duplicate callbacks gracefully
+- Test coverage: No automated tests for OAuth flow
 
 ## Scaling Limits
 
-**In-flight promise map grows unbounded:**
-- Current capacity: Only limited by available memory
-- Limit: With thousands of concurrent requests, `inflight` Map in `InflightDeduper` can consume significant memory
-- Scaling path: Add max size limit with LRU eviction; add metrics for in-flight count; implement timeout cleanup for abandoned promises
+**Memory Cache Limited by Max Size:**
+- Current capacity: 200 entries for Patreon search cache (line 372 in patreon.ts), 100 for other caches
+- Limit: After max entries, oldest entries evicted; no control over what's kept
+- Scaling path: Make max sizes configurable; add metrics to understand eviction patterns; implement ttl-based cleanup instead of LRU for predictable behavior
 
-**Semantic recall embeddings cached in memory only:**
-- Current capacity: Limited by semantic index's `indexedMap` size; default ~100 patterns in memory
-- Limit: With 10,000+ patterns, memory can exhaust (embeddings are Float32Array ~768 floats each ≈ 3KB per pattern = 30MB)
-- Scaling path: Implement disk-based embedding cache; add eviction policy; lazy-load embeddings
+**Downloaded Patreon Content Scan:**
+- Current capacity: Handles single-creator downloads but O(n) with total posts downloaded
+- Limit: Once >1000 posts downloaded, scan becomes slow; no lazy loading or pagination
+- Scaling path: Use manifest file with post metadata; implement lazy loading by creator; paginate results
 
-**MiniSearch index grows with pattern count:**
-- Current capacity: All patterns indexed in memory; `CachedSearchIndex` in `src/utils/search.ts` maintains full inverted index
-- Limit: With 50,000+ patterns from Memvid + all sources, index construction time and memory explode
-- Scaling path: Implement incremental indexing; add index persistence; consider external search engine (Elasticsearch) for very large datasets
-
-**Cache directory disk usage unbounded:**
-- Current capacity: Each namespace gets separate directory; no quota or cleanup
-- Limit: Weekly runs with 10+ searches = hundreds of MB in cache files
-- Scaling path: Implement disk quota per namespace; add automatic oldest-first cleanup; compress old caches
+**Embedding Model Memory Usage:**
+- Current: `@xenova/transformers` loads full embedding model into memory
+- Limit: ~2GB+ memory per process when using semantic search
+- Scaling path: Use shared worker process for embeddings; implement quantization; consider external embedding service
 
 ## Dependencies at Risk
 
-**@xenova/transformers (transformers.js) lazy-loaded without version pinning strategy:**
-- Risk: Heavy ML library (ONNX model ~40MB) downloaded on first semantic recall use; model URLs could change; version mismatches cause silent failures
-- Impact: First semantic search very slow; network dependency at runtime; model download can fail silently
-- Migration plan: Pre-bundle ONNX model; implement download with progress; fallback to lexical search on model load failure
+**`keytar` - Critical but Optional:**
+- Risk: Breaks on Linux without libsecret; users don't know token persistence failed; fallback is silent
+- Impact: OAuth tokens won't survive restarts on affected systems; users can't use Patreon integration
+- Migration plan: Implement encrypted file-based fallback; document system dependencies clearly; test on CI on multiple Linux distros
 
-**patreon-dl as external npx dependency:**
-- Risk: Requires npm in production; version 3.6.0 pinned but no lock on transitive dependencies; npm registry unavailability blocks Patreon downloads
-- Impact: Deployment requires npm/node-gyp; slow download of npm package on each use; package maintainer could stop supporting
-- Migration plan: Vendor patreon-dl; implement native download client; add fallback to alternative scraper
+**`@xenova/transformers` - Large Binary:**
+- Risk: Adds significant download and memory overhead; npm package includes all language models
+- Impact: Installation slow for offline environments; memory usage high even when semantic search disabled
+- Migration plan: Lazy-load only on first use; consider external service; implement feature flag to disable semantic search
 
-**linkedom for HTML parsing:**
-- Risk: Uses WASM; encoding detection could fail on non-UTF8 content; no timeout for parsing huge files
-- Impact: Hang on malformed HTML; memory exhaustion on huge pages; content extraction may fail silently
-- Migration plan: Add HTML parse timeout; implement size limit before parsing; add fallback to regex extraction
+**`playwright` - Heavy Dependency:**
+- Risk: Large package with native bindings; may cause installation failures on some systems
+- Impact: Used for web scraping but only in Patreon download flow; adds overhead for users who don't use it
+- Migration plan: Make optional peer dependency; lazy-load only when needed; provide npm script to skip installation
+
+**`rss-parser` - Unmaintained Risk:**
+- Risk: Version 3.13.0 is stable but library updates infrequently; RSS spec has edge cases
+- Impact: Could be vulnerable to malformed RSS feeds; may not handle newer RSS formats
+- Migration plan: Monitor for security advisories; consider switching to more actively maintained parser; add input validation
 
 ## Missing Critical Features
 
-**No rate limiting on external API calls:**
-- Problem: Searches can trigger multiple RSS fetches, YouTube API calls, and Patreon API calls without backoff; could be rate-limited or blocked
-- Blocks: Large bulk operations; API cost control; sharing infrastructure resources fairly
-- Fix approach: Implement token bucket rate limiter per source; add retry-after header handling; batch requests
+**No Circuit Breaker for External APIs:**
+- Problem: YouTube API, Patreon API failures cause immediate propagation; no retry or fallback
+- Blocks: Users get error when APIs are temporarily unavailable instead of stale cached results
+- Recommendation: Implement circuit breaker pattern; return stale data when APIs fail; add exponential backoff with jitter
 
-**No observability into request/response patterns:**
-- Problem: Only console.log in CLI and logger in some paths; no structured request tracing; hard to diagnose slow searches
-- Blocks: Performance debugging; understanding user behavior; alerting on errors
-- Fix approach: Add request ID tracing; implement metrics export (Prometheus format); add timing breakdown to responses
+**No Rate Limiting on Patreon Downloads:**
+- Problem: `downloadCreatorContent()` has 5-minute timeout but no rate limiting per creator
+- Blocks: Multiple rapid download requests could overwhelm Patreon or trigger IP blocks
+- Recommendation: Add per-creator rate limiter; implement download queue; respect Patreon API rate limits
 
-**No cache invalidation strategy:**
-- Problem: Caches persist for configured TTL regardless of content changes; no manual purge mechanism; no dependency tracking
-- Blocks: Hot-fixing wrong data; responding to source updates; testing
-- Fix approach: Add cache purge CLI command; implement etag/last-modified tracking; add dependency graph for cache invalidation
+**No Webhook Support for Updated Content:**
+- Problem: Patterns are only refreshed on user search; no way to detect and pull new creator content
+- Blocks: Users see stale patterns until cache expires or manual refresh; cannot follow creator updates
+- Recommendation: Implement optional webhook endpoint for Patreon to notify of new posts; add polling option
 
 ## Test Coverage Gaps
 
-**OAuth flow not tested:**
-- What's not tested: Happy path through callback; error handling; timeout; browser opening (platform-specific)
-- Files: `src/sources/premium/patreon-oauth.ts` (entire file)
-- Risk: OAuth breaks silently; users can't set up Patreon without manual testing
-- Priority: **High** - Core feature
+**Premium Source Integration Untested:**
+- What's not tested: Full OAuth flow with actual Patreon API; token refresh and expiry handling; concurrent enrichment with multiple creator downloads
+- Files: `src/sources/premium/patreon.ts`, `src/sources/premium/patreon-oauth.ts`, `src/sources/premium/patreon-dl.ts`
+- Risk: OAuth failures, download interruptions, and token management bugs only discovered in production
+- Priority: High - These are user-facing critical paths
 
-**Concurrent source access not tested:**
-- What's not tested: Multiple simultaneous searches; race conditions in singleton state; cache coherency
-- Files: `src/utils/source-registry.ts`, `src/config/sources.ts`
-- Risk: Intermittent failures under load; data corruption
-- Priority: **Medium** - Production risk
+**CLI Setup Wizard Logic:**
+- What's not tested: Interactive menu navigation, config file writing, format validation for all client types
+- Files: `src/cli/setup.ts`
+- Risk: Setup can break silently; users may configure wrong paths or servers
+- Priority: Medium
 
-**Patreon download with corrupted metadata:**
-- What's not tested: Truncated post_info/post-api.json; malformed directory names; missing postId extraction
-- Files: `src/sources/premium/patreon-dl.ts` (lines 284-334)
-- Risk: Crashes when scanning corrupted downloads
-- Priority: **Medium** - Operational risk
+**Error Recovery Paths:**
+- What's not tested: Network timeouts, partial downloads, corrupted cache files, missing cookies
+- Files: Throughout `src/sources/premium/` and `src/utils/cache.ts`
+- Risk: Edge cases cause confusing errors or silent failures
+- Priority: Medium
 
-**Semantic recall timeout behavior:**
-- What's not tested: Timeout actually returns empty array; timing of 5 second cutoff
-- Files: `src/tools/handlers/searchSwiftContent.ts` (lines 32-44)
-- Risk: Timeout silently degrades; users don't know search was incomplete
-- Priority: **Low** - UX issue
-
-**Network failure resilience:**
-- What's not tested: Feed fetch timeout; Patreon OAuth network errors; YouTube API unavailable
-- Files: `src/sources/free/rssPatternSource.ts` (line 48), `src/sources/premium/youtube.ts`
-- Risk: User sees generic errors instead of helpful messaging
-- Priority: **Medium** - Reliability
+**Cache Behavior Under Load:**
+- What's not tested: Multiple concurrent cache operations, disk space exhaustion, file permission errors
+- Files: `src/utils/cache.ts`
+- Risk: Cache can corrupt or leak connections under stress
+- Priority: Low-Medium
 
 ---
 
-*Concerns audit: 2026-02-07*
+*Concerns audit: 2026-02-09*

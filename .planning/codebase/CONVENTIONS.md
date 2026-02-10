@@ -1,182 +1,199 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-02-07
+**Analysis Date:** 2026-02-09
 
 ## Naming Patterns
 
 **Files:**
-- PascalCase for source classes: `SundellSource`, `PatreonSource`, `VanderLeeSource`
-- camelCase for utility/handler files: `cache.ts`, `logger.ts`, `search.ts`, `response-helpers.ts`
-- camelCase for handler functions: `getSwiftPattern.ts`, `searchSwiftContent.ts`, `enableSource.ts`
-- Test files placed in `__tests__` subdirectories with `.test.ts` suffix: `cache.test.ts`, `registry.test.ts`
+- **kebab-case for multi-word file names:** `patreon-oauth.ts`, `swift-analysis.ts`, `rssPatternSource.ts`
+- **Single-word files or compound nouns without hyphens:** `logger.ts`, `cache.ts`, `search.ts`, `errors.ts`
+- **Handler files:** Prefer descriptive names like `getSwiftPattern.ts`, `searchSwiftContent.ts`, `listContentSources.ts`
+- **Test files:** Use `.test.ts` suffix, located adjacent to source with `__tests__` directory pattern or co-located
+  - Example: `src/utils/__tests__/cache.test.ts` or `src/tools/__tests__/registry.test.ts`
 
 **Functions:**
-- camelCase for all functions and methods: `getSwiftPatternHandler`, `searchPatterns`, `createTextResponse`
-- Prefixed utility functions for clear intent: `createErrorResponse`, `toErrorMessage`, `logError`
-- Handler functions follow naming convention: `[verb][Noun]Handler`: `getSwiftPatternHandler`, `searchSwiftContentHandler`
-- Internal/private functions use leading underscore or are simply unexported
+- **camelCase for all functions:** `fetchPatterns()`, `calculateRelevance()`, `createTextResponse()`, `detectTopics()`
+- **Descriptive verb-first naming:** `hasCodeContent()`, `isTokenExpired()`, `extractCodeSnippets()`, `truncateAtSentence()`
+- **Handler functions:** Suffixed with `Handler` in exports: `getSwiftPatternHandler`, `searchSwiftContentHandler`, `listContentSourcesHandler`
+- **Predicate functions:** Prefixed with `is`, `has`, or `can`: `isCookieConfigured()`, `hasCodeContent()`, `isSourceConfigured()`
 
 **Variables:**
-- camelCase for all variables: `topic`, `minQuality`, `wantsCode`, `sourceManager`
-- SCREAMING_SNAKE_CASE for constants: `DEFAULT_TTL`, `DEFAULT_MAX_MEMORY_ENTRIES`, `CLEANUP_INTERVAL_MS`
-- Descriptive names for caches and registries: `memoryCache`, `inFlightFetches`, `sourceInstanceCache`
+- **camelCase throughout:** `topicKeywords`, `qualitySignals`, `minQuality`, `wasCacheHit`, `cachedSearch`
+- **Constants in UPPER_SNAKE_CASE:** `CORE_TOOLS`, `PATREON_TOOLS`, `FREE_SOURCE_NAMES`, `COMMON_FORMAT_OPTIONS`, `CLI_COMMANDS`, `SERVER_FLAGS`
+- **Temporary/loop variables:** Single letters acceptable in narrow scopes: `r`, `p`, `s` in `.map()` and `.filter()` chains
+- **Boolean variables:** Start with question-form words: `isEnabled`, `hasCode`, `wasCacheHit`, `shouldRunInteractiveWizard`, `forceServerMode`
 
 **Types:**
-- PascalCase for interfaces and types: `ToolHandler`, `ToolContext`, `CacheEntry`, `FreeSource`, `IntentKey`
-- Union types with descriptive names: `FreeSourceName = 'sundell' | 'vanderlee' | 'nilcoalescing' | 'pointfree'`
-- Generic type parameters use single uppercase letters or descriptive names: `<T>`, `<SearchableDocument>`
+- **PascalCase for all types, interfaces, classes:** `ToolHandler`, `ToolContext`, `BasePattern`, `PatreonPattern`, `SourceManager`, `FileCache`
+- **Type predicates as questions:** `interface SearchableDocument`, `interface ToolResponse`, `interface PatreonSourceInstance`
+- **Generic type parameters:** Single capital letters preferred: `T`, `K`, `V` in class definitions like `RssPatternSource<T extends BasePattern>`
+
+**Exports:**
+- **Classes exported as default:** `export default SundellSource;`, `export default logger;`
+- **Functions exported as named exports:** `export function getHandler(name: string)`, `export function formatMarkdownSections()`
+- **Interfaces/types exported by name:** `export interface BasePattern`, `export type SourceType = 'free' | 'premium'`
+- **Barrel files:** `src/tools/index.ts` re-exports handlers for convenience
 
 ## Code Style
 
 **Formatting:**
-- ESLint with TypeScript strict mode enabled
-- 2-space indentation (standard TypeScript)
-- Imported via `@eslint/js` and `typescript-eslint` packages
-- ecmaVersion: 2020, Node globals enabled
+- **Tool:** ESLint with TypeScript support (eslint.config.js)
+- **Prettier:** Not configured; manual formatting expected
+- **Indentation:** 2 spaces (inferred from codebase)
+- **Line length:** No strict limit observed; code naturally flows
+- **Semicolons:** Always present (required by TypeScript/ESLint)
 
 **Linting:**
-- TypeScript compiler set to strict mode: `"strict": true`
-- Module resolution: Node16
-- Target: ES2022
-- Unused variables with leading underscore are ignored: `@typescript-eslint/no-unused-vars` with `argsIgnorePattern: "^_"`
-- `@typescript-eslint/no-explicit-any` is OFF (permissive)
-- No require imports warned at `warn` level
-- Prefer spread operators and avoid `var` declarations
-
-**ESLint Rules:**
-- `no-unused-vars`: warn (allows `_prefixed` names)
-- `no-explicit-any`: off
-- `no-require-imports`: warn
-- `no-unused-expressions`: warn
-- `no-var`: warn
-- `prefer-spread`: warn
+- **Tool:** ESLint with `typescript-eslint` (v9.39.2)
+- **Config:** `eslint.config.js`
+- **Key rules enforced:**
+  - `@typescript-eslint/no-unused-vars`: Warn on unused variables (underscore prefix `_` suppresses warning)
+  - `@typescript-eslint/no-explicit-any`: Off (flexible for integration scenarios)
+  - `@typescript-eslint/no-require-imports`: Warn (prefer ES modules)
+  - `@typescript-eslint/no-unused-expressions`: Warn
+  - `no-var`: Warn (prefer `const`/`let`)
+  - `prefer-spread`: Warn
+- **Ignored directories:** `build/**`, `node_modules/**`, `.claude/**`, `dist/**`
 
 ## Import Organization
 
 **Order:**
-1. Node.js built-in modules: `import fs from 'fs'`, `import path from 'path'`
-2. Third-party dependencies: `import pino from 'pino'`, `import QuickLRU from 'quick-lru'`
-3. Internal absolute paths with `.js` extension: `import { FileCache } from '../cache.js'`
-4. Type imports grouped together: `import type { ToolHandler } from '../types.js'`
+1. Third-party library imports: `import pino from 'pino'`, `import MiniSearch from 'minisearch'`
+2. Internal type imports: `import type { ToolHandler } from '../types.js'`, `import type { BasePattern }`
+3. Internal value imports: `import SourceManager from '../config/sources.js'`, `import logger from '../utils/logger.js'`
+4. Relative imports with `.js` extension required (ES modules)
 
 **Path Aliases:**
-- No path aliases configured; uses relative imports with explicit `.js` extensions for ES module compatibility
-- Example: `import { getHandler, ToolContext } from './tools/index.js'`
-- Always reference with `.js` extension for compiled output
+- No path aliases configured. All imports use relative paths with explicit `.js` extensions
+- Example: `import { getSource } from '../../utils/source-registry.js'` (not `@utils/source-registry`)
+
+**File extensions:**
+- **All imports include `.js` extension** (TypeScript compiled to JavaScript; extension required at runtime)
+- Example: `import type { ToolHandler } from './types.js'` not `import type { ToolHandler } from './types'`
 
 ## Error Handling
 
 **Patterns:**
-- Centralized error utilities in `src/utils/errors.ts`:
-  - `isError()`: Type guard checking `instanceof Error`
-  - `toErrorMessage()`: Safely extracts error message from unknown values
-  - `logError()`: Structured error logging with context
-
-**Try-catch usage:**
-- Silent catches with no operation are common for non-critical operations:
+- **Utility function approach:** `src/utils/errors.ts` provides `logError()` and `toErrorMessage()`
   ```typescript
-  try {
-    await fsp.writeFile(cachePath, JSON.stringify(entry));
-  } catch {
-    // Cache write failed, continue without caching
+  function isError(value: unknown): value is Error {
+    return value instanceof Error;
+  }
+  export function toErrorMessage(error: unknown): string {
+    return isError(error) ? error.message : String(error);
   }
   ```
-- Error context logged via `logger.error()` from pino
-
-**Async error propagation:**
-- Promise rejections in background operations use `.catch(() => {})` pattern:
-  ```typescript
-  this.clearExpired().catch(() => {});
-  ```
+- **Error responses:** `createErrorResponse()`, `createErrorResponseFromError()` in `src/utils/response-helpers.ts`
+- **Logging on error:** Use `logError(context, error, details)` with structured logging via pino
+  - Example: `logError('RSS Pattern Source', error, { feedUrl: this.options.feedUrl })`
+- **Graceful degradation:** Try-catch blocks return empty arrays or defaults
+  - Example in `src/sources/free/rssPatternSource.ts`: catch errors, log, return `[]`
+- **No throw statements in handlers:** Tools return error responses instead of throwing
 
 ## Logging
 
-**Framework:** Pino (`pino`)
+**Framework:** `pino` (structured JSON logger)
 
-**Configuration:**
-- Initialized in `src/utils/logger.ts`
-- Base service name: `'swift-patterns-mcp'`
-- Log level controlled by `LOG_LEVEL` env var (default: `'info'`)
+**Setup:** `src/utils/logger.ts`
+```typescript
+const logger = pino({
+  level: process.env.LOG_LEVEL ?? 'info',
+  base: { service: 'swift-patterns-mcp' },
+});
+```
 
 **Patterns:**
-- Use named logger instance: `import logger from './logger.js'`
-- Standard pino methods: `logger.info()`, `logger.error()`, `logger.warn()`
-- Error logging includes structured context:
+- Use `logger.info()`, `logger.warn()`, `logger.error()` explicitly
+- Pass structured data as first argument: `logger.info({ key: value }, message)`
+- Pass Error objects to log stack traces: `logger.error({ err: error }, message)`
+- **Example from main:**
   ```typescript
-  logger.error({ context, ...details, err: error }, message)
-  ```
-- Info messages with object context:
-  ```typescript
-  logger.info('Patreon auto-enabled (credentials detected)')
+  logger.info('Patreon auto-enabled (credentials detected)');
+  logger.warn({ err: error }, "Failed to prefetch sources");
+  logger.error({ err: error }, "Fatal error");
   ```
 
 ## Comments
 
 **When to Comment:**
-- JSDoc comments on exported functions and types
-- Inline comments for complex algorithms or non-obvious logic
-- Section dividers using ASCII art for visual organization:
-  ```typescript
-  // ─── get / set basics ───
-  // ─── memory vs file cache ───
-  ```
+- **JSDoc for public APIs:** Function parameters, return types, and complex logic
+  - Used in `src/utils/errors.ts`: `/** Type guard to check if a value is an Error instance. */`
+  - Used in `src/utils/response-helpers.ts`: `/** Build markdown sections with consistent spacing. */`
+- **Inline comments for non-obvious logic:** Explain why, not what
+  - Example: `// Normalize search score (MiniSearch scores can vary widely) / Divide by 5 to spread scores further apart`
+- **No comments for self-documenting code:** Function names and types are clear
+- **Task/TODO markers:** Rarely used; code is generally complete
 
 **JSDoc/TSDoc:**
-- Used extensively for public APIs
-- Document parameters, return types, and purpose
-- Example from `src/utils/errors.ts`:
+- **Minimal but present for public exports:** Classes and handler functions have top-level comments
+- **Parameter documentation:** Present in utility functions, sparse in internal handlers
+- **Return type documentation:** Implicit via TypeScript types (no `@returns` annotations observed)
+- **Example format:**
   ```typescript
   /**
-   * Safely extracts an error message from any thrown value.
-   * Returns error.message if Error, String(error) otherwise.
+   * Error handling utilities for consistent error logging across the codebase.
+   * Uses structured logger to keep output consistent.
    */
-  export function toErrorMessage(error: unknown): string
   ```
 
 ## Function Design
 
-**Size:** Functions are focused and typically under 50 lines; longer logic broken into helpers
+**Size:**
+- Functions range from 5 lines (simple getters) to 100+ lines (complex search logic)
+- Average function length: 20-40 lines
+- Long functions decomposed: `src/sources/free/rssPatternSource.ts` splits RSS processing into `processRssItem()` and `processArticle()`
 
 **Parameters:**
-- Accept specific parameters, avoid large options objects in most cases
-- Use type inference where appropriate: `args?.topic as string`
-- Generic types for reusable utilities: `async get<T>(key: string): Promise<T | null>`
+- **Single object parameter for multiple options:** Handlers receive `args` object
+  - Example: `getSwiftPatternHandler(args: Record<string, unknown>, context: ToolContext)`
+- **Destructuring for options:** `const { fuzzy = 0.2, boost = {...}, minScore = 0 } = options`
+- **Context/dependency injection:** Pass `ToolContext` or `SourceManager` explicitly
+- **Generic type parameters:** Used for reusable components: `SearchIndex<T extends SearchableDocument>`
 
 **Return Values:**
-- Explicit return types in function signatures
-- Nullable returns use `| null`: `Promise<T | null>`
-- Union types for multiple possible returns: `Promise<BasePattern[]>`
-- Response objects standardized via helpers: `createTextResponse()`, `createErrorResponse()`
+- **Async functions return Promises:** All handlers are `async` and return `Promise<ToolResponse>`
+- **Promise composition:** Use `Promise.all()` for parallel operations, `.then().catch()` for chains
+- **Optional returns:** Null-coalescing for missing values: `cached ?? []`, `error.message ?? String(error)`
+- **No early returns in complex logic:** Flow control via if-else or early guards
 
 ## Module Design
 
 **Exports:**
-- Named exports for most utilities and handlers
-- Default exports for class-based modules: `export default FileCache`, `export default SundellSource`
-- Type exports use `export type`: `export type FreeSourceName`
+- **One primary export per file:** Classes default-exported, utilities named-exported
+- **Mix of default and named exports:**
+  - `export default SundellSource;` + `export interface SundellPattern`
+  - `export function calculateRelevance()` + no default
+- **Avoid exporting unused symbols:** Each export serves a purpose in downstream code
 
 **Barrel Files:**
-- Minimal barrel file in `src/tools/index.ts` re-exports key types and getters
-- Used for cleaner imports: `import { getHandler, ToolContext } from './tools/index.js'`
+- **`src/tools/index.ts`:** Re-exports handlers
+- **`src/config/swift-keywords.ts`:** Exports `createSourceConfig()` for sources
+- **No deep nesting of barrels:** Maximum one level of barrel exports
 
-## Async Patterns
+**File organization:**
+- **Separation of concerns:** Utils, sources, tools, config, CLI, integration in distinct directories
+- **Co-location of tests:** `__tests__` subdirectories adjacent to source
+- **No circular dependencies:** Imports flow upward (tools → handlers → utils → config)
 
-**Promise handling:**
-- Use `async/await` consistently for readability
-- `Promise.allSettled()` for multiple independent async operations that may fail:
-  ```typescript
-  const results = await Promise.allSettled(
-    names.map(name => dedupSearch(name, getSource(name), query))
-  );
-  ```
-- Deduplication of concurrent identical fetches via `InflightDeduper` pattern
+## Type Strictness
 
-**Fire-and-forget:**
-- Background operations use `.catch(() => {})` for silent error suppression:
-  ```typescript
-  fsp.unlink(cachePath).catch(() => {});
-  ```
+**TypeScript Configuration:**
+- **Target:** ES2022
+- **Strict mode:** Enabled (`"strict": true`)
+- **Lib:** ES2022
+- **Module:** Node16 (ESM)
+- **Strict checks active:**
+  - `noImplicitAny` implied
+  - `strictNullChecks` enabled
+  - `strictFunctionTypes` enabled
+  - All strict rules in effect
+
+**Type Assertions:**
+- **Type guards used:** `function isError(value: unknown): value is Error`
+- **`as` assertions rare:** Prefer type guards or proper typing
+- **Generic constraints:** `T extends BasePattern` used to ensure type safety
+- **No `unknown` casts to `any`:** Patterns prefer type narrowing
 
 ---
 
-*Convention analysis: 2026-02-07*
+*Convention analysis: 2026-02-09*
