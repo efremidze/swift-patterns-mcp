@@ -8,7 +8,7 @@ import type { PatreonSourceConstructor } from './types.js';
 export const CORE_TOOLS: Tool[] = [
   {
     name: "get_swift_pattern",
-    description: "Get Swift/SwiftUI patterns from curated free sources (Sundell, van der Lee, Nil Coalescing, etc.)",
+    description: "Get Swift/SwiftUI reference patterns from curated free sources (Sundell, van der Lee, Nil Coalescing, Point-Free). Best for conceptual guidance and free-source examples.",
     inputSchema: {
       type: "object",
       properties: {
@@ -31,17 +31,17 @@ export const CORE_TOOLS: Tool[] = [
   },
   {
     name: "search_swift_content",
-    description: "Search all enabled sources for Swift/iOS content",
+    description: "Unified search across all enabled sources (free + premium). Use this for broad natural-language queries. When Patreon is enabled, includes premium creator posts and downloadable code.",
     inputSchema: {
       type: "object",
       properties: {
         query: {
           type: "string",
-          description: "Search query",
+          description: "Natural-language search query",
         },
         requireCode: {
           type: "boolean",
-          description: "Only return results with code examples",
+          description: "Prioritize and return only results with code examples",
         },
       },
       required: ["query"],
@@ -75,21 +75,21 @@ export const CORE_TOOLS: Tool[] = [
 export const PATREON_TOOLS: Tool[] = [
   {
     name: "get_patreon_patterns",
-    description: "Get high-quality patterns from your Patreon subscriptions (requires Patreon enabled)",
+    description: "Get premium Patreon patterns from creators you support (requires Patreon enabled). Best for implementation-ready tutorials, full sample projects, and downloadable source code.",
     inputSchema: {
       type: "object",
       properties: {
         topic: {
           type: "string",
-          description: "Topic to search",
+          description: "Topic to search in Patreon creator content",
         },
         minQuality: {
           type: "number",
-          description: "Minimum quality score (default: 70)",
+          description: "Minimum quality score (default: 70, typically high-signal project/tutorial matches)",
         },
         requireCode: {
           type: "boolean",
-          description: "Only return posts with code",
+          description: "Only return posts with code (recommended for usable implementation examples)",
         },
       },
     },
