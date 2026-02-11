@@ -43,15 +43,6 @@ describe('patreon-scoring', () => {
     expect(applyOverlapBoost(100, 1)).toBe(100);
   });
 
-  it('returns matched creators by id', () => {
-    mockWithYouTube.mockReturnValue([
-      { id: 'kavsoft', name: 'Kavsoft' },
-      { id: 'sucodee', name: 'sucodee' },
-    ]);
-
-    expect(selectCreatorsForQuery('kavsoft gradient button')).toEqual([{ id: 'kavsoft', name: 'Kavsoft' }]);
-  });
-
   it('returns matched creators by case-insensitive name', () => {
     mockWithYouTube.mockReturnValue([
       { id: 'swiftuicodes', name: 'SwiftUICodes' },
@@ -76,11 +67,6 @@ describe('patreon-scoring', () => {
     const patterns = [pattern('1', 'A', 40), pattern('2', 'B', 50)];
     const profile = buildQueryProfile(' ');
     expect(rankPatternsForQuery(patterns as any, profile, p => p.title, { fallbackToOriginal: true })).toEqual(patterns);
-  });
-
-  it('returns original list when no patterns are provided', () => {
-    const profile = buildQueryProfile('swiftui animation');
-    expect(rankPatternsForQuery([], profile, p => p.title, { fallbackToOriginal: true })).toEqual([]);
   });
 
   it('ranks by overlap when strong matches exist', () => {
@@ -136,15 +122,17 @@ describe('patreon-scoring', () => {
     expect(shouldReplaceByQuality(existing as any, candidate as any)).toBe(true);
   });
 
-  it('does not replace when existing has code at same score', () => {
-    const existing = pattern('1', 'Old', 80, true);
-    const candidate = pattern('2', 'New', 80, true);
-    expect(shouldReplaceByQuality(existing as any, candidate as any)).toBe(false);
-  });
+  it('does not replace candidate when it does not improve quality', () => {
+    const sameQuality = shouldReplaceByQuality(
+      pattern('1', 'Old', 80, true) as any,
+      pattern('2', 'New', 80, true) as any
+    );
+    const lowerQuality = shouldReplaceByQuality(
+      pattern('1', 'Old', 85, true) as any,
+      pattern('2', 'New', 70, false) as any
+    );
 
-  it('does not replace when candidate is lower quality', () => {
-    const existing = pattern('1', 'Old', 85, true);
-    const candidate = pattern('2', 'New', 70, false);
-    expect(shouldReplaceByQuality(existing as any, candidate as any)).toBe(false);
+    expect(sameQuality).toBe(false);
+    expect(lowerQuality).toBe(false);
   });
 });

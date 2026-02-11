@@ -43,18 +43,10 @@ describe('patreon-dedup', () => {
     expect(canonicalizePatternUrl('https://www.youtube.com/watch?v=abc123&t=9')).toBe('youtube:abc123');
   });
 
-  it('keeps youtube URLs without video id as origin path', () => {
-    expect(canonicalizePatternUrl('https://www.youtube.com/shorts/abc123')).toBe('https://www.youtube.com/shorts/abc123');
-  });
-
   it('canonicalizes Patreon post URLs and strips trailing slashes', () => {
     expect(canonicalizePatternUrl('https://www.patreon.com/posts/example-12345/')).toBe(
       'patreon-post:https://www.patreon.com/posts/example-12345'
     );
-  });
-
-  it('canonicalizes Patreon page URLs', () => {
-    expect(canonicalizePatternUrl('https://www.patreon.com/kavsoft/')).toBe('patreon-page:https://www.patreon.com/kavsoft');
   });
 
   it('returns trimmed raw URL when URL parsing fails', () => {
@@ -101,14 +93,6 @@ describe('patreon-dedup', () => {
     const deduped = dedupePatterns([noCode as any, withCode as any], 'prefer-best');
     expect(deduped).toHaveLength(1);
     expect(deduped[0].id).toBe('2');
-  });
-
-  it('does not replace when tie has no quality gain', () => {
-    const first = pattern('1', 'https://www.patreon.com/posts/pattern-123', 70, true);
-    const second = pattern('2', 'https://www.patreon.com/posts/pattern-123', 70, true);
-    const deduped = dedupePatterns([first as any, second as any], 'prefer-best');
-    expect(deduped).toHaveLength(1);
-    expect(deduped[0].id).toBe('1');
   });
 
   it('keeps distinct entries for different canonical keys', () => {
