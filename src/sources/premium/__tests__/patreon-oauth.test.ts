@@ -108,11 +108,15 @@ describe('patreon-oauth', () => {
     expect(result.tokens).toBeDefined();
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(mockKeytar.setPassword).toHaveBeenCalledTimes(1);
-    expect(mockExecFile).toHaveBeenCalledWith(
-      'open',
-      [expect.stringContaining('client_id=client-id')],
-      expect.any(Function)
-    );
+    if (process.platform === 'darwin') {
+      expect(mockExecFile).toHaveBeenCalledWith(
+        'open',
+        [expect.stringContaining('client_id=client-id')],
+        expect.any(Function)
+      );
+    } else {
+      expect(mockExecFile).not.toHaveBeenCalled();
+    }
   });
 
   it('returns an error result when provider sends error query param', async () => {
