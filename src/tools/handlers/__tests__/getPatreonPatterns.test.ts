@@ -3,38 +3,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getPatreonPatternsHandler } from '../getPatreonPatterns.js';
 import type { ToolContext, PatreonPattern, PatreonSourceInstance } from '../../types.js';
+import {
+  createPatreonPattern,
+  PATREON_PATTERNS_MIXED,
+  PATREON_PATTERNS_TWELVE,
+  PATREON_PATTERNS_WITH_CODE,
+} from '../../../__tests__/fixtures/patterns.js';
+import {
+  REQUIRED_PATREON_ENV_VARS,
+  clearPatreonEnvVars,
+  restoreEnvVars,
+  saveEnvVars,
+  setPatreonEnvVars,
+} from './harness.js';
 
 // ─── Test fixtures ───
-
-function makePattern(overrides: Partial<PatreonPattern> = {}): PatreonPattern {
-  return {
-    id: `pat-${Math.random().toString(36).slice(2, 8)}`,
-    title: 'Test Pattern',
-    url: 'https://patreon.com/posts/test-123',
-    publishDate: '2024-06-15T00:00:00Z',
-    excerpt: 'A test excerpt about SwiftUI',
-    content: 'Full test content',
-    creator: 'TestCreator',
-    topics: ['swiftui'],
-    relevanceScore: 80,
-    hasCode: true,
-    ...overrides,
-  };
-}
-
-const PATTERNS_WITH_CODE = [
-  makePattern({ title: 'Pattern A', hasCode: true }),
-  makePattern({ title: 'Pattern B', hasCode: true }),
-];
-
-const PATTERNS_MIXED = [
-  makePattern({ title: 'With Code', hasCode: true }),
-  makePattern({ title: 'No Code', hasCode: false }),
-];
-
-const PATTERNS_12 = Array.from({ length: 12 }, (_, i) =>
-  makePattern({ title: `Pattern ${i + 1}`, creator: `Creator ${i + 1}` })
-);
 
 // ─── Mock PatreonSource class ───
 
@@ -42,8 +25,8 @@ function createMockPatreonSource(opts: {
   searchResult?: PatreonPattern[];
   fetchResult?: PatreonPattern[];
 } = {}) {
-  const searchPatterns = vi.fn().mockResolvedValue(opts.searchResult ?? PATTERNS_WITH_CODE);
-  const fetchPatterns = vi.fn().mockResolvedValue(opts.fetchResult ?? PATTERNS_WITH_CODE);
+  const searchPatterns = vi.fn().mockResolvedValue(opts.searchResult ?? PATREON_PATTERNS_WITH_CODE);
+  const fetchPatterns = vi.fn().mockResolvedValue(opts.fetchResult ?? PATREON_PATTERNS_WITH_CODE);
 
   class MockPatreonSource implements PatreonSourceInstance {
     isConfigured = vi.fn().mockResolvedValue(true);
@@ -64,16 +47,6 @@ function createContext(patreonSource: unknown = null): ToolContext {
 
 // ─── Env var helpers ───
 
-const REQUIRED_VARS = ['YOUTUBE_API_KEY', 'PATREON_CLIENT_ID', 'PATREON_CLIENT_SECRET'];
-
-function setAllEnvVars() {
-  REQUIRED_VARS.forEach(v => { process.env[v] = `test_${v.toLowerCase()}`; });
-}
-
-function clearAllEnvVars() {
-  REQUIRED_VARS.forEach(v => { delete process.env[v]; });
-}
-
 // ─── Tests ───
 
 describe('getPatreonPatternsHandler', () => {
@@ -81,18 +54,12 @@ describe('getPatreonPatternsHandler', () => {
 
   beforeEach(() => {
     // Save original env vars
-    REQUIRED_VARS.forEach(v => { savedEnv[v] = process.env[v]; });
+    Object.assign(savedEnv, saveEnvVars(REQUIRED_PATREON_ENV_VARS));
   });
 
   afterEach(() => {
     // Restore original env vars
-    REQUIRED_VARS.forEach(v => {
-      if (savedEnv[v] !== undefined) {
-        process.env[v] = savedEnv[v];
-      } else {
-        delete process.env[v];
-      }
-    });
+    restoreEnvVars(savedEnv);
     vi.restoreAllMocks();
   });
 
@@ -100,18 +67,18 @@ describe('getPatreonPatternsHandler', () => {
 
   describe('environment validation', () => {
     it('should list all missing env vars when none are set', async () => {
-      clearAllEnvVars();
+      clearPatreonEnvVars();
       const result = await getPatreonPatternsHandler({}, createContext());
       const text = result.content[0].text;
 
-      REQUIRED_VARS.forEach(v => {
+      REQUIRED_PATREON_ENV_VARS.forEach(v => {
         expect(text).toContain(v);
       });
       expect(text).toContain('missing required environment variables');
     });
 
     it('should list only the specific missing vars', async () => {
-      clearAllEnvVars();
+      clearPatreonEnvVars();
       process.env.YOUTUBE_API_KEY = 'set';
       // PATREON_CLIENT_ID and PATREON_CLIENT_SECRET still missing
 
@@ -124,7 +91,7 @@ describe('getPatreonPatternsHandler', () => {
     });
 
     it('should include setup URL in error message', async () => {
-      clearAllEnvVars();
+      clearPatreonEnvVars();
       const result = await getPatreonPatternsHandler({}, createContext());
       const text = result.content[0].text;
 
@@ -136,7 +103,7 @@ describe('getPatreonPatternsHandler', () => {
 
   describe('patreon module availability', () => {
     it('should return error when patreonSource is null', async () => {
-      setAllEnvVars();
+      setPatreonEnvVars();
       const result = await getPatreonPatternsHandler({}, createContext(null));
       const text = result.content[0].text;
 
@@ -148,7 +115,7 @@ describe('getPatreonPatternsHandler', () => {
 
   describe('topic search vs fetch all', () => {
     it('should call searchPatterns when topic is provided', async () => {
-      setAllEnvVars();
+      setPatreonEnvVars();
       const { MockClass, searchPatterns, fetchPatterns } = createMockPatreonSource();
 
       await getPatreonPatternsHandler({ topic: 'SwiftUI scrollview' }, createContext(MockClass));
@@ -158,7 +125,7 @@ describe('getPatreonPatternsHandler', () => {
     });
 
     it('should call fetchPatterns when no topic is provided', async () => {
-      setAllEnvVars();
+      setPatreonEnvVars();
       const { MockClass, searchPatterns, fetchPatterns } = createMockPatreonSource();
 
       await getPatreonPatternsHandler({}, createContext(MockClass));
@@ -172,8 +139,8 @@ describe('getPatreonPatternsHandler', () => {
 
   describe('requireCode filtering', () => {
     it('should filter to hasCode patterns when requireCode=true', async () => {
-      setAllEnvVars();
-      const { MockClass } = createMockPatreonSource({ searchResult: PATTERNS_MIXED });
+      setPatreonEnvVars();
+      const { MockClass } = createMockPatreonSource({ searchResult: PATREON_PATTERNS_MIXED });
 
       const result = await getPatreonPatternsHandler(
         { topic: 'test', requireCode: true },
@@ -186,8 +153,8 @@ describe('getPatreonPatternsHandler', () => {
     });
 
     it('should return all patterns when requireCode is not set', async () => {
-      setAllEnvVars();
-      const { MockClass } = createMockPatreonSource({ searchResult: PATTERNS_MIXED });
+      setPatreonEnvVars();
+      const { MockClass } = createMockPatreonSource({ searchResult: PATREON_PATTERNS_MIXED });
 
       const result = await getPatreonPatternsHandler(
         { topic: 'test' },
@@ -204,7 +171,7 @@ describe('getPatreonPatternsHandler', () => {
 
   describe('response formatting', () => {
     it('should return "No patterns found" when 0 results', async () => {
-      setAllEnvVars();
+      setPatreonEnvVars();
       const { MockClass } = createMockPatreonSource({ searchResult: [] });
 
       const result = await getPatreonPatternsHandler(
@@ -217,7 +184,7 @@ describe('getPatreonPatternsHandler', () => {
     });
 
     it('should include topic in "No patterns found" message', async () => {
-      setAllEnvVars();
+      setPatreonEnvVars();
       const { MockClass } = createMockPatreonSource({ searchResult: [] });
 
       const result = await getPatreonPatternsHandler(
@@ -230,8 +197,8 @@ describe('getPatreonPatternsHandler', () => {
     });
 
     it('should format patterns with creator, date, topics, excerpt, URL', async () => {
-      setAllEnvVars();
-      const pattern = makePattern({
+      setPatreonEnvVars();
+      const pattern = createPatreonPattern({
         title: 'LoopingScrollView',
         creator: 'Kavsoft',
         topics: ['swiftui', 'animation'],
@@ -254,8 +221,8 @@ describe('getPatreonPatternsHandler', () => {
     });
 
     it('should show "Showing top 10" when more than 10 results', async () => {
-      setAllEnvVars();
-      const { MockClass } = createMockPatreonSource({ searchResult: PATTERNS_12 });
+      setPatreonEnvVars();
+      const { MockClass } = createMockPatreonSource({ searchResult: PATREON_PATTERNS_TWELVE });
 
       const result = await getPatreonPatternsHandler(
         { topic: 'test' },
@@ -267,8 +234,8 @@ describe('getPatreonPatternsHandler', () => {
     });
 
     it('should not show "Showing top 10" when 10 or fewer results', async () => {
-      setAllEnvVars();
-      const { MockClass } = createMockPatreonSource({ searchResult: PATTERNS_WITH_CODE });
+      setPatreonEnvVars();
+      const { MockClass } = createMockPatreonSource({ searchResult: PATREON_PATTERNS_WITH_CODE });
 
       const result = await getPatreonPatternsHandler(
         { topic: 'test' },
@@ -284,7 +251,7 @@ describe('getPatreonPatternsHandler', () => {
 
   describe('YouTube error surfacing', () => {
     it('should not include YouTube warnings (feature removed)', async () => {
-      setAllEnvVars();
+      setPatreonEnvVars();
       const { MockClass } = createMockPatreonSource();
 
       const result = await getPatreonPatternsHandler(
