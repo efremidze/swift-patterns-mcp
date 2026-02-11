@@ -22,14 +22,7 @@ Fix security vulnerabilities and bugs, refactor architecture for maintainability
 - ✓ Intent-aware caching with query normalization — existing
 - ✓ Hybrid memory+disk file cache with TTL — existing
 
-### Active (Phase 3: Architecture Refactoring)
-
-- [ ] Entry point (`src/index.ts`) refactored to < 60 lines delegating to cli/router, server, tools/registration (C3)
-- [ ] Patreon source (`src/sources/premium/patreon.ts`) split into < 300 line orchestrator with scoring, dedup, enrichment, query-analysis modules (C4)
-- [ ] YouTube module-level mutable state eliminated — errors returned with results (C5)
-- [ ] Shared validation utility (`src/tools/validation.ts`) used by all 6 handlers (H3)
-
-### Upcoming (Phase 4: Test Coverage)
+### Active (Phase 4: Test Coverage)
 
 - [ ] OAuth flow integration tests with mock provider (C1)
 - [ ] Server startup and tool registration tests (C2)
@@ -60,6 +53,10 @@ Fix security vulnerabilities and bugs, refactor architecture for maintainability
 - [x] Memvid relevance score scaling fixed 0-1 → 0-100 correctly (Phase 2)
 - [x] YouTube metadata parsing handles missing snippet fields without crashing (Phase 2)
 - [x] Code detection improved beyond brittle regex (Phase 2)
+- [x] Entry point refactored to 16 lines delegating to cli/router, server, tools/registration (Phase 3, C3)
+- [x] Patreon source split into 293-line orchestrator with scoring, dedup, enrichment, query-analysis modules (Phase 3, C4)
+- [x] YouTube module-level mutable state eliminated (Phase 3, C5)
+- [x] Shared validation utility used by 5 handlers (Phase 3, H3)
 
 ### Out of Scope
 
@@ -93,4 +90,4 @@ Fix security vulnerabilities and bugs, refactor architecture for maintainability
 | Warn (not crash) when keytar unavailable | Graceful degradation is existing pattern | — Pending |
 
 ---
-*Last updated: 2026-02-10 — Restructured requirements per 004-REVIEW-REPORT findings*
+*Last updated: 2026-02-10 — Phase 3 completed*
