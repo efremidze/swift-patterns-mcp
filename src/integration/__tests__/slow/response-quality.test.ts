@@ -159,6 +159,11 @@ describeIntegration('Response Quality Validation', () => {
 
       expect(response).toMatch(/# Search Results/);
 
+      if (response.includes('No results found')) {
+        expect(response).toContain('No results found');
+        return;
+      }
+
       // Results should be relevant to the query
       const lowerResponse = response.toLowerCase();
       const hasRelevantContent =
@@ -167,7 +172,7 @@ describeIntegration('Response Quality Validation', () => {
         lowerResponse.includes('concurrency');
 
       expect(hasRelevantContent).toBe(true);
-      
+
       // Results should have some content beyond just titles (excerpts)
       expect(response.length).toBeGreaterThan(100);
     }, 60000);

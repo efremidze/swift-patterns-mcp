@@ -39,7 +39,13 @@ import { CREATORS, withYouTube } from '../../../config/creators.js';
 
 const describeWithYouTube = describe;
 const describeWithPatreon = describe;
-const describePatreonIntegration = (isCI || process.env.SKIP_PATREON_TESTS === '1')
+const hasRequiredPatreonEnv = Boolean(
+  process.env.YOUTUBE_API_KEY &&
+  process.env.PATREON_CLIENT_ID &&
+  process.env.PATREON_CLIENT_SECRET
+);
+
+const describePatreonIntegration = (isCI || process.env.SKIP_PATREON_TESTS === '1' || !hasRequiredPatreonEnv)
   ? describe.skip
   : describe;
 
@@ -57,18 +63,6 @@ describePatreonIntegration('Patreon Integration', () => {
       savedEnv[key] = process.env[key];
       process.env[key] = testEnvOverrides[key];
     });
-    if (isCI) return;
-    const missing: string[] = [];
-    if (!process.env.YOUTUBE_API_KEY) missing.push('YOUTUBE_API_KEY');
-    if (!process.env.PATREON_CLIENT_ID) missing.push('PATREON_CLIENT_ID');
-    if (!process.env.PATREON_CLIENT_SECRET) missing.push('PATREON_CLIENT_SECRET');
-
-    if (missing.length > 0) {
-      throw new Error(
-        `Missing required env vars for Patreon integration tests: ${missing.join(', ')}. ` +
-        'Set them or run with SKIP_PATREON_TESTS=1.'
-      );
-    }
   });
 
   afterAll(() => {
