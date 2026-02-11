@@ -21,9 +21,11 @@ import {
   type QueryProfile,
 } from '../../utils/query-analysis.js';
 
-const HYBRID_VARIANT_LIMIT = 3;
-const HYBRID_CODE_BOOST = 1.5;
-const HYBRID_EXACT_QUERY_BOOST = 3;
+const HYBRID_VARIANT_LIMIT = 4;
+const HYBRID_CODE_BOOST = 1;
+const HYBRID_EXACT_QUERY_BOOST = 4.5;
+const HYBRID_MIN_TOKENS_FOR_STRICT_GATE = 3;
+const HYBRID_MIN_MATCHED_TOKENS_WITHOUT_PHRASE = 3;
 
 interface RankedPattern {
   pattern: BasePattern;
@@ -45,7 +47,7 @@ function mergeAndRankPatterns(
     .slice(0, -1)
     .map((part, index) => `${part} ${topicParts[index + 1]}`)
     .filter(phrase => phrase.length > 8);
-  const applyStrongOverlapGate = profile.weightedTokens.length >= 3;
+  const applyStrongOverlapGate = profile.weightedTokens.length >= HYBRID_MIN_TOKENS_FOR_STRICT_GATE;
 
   const rankPattern = (pattern: BasePattern): RankedPattern | null => {
     const haystack = `${pattern.title} ${pattern.excerpt} ${pattern.content} ${pattern.topics.join(' ')}`.toLowerCase();
@@ -58,7 +60,12 @@ function mergeAndRankPatterns(
     if (applyStrongOverlapGate && !strongOverlap) {
       return null;
     }
-    if (applyStrongOverlapGate && significantBigrams.length > 0 && !hasBigramMatch && overlap.matchedTokens < 3) {
+    if (
+      applyStrongOverlapGate &&
+      significantBigrams.length > 0 &&
+      !hasBigramMatch &&
+      overlap.matchedTokens < HYBRID_MIN_MATCHED_TOKENS_WITHOUT_PHRASE
+    ) {
       return null;
     }
 
@@ -158,7 +165,7 @@ get_patreon_patterns({ topic: "${topic}" })`);
 
   // Build intent key for caching
   const intentKey: IntentKey = {
-    tool: 'get_swift_pattern_hybrid_v2',
+    tool: 'get_swift_pattern_hybrid_v3',
     query: topic,
     minQuality,
     sources: getSourceNames(source as FreeSourceName | 'all'),
