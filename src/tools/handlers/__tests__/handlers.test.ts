@@ -160,6 +160,18 @@ describe('getSwiftPatternHandler', () => {
     expect(text).toContain('get_patreon_patterns');
   });
 
+  it('should avoid generic matches for long specific queries and suggest broader search', async () => {
+    const result = await getSwiftPatternHandler({
+      topic: 'dynamic island animation',
+      minQuality: 70,
+    }, context);
+    const text = result.content[0].text;
+
+    expect(text).toContain('No patterns found');
+    expect(text).toContain('search_swift_content({ query: "dynamic island animation" })');
+    expect(text).not.toContain('Composable Architecture Case Study');
+  });
+
   // Format validation tests (quality scores, source attribution, URLs, sorting,
   // empty results) removed — covered by src/integration/__tests__/response-quality.test.ts
 });
