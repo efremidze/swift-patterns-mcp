@@ -140,6 +140,25 @@ export async function startOAuthFlow(
     authUrl.searchParams.set('scope', PATREON_SCOPES);
 
     let serverClosed = false;
+    let timeoutHandle: NodeJS.Timeout | null = null;
+
+    const finalize = (result: OAuthResult): void => {
+      if (serverClosed) {
+        return;
+      }
+
+      serverClosed = true;
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+      }
+
+      if (server.listening) {
+        server.close(() => resolve(result));
+      } else {
+        resolve(result);
+      }
+    };
 
     const server = http.createServer(async (req, res) => {
       if (!req.url?.startsWith('/callback')) {
@@ -155,11 +174,7 @@ export async function startOAuthFlow(
       if (error) {
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end('<h1>Authorization Denied</h1><p>You can close this window.</p>');
-        if (!serverClosed) {
-          serverClosed = true;
-          server.close();
-          resolve({ success: false, error });
-        }
+        finalize({ success: false, error });
         return;
       }
 
@@ -213,20 +228,16 @@ export async function startOAuthFlow(
           </html>
         `);
 
-        if (!serverClosed) {
-          serverClosed = true;
-          server.close();
-          resolve({ success: true, tokens });
-        }
+        finalize({ success: true, tokens });
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'text/html' });
         res.end('<h1>Error</h1><p>Failed to complete authorization.</p>');
-        if (!serverClosed) {
-          serverClosed = true;
-          server.close();
-          resolve({ success: false, error: String(err) });
-        }
+        finalize({ success: false, error: String(err) });
       }
+    });
+
+    server.on('error', (err) => {
+      finalize({ success: false, error: `OAuth callback server failed: ${err.message}` });
     });
 
     server.listen(CALLBACK_PORT, '127.0.0.1', () => {
@@ -247,12 +258,8 @@ export async function startOAuthFlow(
     });
 
     // Timeout after 60 seconds
-    setTimeout(() => {
-      if (!serverClosed) {
-        serverClosed = true;
-        server.close();
-        resolve({ success: false, error: 'Authorization timed out after 60 seconds' });
-      }
+    timeoutHandle = setTimeout(() => {
+      finalize({ success: false, error: 'Authorization timed out after 60 seconds' });
     }, 60000);
   });
 }
