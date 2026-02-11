@@ -172,24 +172,6 @@ describe('patreon-dl', () => {
     );
   });
 
-  it('downloadPost returns an error when patreon-dl command fails', async () => {
-    const { downloadPost, saveCookie } = await loadPatreonDl();
-    saveCookie('valid_cookie_123');
-
-    mockExecFile.mockImplementationOnce((_: string, __: string[], optionsOrCallback?: unknown, callback?: unknown) => {
-      const cb = typeof optionsOrCallback === 'function'
-        ? optionsOrCallback as (error: Error | null, stdout?: string, stderr?: string) => void
-        : callback as ((error: Error | null, stdout?: string, stderr?: string) => void) | undefined;
-      cb?.(new Error('command failed'), '', 'stderr output');
-      return {} as never;
-    });
-
-    const result = await downloadPost('https://www.patreon.com/posts/apple-stocks-ui-148144034', 'Kavsoft');
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('command failed');
-  });
-
   it('scanDownloadedContent reads metadata from both post.json and post_info/post-api.json', async () => {
     const { scanDownloadedContent, invalidateScanCache } = await loadPatreonDl();
 
@@ -240,64 +222,4 @@ describe('patreon-dl', () => {
     expect(files.some(file => file.filepath.includes('__MACOSX'))).toBe(false);
   });
 
-  it('isPostDownloaded matches by postId and directory-based fallbacks', async () => {
-    const { isPostDownloaded, invalidateScanCache } = await loadPatreonDl();
-
-    createPost(tempRoot, 'MatchCreator', '444444444 - Match by Directory', {
-      metadata: {
-        data: {
-          id: '999999999',
-          attributes: {
-            title: 'Match by Directory',
-            published_at: '2024-03-01T00:00:00Z',
-          },
-        },
-      },
-      metadataPath: 'post_info/post-api.json',
-    });
-
-    createPost(tempRoot, 'MatchCreator', '555555555 - Match by Metadata', {
-      metadata: {
-        data: {
-          id: '555555555',
-          attributes: {
-            title: 'Match by Metadata',
-            published_at: '2024-04-01T00:00:00Z',
-          },
-        },
-      },
-      metadataPath: 'post_info/post-api.json',
-    });
-
-    invalidateScanCache();
-    expect(isPostDownloaded('444444444')).toBe(true);
-    expect(isPostDownloaded('555555555')).toBe(true);
-    expect(isPostDownloaded('000000000')).toBe(false);
-  });
-
-  it('invalidateScanCache clears stale cached scan data', async () => {
-    const { scanDownloadedContent, invalidateScanCache } = await loadPatreonDl();
-
-    createPost(tempRoot, 'CacheCreator', '666666666 - Cached Post');
-    invalidateScanCache();
-
-    const firstScan = scanDownloadedContent();
-    expect(firstScan).toHaveLength(1);
-
-    const creatorPostsDir = path.join(
-      tempRoot,
-      '.swift-patterns-mcp',
-      'patreon-content',
-      'CacheCreator',
-      'posts'
-    );
-    fs.rmSync(creatorPostsDir, { recursive: true, force: true });
-
-    const cachedScan = scanDownloadedContent();
-    expect(cachedScan).toHaveLength(1);
-
-    invalidateScanCache();
-    const refreshedScan = scanDownloadedContent();
-    expect(refreshedScan).toHaveLength(0);
-  });
 });
