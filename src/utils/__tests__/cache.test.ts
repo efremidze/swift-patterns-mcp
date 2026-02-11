@@ -130,6 +130,62 @@ describe('FileCache', () => {
     });
   });
 
+  describe('metrics', () => {
+    it('tracks memory hits and misses', async () => {
+      await cache.set('stats-key', 'value');
+
+      expect(await cache.get('stats-key')).toBe('value');
+      expect(await cache.get('missing-stats-key')).toBeNull();
+
+      expect(cache.getStats()).toEqual({
+        hits: 1,
+        misses: 1,
+        memoryHits: 1,
+        fileHits: 0,
+        hitRate: 0.5,
+      });
+    });
+
+    it('tracks file hits when reading from new cache instance', async () => {
+      const ns = uniqueNamespace();
+      const writer = new FileCache(ns, 50);
+      await writer.set('persisted', 'disk-value');
+
+      const reader = new FileCache(ns, 50);
+      expect(await reader.get('persisted')).toBe('disk-value');
+
+      expect(reader.getStats()).toEqual({
+        hits: 1,
+        misses: 0,
+        memoryHits: 0,
+        fileHits: 1,
+        hitRate: 1,
+      });
+
+      await writer.clear();
+      await reader.clear();
+    });
+
+    it('resets metrics after clear', async () => {
+      await cache.set('reset-key', 'value');
+      await cache.get('reset-key');
+      await cache.get('missing');
+
+      expect(cache.getStats().hits).toBe(1);
+      expect(cache.getStats().misses).toBe(1);
+
+      await cache.clear();
+
+      expect(cache.getStats()).toEqual({
+        hits: 0,
+        misses: 0,
+        memoryHits: 0,
+        fileHits: 0,
+        hitRate: 0,
+      });
+    });
+  });
+
   // ─── getOrFetch ───
 
   describe('getOrFetch', () => {
