@@ -19,7 +19,8 @@
     "patreon": "node build/cli/patreon.js",
     "lint": "eslint . && tsc --noEmit",
     "pretest": "npm run build",
-    "test": "vitest run",
+    "test": "vitest run src/__tests__ src/cli/__tests__ src/config/__tests__ src/sources src/tools src/utils",
+    "test:integration": "vitest run src/integration/__tests__",
     "test:patreon": "npx tsx scripts/test-patreon-e2e.ts",
     "bench": "npm run build && node scripts/benchmark-mcp.js"
   },

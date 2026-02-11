@@ -1,9 +1,9 @@
-// src/integration/response-quality.test.ts
+// src/integration/__tests__/slow/response-quality.test.ts
 // End-to-end tests validating response quality for AI assistant consumption
 // Skipped on CI due to native dependency issues (keytar)
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { MCPTestClient, isCI } from '../test-client.js';
+import { MCPTestClient, isCI } from '../../test-client.js';
 
 const describeIntegration = isCI ? describe.skip : describe;
 

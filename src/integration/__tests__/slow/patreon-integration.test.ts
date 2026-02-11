@@ -2,7 +2,7 @@
  * Patreon Integration Test Suite
  *
  * This is the canonical test file for the Patreon premium source integration.
- * Run with: npm test -- src/sources/premium/__tests__/patreon-integration.test.ts
+ * Run with: npm run test:integration -- src/integration/__tests__/slow/patreon-integration.test.ts
  *
  * Prerequisites:
  * - YOUTUBE_API_KEY environment variable set
@@ -24,8 +24,8 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import AdmZip from 'adm-zip';
-import { isCI } from '../../../integration/test-client.js';
-import { PatreonSource } from '../patreon.js';
+import { isCI } from '../../test-client.js';
+import { PatreonSource } from '../../../sources/premium/patreon.js';
 import {
   scanDownloadedContent,
   extractPostId,
@@ -33,8 +33,8 @@ import {
   isCookieConfigured,
   downloadPost,
   invalidateScanCache,
-} from '../patreon-dl.js';
-import { searchVideos, getChannelVideos } from '../youtube.js';
+} from '../../../sources/premium/patreon-dl.js';
+import { searchVideos, getChannelVideos } from '../../../sources/premium/youtube.js';
 import { CREATORS, withYouTube } from '../../../config/creators.js';
 
 const describeWithYouTube = describe;
