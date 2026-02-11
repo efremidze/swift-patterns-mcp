@@ -15,8 +15,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Command Injection Elimination** - Replace shell interpolation with safe execution
 - [x] **Phase 2: Bug Fixes** - Fix memvid scoring, YouTube parsing, code detection
 - [x] **Phase 3: Architecture Refactoring** - Decompose monolithic files, eliminate anti-patterns
-- [ ] **Phase 4: Test Coverage** - Critical/high-priority test coverage, fix failing tests, enable CI
-- [ ] **Phase 5: Test Infrastructure & Hardening** - Coverage tools, fixtures, error paths, security, benchmarks
+- [x] **Phase 4: Test Coverage** - Critical/high-priority test coverage, fix failing tests, enable CI
+- [x] **Phase 5: Test Infrastructure & Hardening** - Coverage tools, fixtures, error paths, security, benchmarks
 
 ## Phase Details
 
@@ -61,8 +61,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Entry point decomposition (CLI router, server module, tool registration, shared validation)
-- [ ] 03-02-PLAN.md — Patreon source decomposition & YouTube state fix
+- [x] 03-01-PLAN.md — Entry point decomposition (CLI router, server module, tool registration, shared validation)
+- [x] 03-02-PLAN.md — Patreon source decomposition & YouTube state fix
 
 ### Phase 4: Test Coverage
 **Goal**: Critical paths have test coverage and all tests pass in CI
@@ -80,9 +80,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Critical path testing (OAuth, server startup, Patreon download, cookie extraction)
-- [ ] 04-02-PLAN.md — Premium logic testing (scoring, dedup, query analysis, setup wizard)
-- [ ] 04-03-PLAN.md — Test infrastructure fixes (YouTube mock fixtures, CI integration tests)
+- [x] 04-01-PLAN.md — Critical path testing (OAuth, server startup, Patreon download, cookie extraction)
+- [x] 04-02-PLAN.md — Premium logic testing (scoring, dedup, query analysis, setup wizard)
+- [x] 04-03-PLAN.md — Test infrastructure fixes (YouTube mock fixtures, CI integration tests)
 
 ### Phase 5: Test Infrastructure & Hardening
 **Goal**: Sustainable test infrastructure with coverage metrics, security hardening, and performance baselines
@@ -102,9 +102,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Enforce coverage in CI and extract shared test fixtures/harness with lint quality guardrails
-- [ ] 05-02-PLAN.md — Expand HTTP/dedup and free-source error-path coverage plus infrastructure edge-case tests
-- [ ] 05-03-PLAN.md — Add OAuth state+PKCE hardening, cache observability metrics, and benchmark/load-test baselines
+- [x] 05-01-PLAN.md — Enforce coverage in CI and extract shared test fixtures/harness with lint quality guardrails
+- [x] 05-02-PLAN.md — Expand HTTP/dedup and free-source error-path coverage plus infrastructure edge-case tests
+- [x] 05-03-PLAN.md — Add OAuth state+PKCE hardening, cache observability metrics, and benchmark/load-test baselines
 
 ## Progress
 
@@ -115,10 +115,10 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Command Injection Elimination | 1/1 | Complete | 2026-01-29 |
 | 2. Bug Fixes | 1/1 | Complete | 2026-01-30 |
-| 3. Architecture Refactoring | 0/2 | Not started | - |
-| 4. Test Coverage | 0/3 | Not started | - |
-| 5. Test Infrastructure & Hardening | 0/3 | Not started | - |
+| 3. Architecture Refactoring | 2/2 | Complete | 2026-02-10 |
+| 4. Test Coverage | 3/3 | Complete | 2026-02-11 |
+| 5. Test Infrastructure & Hardening | 3/3 | Complete | 2026-02-11 |
 
 ---
 *Roadmap created: 2026-01-29*
-*Last updated: 2026-02-10 — Replaced Phase 3 with Phases 3-5 based on 004-REVIEW-REPORT findings*
+*Last updated: 2026-02-11 — Marked Phases 3-5 complete after plan execution*
