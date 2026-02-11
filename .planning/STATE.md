@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 ## Current Position
 
 Phase: 5 of 5 (Test Infrastructure Hardening)
-Plan: 1 of 3 (05-01 completed)
+Plan: 2 of 3 (05-02 completed)
 Status: In progress
-Last activity: 2026-02-11 — Completed 05-01-PLAN.md
+Last activity: 2026-02-11 — Completed 05-02-PLAN.md
 
-Progress: [████████░░] 8/10 plans complete
+Progress: [█████████░] 9/10 plans complete
 
 ## Performance Metrics
 
 **Velocity:**
 - Total plans completed: 8
 - Average duration: 7 min
-- Total execution time: 0.82 hours
+- Total execution time: 0.94 hours
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [████████░░] 8/10 plans complete
 | 02-bug-fixes | 1 | 2 min | 2 min |
 | 03-architecture-refactoring | 2 | 15 min | 8 min |
 | 04-test-coverage | 3 | 30 min | 10 min |
-| 05-test-infrastructure-hardening | 1 | 5 min | 5 min |
+| 05-test-infrastructure-hardening | 2 | 12 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-01 (5 min), 04-03 (8 min), 04-02 (10 min), 04-01 (12 min), 03-02 (10 min)
-- Trend: Phase 5 guardrail setup started; coverage, fixture reuse, and lint gates hardened
+- Last 5 plans: 05-02 (7 min), 05-01 (5 min), 04-03 (8 min), 04-02 (10 min), 04-01 (12 min)
+- Trend: Phase 5 resilience coverage deepened across utilities, free sources, and cache infrastructure
 
 *Updated after each plan completion*
 
@@ -61,6 +61,9 @@ Recent decisions affecting current work:
 - Coverage enforcement uses Vitest V8 provider and CI runs `test:coverage` as a merge gate (05-01)
 - Handler tests now share deterministic fixtures/harness under `src/__tests__/fixtures` and `src/tools/handlers/__tests__/harness.ts` (05-01)
 - ESLint now blocks focused tests in all test files and enforces deterministic fixture generation for handler suites (05-01)
+- HTTP and inflight-dedup utilities now have explicit timeout/abort/failure/concurrency path tests (05-02)
+- Free source suites now assert parser failures, malformed entries, and degraded upstream behavior without throwing (05-02)
+- Cache and intent cache tests now cover corruption/unreadable entries, sanitization collisions, and miss/hit accounting edge paths (05-02)
 
 ### Pending Todos
 
@@ -73,9 +76,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 05-01. Continue with 05-02.
-Resume file: .planning/phases/05-test-infrastructure-hardening/05-01-SUMMARY.md
+Stopped at: Completed 05-02. Continue with 05-03.
+Resume file: .planning/phases/05-test-infrastructure-hardening/05-02-SUMMARY.md
 
 ---
 *State initialized: 2026-01-29*
-*Last updated: 2026-02-11 — 05-01 completed*
+*Last updated: 2026-02-11 — 05-02 completed*
