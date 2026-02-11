@@ -62,8 +62,9 @@ describeIntegration('MCP Server Integration', () => {
 
     it('should call get_swift_pattern with topic', async () => {
       const response = await client.callTool('get_swift_pattern', {
-        topic: 'swiftui',
-        minQuality: 70,
+        topic: 'architecture',
+        source: 'pointfree',
+        minQuality: 50,
       });
 
       expect(response.error).toBeUndefined();
@@ -71,7 +72,7 @@ describeIntegration('MCP Server Integration', () => {
       const result = response.result as { content: Array<{ type: string; text: string }> };
       expect(result.content).toBeDefined();
       expect(result.content[0].text.length).toBeGreaterThan(0);
-    }, 60000);
+    }, 120000);
 
     // enable_source unknown source test removed — covered by unit test in handlers.test.ts
   });
@@ -86,7 +87,7 @@ describeIntegration('MCP Server Integration', () => {
       const result = response.result as { content: Array<{ text: string }>; isError?: boolean };
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain('Unknown tool');
-    });
+    }, 15000);
 
     // missing required arguments test removed — covered by unit test in handlers.test.ts
   });

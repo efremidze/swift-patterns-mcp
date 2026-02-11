@@ -6,6 +6,12 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { MCPTestClient, isCI } from '../../test-client.js';
 
 const describeIntegration = isCI ? describe.skip : describe;
+const URL_REGEX = /\[[^\]]+\]\(([^)]+)\)/g;
+
+function extractUrls(markdown: string): string[] {
+  const matches = markdown.matchAll(URL_REGEX);
+  return Array.from(matches, match => match[1]);
+}
 
 describeIntegration('Response Quality Validation', () => {
   let client: MCPTestClient;
@@ -297,9 +303,17 @@ describeIntegration('Response Quality Validation', () => {
         requireCode: true,
       });
 
-      // When Patreon has matches, unified search should return result-format output (not empty).
+      // When Patreon has matches, unified search should include at least one Patreon-origin URL.
       expect(unified).not.toContain('No results found');
       expect(unified).toContain('# Search Results');
+
+      const patreonUrls = extractUrls(patreonResponse)
+        .filter(url => url.includes('patreon.com') || url.includes('patreon-content'));
+      const unifiedUrls = new Set(extractUrls(unified));
+      const hasOverlap = patreonUrls.some(url => unifiedUrls.has(url));
+
+      expect(patreonUrls.length).toBeGreaterThan(0);
+      expect(hasOverlap).toBe(true);
     }, 120000);
   });
 

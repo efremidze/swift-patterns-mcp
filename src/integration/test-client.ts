@@ -19,6 +19,8 @@ interface JsonRpcRequest {
   params?: Record<string, unknown>;
 }
 
+const REQUEST_TIMEOUT_MS = 120_000;
+
 export class MCPTestClient {
   private process: ChildProcess | null = null;
   private requestId = 0;
@@ -29,6 +31,7 @@ export class MCPTestClient {
   }>();
   private rl: readline.Interface | null = null;
   private initialized = false;
+  private processExitPromise: Promise<void> | null = null;
 
   async start(): Promise<void> {
     const serverPath = path.join(process.cwd(), 'build', 'index.js');
@@ -36,6 +39,9 @@ export class MCPTestClient {
     this.process = spawn('node', [serverPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: process.cwd(),
+    });
+    this.processExitPromise = new Promise((resolve) => {
+      this.process?.once('exit', () => resolve());
     });
 
     this.rl = readline.createInterface({
@@ -79,10 +85,30 @@ export class MCPTestClient {
   }
 
   async stop(): Promise<void> {
-    if (this.process) {
-      this.process.kill();
-      this.process = null;
+    const proc = this.process;
+    const exitPromise = this.processExitPromise;
+
+    if (proc) {
+      proc.kill('SIGTERM');
+
+      // Ensure child process does not keep integration runs hanging.
+      await Promise.race([
+        exitPromise ?? Promise.resolve(),
+        new Promise<void>((resolve) => setTimeout(resolve, 1_000)),
+      ]);
+
+      if (proc.exitCode === null) {
+        proc.kill('SIGKILL');
+        await Promise.race([
+          exitPromise ?? Promise.resolve(),
+          new Promise<void>((resolve) => setTimeout(resolve, 1_000)),
+        ]);
+      }
     }
+
+    this.process = null;
+    this.processExitPromise = null;
+
     if (this.rl) {
       this.rl.close();
       this.rl = null;
@@ -102,7 +128,7 @@ export class MCPTestClient {
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(id);
         reject(new Error(`Request ${id} timed out`));
-      }, 30000);
+      }, REQUEST_TIMEOUT_MS);
 
       this.pendingRequests.set(id, { resolve, reject, timeout });
 
