@@ -1,0 +1,88 @@
+{
+  "createdAt": "2026-02-11T06:48:32.138Z",
+  "concurrency": 10,
+  "threshold": {
+    "maxP90Ms": 500,
+    "minSuccessRate": 1
+  },
+  "summary": {
+    "totalRequests": 10,
+    "successfulRequests": 10,
+    "failedRequests": 0,
+    "successRate": 1,
+    "p50Ms": 1.39,
+    "p90Ms": 1.62
+  },
+  "results": [
+    {
+      "scenario": "list sources",
+      "tool": "list_content_sources",
+      "durationMs": 0.4,
+      "ok": true,
+      "error": null
+    },
+    {
+      "scenario": "search async await",
+      "tool": "search_swift_content",
+      "durationMs": 1.64,
+      "ok": true,
+      "error": null
+    },
+    {
+      "scenario": "get swiftui pattern",
+      "tool": "get_swift_pattern",
+      "durationMs": 1.62,
+      "ok": true,
+      "error": null
+    },
+    {
+      "scenario": "enable invalid source",
+      "tool": "enable_source",
+      "durationMs": 1.16,
+      "ok": true,
+      "error": null
+    },
+    {
+      "scenario": "list sources",
+      "tool": "list_content_sources",
+      "durationMs": 1.25,
+      "ok": true,
+      "error": null
+    },
+    {
+      "scenario": "search async await",
+      "tool": "search_swift_content",
+      "durationMs": 1.4,
+      "ok": true,
+      "error": null
+    },
+    {
+      "scenario": "get swiftui pattern",
+      "tool": "get_swift_pattern",
+      "durationMs": 1.39,
+      "ok": true,
+      "error": null
+    },
+    {
+      "scenario": "enable invalid source",
+      "tool": "enable_source",
+      "durationMs": 1.34,
+      "ok": true,
+      "error": null
+    },
+    {
+      "scenario": "list sources",
+      "tool": "list_content_sources",
+      "durationMs": 1.58,
+      "ok": true,
+      "error": null
+    },
+    {
+      "scenario": "search async await",
+      "tool": "search_swift_content",
+      "durationMs": 1.6,
+      "ok": true,
+      "error": null
+    }
+  ]
+}

@@ -23,7 +23,9 @@
     "test:coverage": "vitest run --coverage src/__tests__ src/cli/__tests__ src/config/__tests__ src/sources src/tools src/utils",
     "test:integration": "vitest run src/integration/__tests__",
     "test:patreon": "npx tsx scripts/test-patreon-e2e.ts",
-    "bench": "npm run build && node scripts/benchmark-mcp.js"
+    "bench": "npm run build && node scripts/benchmark-mcp.js",
+    "bench:baseline": "npm run build && node scripts/benchmark-mcp.js --runs 5",
+    "test:load": "npm run build && node scripts/load-test-mcp.js --concurrency 10"
   },
   "keywords": [
     "mcp",

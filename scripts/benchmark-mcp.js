@@ -21,6 +21,7 @@ const SCENARIOS = [
   { name: 'enable unknown source (error path)', tool: 'enable_source', args: { source: 'invalid_source_xyz' } },
   { name: 'search swift content', tool: 'search_swift_content', args: { query: 'async await' } },
   { name: 'get swift pattern', tool: 'get_swift_pattern', args: { topic: 'swiftui', minQuality: 70 } },
+  { name: 'search swift content (code only)', tool: 'search_swift_content', args: { query: 'swift concurrency', requireCode: true } },
 ];
 
 function parseArgs() {
