@@ -102,9 +102,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Test infrastructure & quality tools (coverage, fixtures, harness, linter rules)
-- [ ] 05-02-PLAN.md — Network & concurrency testing (HTTP utils, inflight dedup, error paths, infrastructure modules)
-- [ ] 05-03-PLAN.md — Hardening & observability (OAuth security, cache metrics, benchmarks, load tests)
+- [ ] 05-01-PLAN.md — Enforce coverage in CI and extract shared test fixtures/harness with lint quality guardrails
+- [ ] 05-02-PLAN.md — Expand HTTP/dedup and free-source error-path coverage plus infrastructure edge-case tests
+- [ ] 05-03-PLAN.md — Add OAuth state+PKCE hardening, cache observability metrics, and benchmark/load-test baselines
 
 ## Progress
 
