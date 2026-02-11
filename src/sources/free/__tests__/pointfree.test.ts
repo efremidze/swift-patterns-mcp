@@ -95,4 +95,87 @@ describe('PointFreeSource', () => {
     expect(results[0].title).toMatch(/Point-Free/i);
     expect(results[0].topics).toContain('swiftui');
   });
+
+  it('returns [] when repo tree fetch fails', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/repos/pointfreeco/pointfreeco') && !url.includes('/git/trees/')) {
+        return Promise.resolve(createResponse({ default_branch: 'main' }));
+      }
+      return Promise.resolve(createResponse('tree failed', false));
+    });
+
+    const source = new PointFreeSource();
+    await expect(source.fetchPatterns()).resolves.toEqual([]);
+  });
+
+  it('falls back to default branch when repo metadata request fails', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.endsWith('/repos/pointfreeco/pointfreeco')) {
+        return Promise.resolve(createResponse('repo failed', false));
+      }
+      if (url.includes('/git/trees/main?recursive=1')) {
+        return Promise.resolve(createResponse({ tree: [{ path: 'README.md', type: 'blob' }] }));
+      }
+      if (url.includes('/README.md')) {
+        return Promise.resolve(createResponse('# Point-Free fallback branch test'));
+      }
+      return Promise.resolve(createResponse(''));
+    });
+
+    const source = new PointFreeSource();
+    const patterns = await source.fetchPatterns();
+
+    expect(patterns).toHaveLength(1);
+    expect(patterns[0].title).toBe('Point-Free fallback branch test');
+    expect(patterns[0].url).toContain('/blob/main/README.md');
+  });
+
+  it('continues processing when one content file fetch fails', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.endsWith('/repos/pointfreeco/pointfreeco')) {
+        return Promise.resolve(createResponse({ default_branch: 'main' }));
+      }
+      if (url.includes('/git/trees/main?recursive=1')) {
+        return Promise.resolve(createResponse({
+          tree: [
+            { path: 'README.md', type: 'blob' },
+            { path: 'Sources/PointFree/Episodes/002-Fails.md', type: 'blob' },
+          ],
+        }));
+      }
+      if (url.includes('/README.md')) {
+        return Promise.resolve(createResponse('# Point-Free\n\nStable pattern content'));
+      }
+      if (url.includes('/002-Fails.md')) {
+        return Promise.resolve(createResponse('not found', false));
+      }
+      return Promise.resolve(createResponse(''));
+    });
+
+    const source = new PointFreeSource();
+    const patterns = await source.fetchPatterns();
+
+    expect(patterns).toHaveLength(1);
+    expect(patterns[0].title).toBe('Point-Free');
+  });
+
+  it('returns [] when tree has no content paths', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.endsWith('/repos/pointfreeco/pointfreeco')) {
+        return Promise.resolve(createResponse({ default_branch: 'main' }));
+      }
+      if (url.includes('/git/trees/main?recursive=1')) {
+        return Promise.resolve(createResponse({
+          tree: [
+            { path: 'scripts/build.sh', type: 'blob' },
+            { path: '.github/workflows/ci.yml', type: 'blob' },
+          ],
+        }));
+      }
+      return Promise.resolve(createResponse(''));
+    });
+
+    const source = new PointFreeSource();
+    await expect(source.fetchPatterns()).resolves.toEqual([]);
+  });
 });
