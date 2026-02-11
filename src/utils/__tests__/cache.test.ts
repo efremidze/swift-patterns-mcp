@@ -1,10 +1,28 @@
 // src/utils/__tests__/cache.test.ts
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import fsp from 'fs/promises';
+import path from 'path';
 import { FileCache } from '../cache.js';
+import { getCacheDir } from '../paths.js';
 
+let namespaceCounter = 0;
 function uniqueNamespace(): string {
-  return `cache-test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  namespaceCounter += 1;
+  return `cache-test-${Date.now()}-${namespaceCounter}`;
+}
+
+function toCacheFilename(key: string): string {
+  if (key.length > 100) {
+    // 32 chars md5 hex length used by FileCache implementation.
+    return `${'x'.repeat(32)}.json`;
+  }
+  return `${key.replace(/[^a-zA-Z0-9-_]/g, '_')}.json`;
+}
+
+function getCacheNamespace(cache: FileCache): string {
+  const cacheDir = (cache as unknown as { cacheDir: string }).cacheDir;
+  return path.basename(cacheDir);
 }
 
 describe('FileCache', () => {
@@ -242,6 +260,53 @@ describe('FileCache', () => {
       await cache.set(longKey, 'hashed');
       const result = await cache.get<string>(longKey);
       expect(result).toBe('hashed');
+    });
+
+    it('documents sanitization collisions for different raw keys', async () => {
+      const keyA = 'team/a';
+      const keyB = 'team:a';
+
+      await cache.set(keyA, 'first');
+      await cache.set(keyB, 'second');
+
+      const a = await cache.get<string>(keyA);
+      const b = await cache.get<string>(keyB);
+
+      expect(a).toBe('first');
+      expect(b).toBe('second');
+
+      await cache.clear();
+      const namespace = getCacheNamespace(cache);
+      const collisionPath = path.join(getCacheDir(namespace), toCacheFilename('team/a'));
+      await fsp.writeFile(collisionPath, JSON.stringify({ data: 'from-file', timestamp: Date.now(), ttl: 3600 }));
+
+      const rehydrated = new FileCache(namespace, 50);
+      const aFromFile = await rehydrated.get<string>(keyA);
+      const bFromFile = await rehydrated.get<string>(keyB);
+
+      expect(aFromFile).toBe('from-file');
+      expect(bFromFile).toBe('from-file');
+      await rehydrated.clear();
+    });
+  });
+
+  describe('corrupt and unreadable cache files', () => {
+    it('returns null for corrupt JSON cache file', async () => {
+      const namespace = getCacheNamespace(cache);
+      const cachePath = path.join(getCacheDir(namespace), toCacheFilename('corrupt-key'));
+
+      await fsp.writeFile(cachePath, '{not-valid-json');
+
+      await expect(cache.get('corrupt-key')).resolves.toBeNull();
+    });
+
+    it('returns null when cache path points to unreadable entry type', async () => {
+      const namespace = getCacheNamespace(cache);
+      const cachePath = path.join(getCacheDir(namespace), toCacheFilename('unreadable-key'));
+
+      await fsp.mkdir(cachePath, { recursive: true });
+
+      await expect(cache.get('unreadable-key')).resolves.toBeNull();
     });
   });
 });
