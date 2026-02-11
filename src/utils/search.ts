@@ -2,11 +2,9 @@
 // Advanced search utilities with fuzzy matching and smart stemming
 
 import MiniSearch from 'minisearch';
-import natural from 'natural';
+import { stemmer } from 'stemmer';
+import { distance as levenshteinDistance } from 'fastest-levenshtein';
 import { normalizeTokens } from './search-terms.js';
-
-// Porter Stemmer for English
-const stemmer = natural.PorterStemmer;
 
 export interface SearchableDocument {
   id: string;
@@ -29,7 +27,7 @@ interface SearchOptions {
 
 // Custom tokenizer with smart hyphen handling and stemming
 function tokenize(text: string): string[] {
-  return normalizeTokens(text, (token) => stemmer.stem(token));
+  return normalizeTokens(text, (token) => stemmer(token));
 }
 
 // Process query with same tokenization for consistent matching
@@ -173,10 +171,10 @@ export function suggestSimilar(
 
   // Calculate Levenshtein distance
   const suggestions = knownTerms
-    .map(term => ({
-      term,
-      distance: natural.LevenshteinDistance(queryLower, term.toLowerCase()),
-    }))
+      .map(term => ({
+        term,
+        distance: levenshteinDistance(queryLower, term.toLowerCase()),
+      }))
     .filter(({ distance }) => distance <= 3 && distance > 0)
     .sort((a, b) => a.distance - b.distance)
     .slice(0, maxSuggestions)
@@ -281,4 +279,3 @@ export class CachedSearchIndex<T extends SearchableDocument> {
     this.indexedPatternsHash = null;
   }
 }
-
