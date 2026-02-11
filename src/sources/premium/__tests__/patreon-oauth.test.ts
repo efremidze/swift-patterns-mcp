@@ -29,6 +29,8 @@ import {
   type PatreonTokens,
 } from '../patreon-oauth.js';
 
+let logSpy: ReturnType<typeof vi.spyOn>;
+
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -71,10 +73,37 @@ async function requestWithRetry(pathname: string): Promise<{ statusCode: number;
   throw lastError;
 }
 
+function getTokenRequestBody(): URLSearchParams {
+  const call = mockFetch.mock.calls[0];
+  const options = call?.[1] as { body?: URLSearchParams } | undefined;
+  return options?.body ?? new URLSearchParams();
+}
+
+async function getLatestAuthState(): Promise<string> {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const lines = logSpy.mock.calls
+      .flatMap((call) => call.map((value) => String(value)))
+      .filter((line) => line.includes('If browser doesn\'t open, visit:'));
+
+    const last = lines[lines.length - 1];
+    if (last) {
+      const url = last.split('visit:')[1]?.trim();
+      if (url) {
+        return new URL(url).searchParams.get('state') ?? '';
+      }
+    }
+
+    await sleep(10);
+  }
+
+  throw new Error('Auth URL log line not found');
+}
+
 describe('patreon-oauth', () => {
   beforeEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     mockExecFile.mockImplementation((_: string, __: string[], callback: ((err: Error | null) => void) | undefined) => {
       callback?.(null);
@@ -94,13 +123,15 @@ describe('patreon-oauth', () => {
   });
 
   afterEach(() => {
+    logSpy.mockRestore();
     vi.useRealTimers();
   });
 
   it('exchanges callback code for tokens and stores them', async () => {
     const flowPromise = startOAuthFlow('client-id', 'client-secret');
+    const state = await getLatestAuthState();
 
-    const callbackResponse = await requestWithRetry('/callback?code=test-code');
+    const callbackResponse = await requestWithRetry(`/callback?code=test-code&state=${encodeURIComponent(state)}`);
     const result = await flowPromise;
 
     expect(callbackResponse.statusCode).toBe(200);
@@ -108,12 +139,21 @@ describe('patreon-oauth', () => {
     expect(result.tokens).toBeDefined();
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(mockKeytar.setPassword).toHaveBeenCalledTimes(1);
+    const requestBody = getTokenRequestBody();
+    expect(requestBody.get('code_verifier')).toBeTruthy();
+    expect(requestBody.get('code')).toBe('test-code');
     if (process.platform === 'darwin') {
       expect(mockExecFile).toHaveBeenCalledWith(
         'open',
-        [expect.stringContaining('client_id=client-id')],
+        [
+          expect.stringMatching(/client_id=client-id/),
+        ],
         expect.any(Function)
       );
+      const authUrl = mockExecFile.mock.calls[0]?.[1]?.[0] as string;
+      expect(authUrl).toContain('state=');
+      expect(authUrl).toContain('code_challenge=');
+      expect(authUrl).toContain('code_challenge_method=S256');
     } else {
       expect(mockExecFile).not.toHaveBeenCalled();
     }
@@ -132,12 +172,13 @@ describe('patreon-oauth', () => {
 
   it('keeps flow pending after missing code response and resolves on valid callback', async () => {
     const flowPromise = startOAuthFlow('client-id', 'client-secret');
+    const state = await getLatestAuthState();
 
     const missingCodeResponse = await requestWithRetry('/callback');
     expect(missingCodeResponse.statusCode).toBe(400);
     expect(missingCodeResponse.body).toContain('No authorization code received');
 
-    const successResponse = await requestWithRetry('/callback?code=retry-code');
+    const successResponse = await requestWithRetry(`/callback?code=retry-code&state=${encodeURIComponent(state)}`);
     const result = await flowPromise;
 
     expect(successResponse.statusCode).toBe(200);
@@ -152,12 +193,35 @@ describe('patreon-oauth', () => {
     });
 
     const flowPromise = startOAuthFlow('client-id', 'client-secret');
-    const callbackResponse = await requestWithRetry('/callback?code=bad-code');
+    const state = await getLatestAuthState();
+    const callbackResponse = await requestWithRetry(`/callback?code=bad-code&state=${encodeURIComponent(state)}`);
     const result = await flowPromise;
 
     expect(callbackResponse.statusCode).toBe(500);
     expect(result.success).toBe(false);
     expect(result.error).toContain('Token exchange failed: 401');
+  });
+
+  it('rejects callback when state is missing', async () => {
+    const flowPromise = startOAuthFlow('client-id', 'client-secret');
+
+    const callbackResponse = await requestWithRetry('/callback?code=missing-state');
+    const result = await flowPromise;
+
+    expect(callbackResponse.statusCode).toBe(400);
+    expect(result).toEqual({ success: false, error: 'Missing OAuth state parameter' });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects callback when state does not match', async () => {
+    const flowPromise = startOAuthFlow('client-id', 'client-secret');
+
+    const callbackResponse = await requestWithRetry('/callback?code=bad-state&state=other-state');
+    const result = await flowPromise;
+
+    expect(callbackResponse.statusCode).toBe(400);
+    expect(result).toEqual({ success: false, error: 'OAuth state mismatch' });
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('refreshes access token successfully and persists new tokens', async () => {
