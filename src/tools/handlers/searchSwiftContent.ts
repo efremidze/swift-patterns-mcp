@@ -10,6 +10,7 @@ import { SemanticRecallIndex, type SemanticRecallConfig } from '../../utils/sema
 import type SourceManager from '../../config/sources.js';
 import { getMemvidMemory } from '../../utils/memvid-memory.js';
 import logger from '../../utils/logger.js';
+import { validateRequiredString, validateOptionalBoolean, isValidationError } from '../validation.js';
 
 // Module-level singleton for semantic recall index
 let semanticIndex: SemanticRecallIndex | null = null;
@@ -85,15 +86,14 @@ async function trySemanticRecallInner(options: SemanticRecallOptions): Promise<B
 }
 
 export const searchSwiftContentHandler: ToolHandler = async (args, context) => {
-  const query = args?.query as string;
-  const requireCode = args?.requireCode as boolean;
+  const query = validateRequiredString(args, 'query', `Usage: search_swift_content({ query: "async await" })`);
+  if (isValidationError(query)) return query;
+
+  const requireCodeValidated = validateOptionalBoolean(args, 'requireCode');
+  if (isValidationError(requireCodeValidated)) return requireCodeValidated;
+  const requireCode = requireCodeValidated || false;
+
   const wantsCode = detectCodeIntent(args, query);
-
-  if (!query) {
-    return createTextResponse(`Missing required argument: query
-
-Usage: search_swift_content({ query: "async await" })`);
-  }
 
   const enabledSourceIds = context.sourceManager.getEnabledSources().map(s => s.id);
   const patreonEnabled = enabledSourceIds.includes('patreon') && !!context.patreonSource;

@@ -10,23 +10,24 @@ import { getMemvidMemory } from '../../utils/memvid-memory.js';
 import SourceManager from '../../config/sources.js';
 import logger from '../../utils/logger.js';
 import { CREATORS } from '../../config/creators.js';
+import { validateRequiredString, validateOptionalString, validateOptionalNumber, isValidationError } from '../validation.js';
 
 export const getSwiftPatternHandler: ToolHandler = async (args, context) => {
-  const topic = args?.topic as string;
-
-  if (!topic) {
-    return createTextResponse(`Missing required argument: topic
-
-Usage: get_swift_pattern({ topic: "swiftui" })
+  const topic = validateRequiredString(args, 'topic', `Usage: get_swift_pattern({ topic: "swiftui" })
 
 Example topics:
 - swiftui, concurrency, testing, networking
 - performance, architecture, protocols
 - async-await, combine, coredata`);
-  }
+  if (isValidationError(topic)) return topic;
 
-  const source = (args?.source as string) || "all";
-  const minQuality = (args?.minQuality as number) || 65;
+  const sourceValidated = validateOptionalString(args, 'source');
+  if (isValidationError(sourceValidated)) return sourceValidated;
+  const source = sourceValidated || "all";
+
+  const minQualityValidated = validateOptionalNumber(args, 'minQuality');
+  if (isValidationError(minQualityValidated)) return minQualityValidated;
+  const minQuality = minQualityValidated || 65;
   const wantsCode = detectCodeIntent(args, topic);
 
   if (source !== 'all' && !FREE_SOURCE_NAMES.includes(source as FreeSourceName)) {

@@ -10,27 +10,9 @@ const youtubeCache = new FileCache('youtube', 50);
 const YOUTUBE_CACHE_TTL = 3600; // 1 hour
 const FETCH_TIMEOUT_MS = 10_000; // 10 seconds
 
-// Module-level error tracking for surfacing YouTube failures to handlers
-interface YouTubeStatus {
-  lastError: string | null;
-  lastErrorTime: number | null;
-}
-
-const youtubeStatus: YouTubeStatus = { lastError: null, lastErrorTime: null };
-
-function recordError(message: string): void {
-  youtubeStatus.lastError = message;
-  youtubeStatus.lastErrorTime = Date.now();
-}
-
-function clearError(): void {
-  youtubeStatus.lastError = null;
-  youtubeStatus.lastErrorTime = null;
-}
-
-/** Check if YouTube API has recently failed. Returns null fields if healthy. */
-export function getYouTubeStatus(): Readonly<YouTubeStatus> {
-  return { ...youtubeStatus };
+export interface YouTubeResult<T> {
+  data: T;
+  error: string | null;
 }
 
 function fetchWithTimeout(url: string): Promise<Response> {
@@ -169,7 +151,6 @@ export async function getChannelVideos(
 ): Promise<Video[]> {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) {
-    recordError('YOUTUBE_API_KEY not set');
     return [];
   }
 
@@ -181,12 +162,10 @@ export async function getChannelVideos(
 
 async function _fetchChannelVideos(apiKey: string, channelId: string, maxResults: number): Promise<Video[]> {
   try {
-    // Search for videos
     const searchUrl = `${API_BASE}/search?key=${apiKey}&channelId=${channelId}&part=snippet&type=video&order=date&maxResults=${maxResults}`;
     const searchRes = await fetchWithTimeout(searchUrl);
 
     if (!searchRes.ok) {
-      recordError(`HTTP ${searchRes.status}`);
       logError('YouTube', `Search failed: ${searchRes.status}`, { channelId });
       return [];
     }
@@ -198,11 +177,8 @@ async function _fetchChannelVideos(apiKey: string, channelId: string, maxResults
       }>;
     };
     // Get full video details (includes tags and complete description), fallback to search snippets.
-    const videos = await hydrateSearchItems(apiKey, searchData.items);
-    clearError();
-    return videos;
+    return await hydrateSearchItems(apiKey, searchData.items);
   } catch (error) {
-    recordError(toErrorMessage(error));
     logError('YouTube', error, { channelId });
     return [];
   }
@@ -215,7 +191,6 @@ export async function searchVideos(
 ): Promise<Video[]> {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) {
-    recordError('YOUTUBE_API_KEY not set');
     return [];
   }
 
@@ -234,7 +209,6 @@ async function _fetchSearchVideos(apiKey: string, query: string, channelId: stri
 
     const res = await fetchWithTimeout(url);
     if (!res.ok) {
-      recordError(`HTTP ${res.status}`);
       return [];
     }
 
@@ -245,11 +219,9 @@ async function _fetchSearchVideos(apiKey: string, query: string, channelId: stri
       }>;
     };
     // Fetch full details; fallback to search snippets when videos API misses/fails.
-    const videos = await hydrateSearchItems(apiKey, searchData.items);
-    clearError();
-    return videos;
+    return await hydrateSearchItems(apiKey, searchData.items);
   } catch (error) {
-    recordError(toErrorMessage(error));
+    logError('YouTube', error, { query, channelId });
     return [];
   }
 }

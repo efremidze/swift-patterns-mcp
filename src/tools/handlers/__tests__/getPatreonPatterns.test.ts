@@ -4,12 +4,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getPatreonPatternsHandler } from '../getPatreonPatterns.js';
 import type { ToolContext, PatreonPattern, PatreonSourceInstance } from '../../types.js';
 
-// Mock getYouTubeStatus
-const mockGetYouTubeStatus = vi.fn().mockReturnValue({ lastError: null, lastErrorTime: null });
-vi.mock('../../../sources/premium/youtube.js', () => ({
-  getYouTubeStatus: (...args: unknown[]) => mockGetYouTubeStatus(...args),
-}));
-
 // ─── Test fixtures ───
 
 function makePattern(overrides: Partial<PatreonPattern> = {}): PatreonPattern {
@@ -88,7 +82,6 @@ describe('getPatreonPatternsHandler', () => {
   beforeEach(() => {
     // Save original env vars
     REQUIRED_VARS.forEach(v => { savedEnv[v] = process.env[v]; });
-    mockGetYouTubeStatus.mockReturnValue({ lastError: null, lastErrorTime: null });
   });
 
   afterEach(() => {
@@ -287,48 +280,11 @@ describe('getPatreonPatternsHandler', () => {
     });
   });
 
-  // ─── YouTube error surfacing ───
+  // ─── YouTube error surfacing removed (unreliable module-level state eliminated) ───
 
   describe('YouTube error surfacing', () => {
-    it('should include warning when YouTube had a recent error', async () => {
+    it('should not include YouTube warnings (feature removed)', async () => {
       setAllEnvVars();
-      mockGetYouTubeStatus.mockReturnValue({
-        lastError: 'HTTP 403',
-        lastErrorTime: Date.now() - 60_000, // 1 minute ago
-      });
-      const { MockClass } = createMockPatreonSource();
-
-      const result = await getPatreonPatternsHandler(
-        { topic: 'test' },
-        createContext(MockClass),
-      );
-      const text = result.content[0].text;
-
-      expect(text).toContain('YouTube API error');
-      expect(text).toContain('HTTP 403');
-      expect(text).toContain('Some results may be missing');
-    });
-
-    it('should not include warning when YouTube error is stale (>5 min)', async () => {
-      setAllEnvVars();
-      mockGetYouTubeStatus.mockReturnValue({
-        lastError: 'HTTP 500',
-        lastErrorTime: Date.now() - 400_000, // ~6.7 minutes ago
-      });
-      const { MockClass } = createMockPatreonSource();
-
-      const result = await getPatreonPatternsHandler(
-        { topic: 'test' },
-        createContext(MockClass),
-      );
-      const text = result.content[0].text;
-
-      expect(text).not.toContain('YouTube API error');
-    });
-
-    it('should not include warning when YouTube has no errors', async () => {
-      setAllEnvVars();
-      mockGetYouTubeStatus.mockReturnValue({ lastError: null, lastErrorTime: null });
       const { MockClass } = createMockPatreonSource();
 
       const result = await getPatreonPatternsHandler(

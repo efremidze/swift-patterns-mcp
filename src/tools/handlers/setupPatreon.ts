@@ -3,6 +3,7 @@
 import type { ToolHandler } from '../types.js';
 import { createTextResponse, formatMarkdownDocument } from '../../utils/response-helpers.js';
 import { PATREON_CORE_ENV_VARS } from '../../utils/patreon-env.js';
+import { validateOptionalString, isValidationError } from '../validation.js';
 
 export const setupPatreonHandler: ToolHandler = async (args, context) => {
   if (!context.patreonSource) {
@@ -21,7 +22,9 @@ export const setupPatreonHandler: ToolHandler = async (args, context) => {
     ));
   }
 
-  const action = (args?.action as string) || 'start';
+  const actionValidated = validateOptionalString(args, 'action');
+  if (isValidationError(actionValidated)) return actionValidated;
+  const action = actionValidated || 'start';
 
   if (action === 'status') {
     const isConfigured = context.sourceManager.isSourceConfigured('patreon');

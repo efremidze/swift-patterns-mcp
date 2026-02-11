@@ -2,8 +2,8 @@
 
 import type { ToolHandler, PatreonPattern } from '../types.js';
 import { createTextResponse, formatMarkdownDocument } from '../../utils/response-helpers.js';
-import { getYouTubeStatus } from '../../sources/premium/youtube.js';
 import { PATREON_SEARCH_ENV_VARS, getMissingEnvVars, formatEnvExportHints } from '../../utils/patreon-env.js';
+import { validateOptionalString, validateOptionalBoolean, validateOptionalNumber, isValidationError } from '../validation.js';
 
 export const getPatreonPatternsHandler: ToolHandler = async (args, context) => {
   // Check for missing environment variables and give specific feedback
@@ -31,8 +31,16 @@ export const getPatreonPatternsHandler: ToolHandler = async (args, context) => {
     return createTextResponse(`Patreon module not available. Check your installation.`);
   }
 
-  const topic = args?.topic as string | undefined;
-  const requireCode = args?.requireCode as boolean | undefined;
+  const topicValidated = validateOptionalString(args, 'topic');
+  if (isValidationError(topicValidated)) return topicValidated;
+  const topic = topicValidated;
+
+  const requireCodeValidated = validateOptionalBoolean(args, 'requireCode');
+  if (isValidationError(requireCodeValidated)) return requireCodeValidated;
+  const requireCode = requireCodeValidated;
+
+  const minQualityValidated = validateOptionalNumber(args, 'minQuality');
+  if (isValidationError(minQualityValidated)) return minQualityValidated;
 
   const patreon = new context.patreonSource();
   let patterns: PatreonPattern[] = topic
@@ -59,13 +67,6 @@ ${p.excerpt}...
 **[Read full post](${p.url})**
 `).join('\n---\n');
 
-  // Surface YouTube API issues if recent
-  const ytStatus = getYouTubeStatus();
-  const ytWarning = ytStatus.lastError && ytStatus.lastErrorTime &&
-    (Date.now() - ytStatus.lastErrorTime < 300_000)
-      ? `\n> **Note:** YouTube API error: ${ytStatus.lastError}. Some results may be missing.\n`
-      : '';
-
   const title = `Patreon Patterns${topic ? `: ${topic}` : ''}`;
   const totalLine = `Found ${patterns.length} posts from your subscriptions:`;
   const footer = patterns.length > 10 ? `*Showing top 10 of ${patterns.length} results*` : '';
@@ -73,7 +74,6 @@ ${p.excerpt}...
   return createTextResponse(formatMarkdownDocument(title, [
     {
       lines: [
-        ytWarning.trim(),
         totalLine,
         '',
         formatted,

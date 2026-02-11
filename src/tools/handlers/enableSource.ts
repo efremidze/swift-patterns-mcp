@@ -2,9 +2,12 @@
 
 import type { ToolHandler } from '../types.js';
 import { createTextResponse, createErrorResponse } from '../../utils/response-helpers.js';
+import { validateRequiredString, isValidationError } from '../validation.js';
 
 export const enableSourceHandler: ToolHandler = async (args, context) => {
-  const sourceId = args?.source as string;
+  const sourceId = validateRequiredString(args, 'source', 'Usage: enable_source({ source: "patreon" })');
+  if (isValidationError(sourceId)) return sourceId;
+
   const source = context.sourceManager.getSource(sourceId);
 
   if (!source) {
