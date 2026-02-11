@@ -1,12 +1,12 @@
-# Swift Patterns MCP — Security & Bug Fix Milestone
+# Swift Patterns MCP — Security, Quality & Architecture Milestone
 
 ## What This Is
 
-An MCP server that provides Swift/iOS development patterns from multiple content sources (RSS feeds, Patreon, YouTube) to AI assistants via the Model Context Protocol. This milestone addresses security vulnerabilities, known bugs, and input validation gaps identified in the codebase audit.
+An MCP server that provides Swift/iOS development patterns from multiple content sources (RSS feeds, Patreon, YouTube) to AI assistants via the Model Context Protocol. This milestone addresses security vulnerabilities, known bugs, architectural debt, and test coverage gaps identified in the codebase audit and 004-REVIEW-REPORT.
 
 ## Core Value
 
-Fix security vulnerabilities and bugs so the server is safe to run and returns correct results.
+Fix security vulnerabilities and bugs, refactor architecture for maintainability, and establish comprehensive test coverage.
 
 ## Requirements
 
@@ -22,18 +22,44 @@ Fix security vulnerabilities and bugs so the server is safe to run and returns c
 - ✓ Intent-aware caching with query normalization — existing
 - ✓ Hybrid memory+disk file cache with TTL — existing
 
-### Active
+### Active (Phase 3: Architecture Refactoring)
 
-- [ ] Shell command injection eliminated in Patreon OAuth and download tools
-- [ ] Sensitive data stripped from error messages before logging
-- [ ] Cookie injection attack surface closed in Patreon download
-- [ ] OAuth token storage warns when keytar unavailable instead of silent failure
-- [ ] Environment variable validation on startup for partially-configured credentials
-- [ ] Memvid relevance score scaling fixed (0-1 → 0-100 correctly)
-- [ ] YouTube metadata parsing handles missing snippet fields without crashing
-- [ ] Code detection improved beyond brittle regex
-- [ ] Tool handler input validation via Zod schemas (minQuality range, required fields)
-- [ ] Tests added for each security fix and bug fix
+- [ ] Entry point (`src/index.ts`) refactored to < 60 lines delegating to cli/router, server, tools/registration (C3)
+- [ ] Patreon source (`src/sources/premium/patreon.ts`) split into < 300 line orchestrator with scoring, dedup, enrichment, query-analysis modules (C4)
+- [ ] YouTube module-level mutable state eliminated — errors returned with results (C5)
+- [ ] Shared validation utility (`src/tools/validation.ts`) used by all 6 handlers (H3)
+
+### Upcoming (Phase 4: Test Coverage)
+
+- [ ] OAuth flow integration tests with mock provider (C1)
+- [ ] Server startup and tool registration tests (C2)
+- [ ] Patreon download tests — file extraction, post matching, error paths (H1)
+- [ ] Setup wizard tests — config writing, path validation (H2)
+- [ ] Fix 3 failing YouTube tests via mocked API fixtures (H4)
+- [ ] Patreon scoring/dedup module tests (H5)
+- [ ] Integration tests enabled in CI — keytar mocked (H6)
+- [ ] Cookie extraction injection security tests (M4)
+- [ ] Tool handler input validation via Zod schemas (original HARD-01)
+
+### Future (Phase 5: Test Infrastructure & Hardening)
+
+- [ ] Code coverage tool (`@vitest/coverage-v8`) with thresholds enforced in CI (M1)
+- [ ] HTTP utilities and inflight dedup tested (M2, M3)
+- [ ] Shared test fixtures in `src/__tests__/fixtures/` (M5)
+- [ ] Error path tests for all free sources (M6)
+- [ ] OAuth security hardened — state parameter, PKCE (M7)
+- [ ] Cache observability metrics — hit/miss rates (M8)
+- [ ] Performance benchmarks and load tests (L2, L3)
+- [ ] Infrastructure module tests, handler harness, linter rules (L1, L4, L5)
+
+### Completed (Phases 1-2)
+
+- [x] Shell command injection eliminated in Patreon OAuth and download tools (Phase 1)
+- [x] Sensitive data stripped from error messages before logging (Phase 1)
+- [x] Cookie injection attack surface closed in Patreon download (Phase 1)
+- [x] Memvid relevance score scaling fixed 0-1 → 0-100 correctly (Phase 2)
+- [x] YouTube metadata parsing handles missing snippet fields without crashing (Phase 2)
+- [x] Code detection improved beyond brittle regex (Phase 2)
 
 ### Out of Scope
 
@@ -67,4 +93,4 @@ Fix security vulnerabilities and bugs so the server is safe to run and returns c
 | Warn (not crash) when keytar unavailable | Graceful degradation is existing pattern | — Pending |
 
 ---
-*Last updated: 2026-01-29 after initialization*
+*Last updated: 2026-02-10 — Restructured requirements per 004-REVIEW-REPORT findings*
