@@ -8,7 +8,7 @@ import { logError } from '../../utils/errors.js';
 import { fetch } from '../../utils/fetch.js';
 import logger from '../../utils/logger.js';
 import { createCache, type Cache } from 'async-cache-dedupe';
-import { buildQueryProfile } from '../../utils/query-analysis.js';
+import { buildQueryProfile, PATREON_DEFAULT_QUERY } from '../../utils/query-analysis.js';
 import { rankPatternsForQuery, selectCreatorsForQuery } from './patreon-scoring.js';
 import {
   dedupePatterns,
@@ -44,7 +44,6 @@ const PATREON_SEARCH_CACHE_TTL_SECONDS = 1800;
 const PATREON_SEARCH_STALE_SECONDS = 1800;
 const PATREON_DEEP_MAX_ENRICHED_POSTS = 5;
 const PATREON_DIRECT_URL_TIMEOUT_MS = 4000;
-const PATREON_DEFAULT_QUERY = 'swiftui';
 const PATREON_YOUTUBE_MAX_CREATORS = 2;
 const PATREON_YOUTUBE_MAX_VARIANTS = 2;
 const PATREON_YOUTUBE_GLOBAL_MAX_RESULTS = 30;
