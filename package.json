@@ -22,6 +22,8 @@
     "test": "vitest run src/__tests__ src/cli/__tests__ src/config/__tests__ src/sources src/tools src/utils",
     "test:coverage": "vitest run --coverage src/__tests__ src/cli/__tests__ src/config/__tests__ src/sources src/tools src/utils",
     "test:integration": "vitest run src/integration/__tests__",
+    "test:cli-smoke": "npm run build && npx tsx scripts/test-query.ts \"swiftui navigation\" --tool get_swift_pattern --min-quality 70",
+    "test:e2e": "npm run build && npx tsx scripts/test-e2e.ts",
     "test:patreon": "npx tsx scripts/test-patreon-e2e.ts",
     "test:load": "npm run build && node scripts/load-test-mcp.js --concurrency 10",
     "bench": "npm run build && node scripts/benchmark-mcp.js",
