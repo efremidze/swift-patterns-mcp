@@ -27,13 +27,13 @@ describe('Tool Registry', () => {
   });
 
   it('should correctly report handler existence', async () => {
-    const { registerHandler, hasHandler } = await import('../registry.js');
+    const { registerHandler, getHandler } = await import('../registry.js');
 
     const mockHandler = async () => ({ content: [{ type: 'text', text: 'test' }] });
     registerHandler('exists_tool', mockHandler);
 
-    expect(hasHandler('exists_tool')).toBe(true);
-    expect(hasHandler('does_not_exist_12345')).toBe(false);
+    expect(getHandler('exists_tool')).toBeDefined();
+    expect(getHandler('does_not_exist_12345')).toBeUndefined();
   });
 
   it('should allow overwriting handlers', async () => {
