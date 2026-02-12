@@ -4,13 +4,11 @@ import type { ToolHandler } from '../types.js';
 import { FREE_SOURCE_NAMES, getSourceNames, searchMultipleSources, type FreeSourceName } from '../../utils/source-registry.js';
 import { formatTopicPatterns, COMMON_FORMAT_OPTIONS, detectCodeIntent } from '../../utils/pattern-formatter.js';
 import { createMarkdownResponse, createTextResponse } from '../../utils/response-helpers.js';
-import { intentCache, type IntentKey, type StorableCachedSearchResult } from '../../utils/intent-cache.js';
+import type { IntentKey } from '../../utils/intent-cache.js';
 import type { BasePattern } from '../../sources/free/rssPatternSource.js';
-import { getMemvidMemory } from '../../utils/memvid-memory.js';
-import SourceManager from '../../config/sources.js';
-import logger from '../../utils/logger.js';
 import { CREATORS } from '../../config/creators.js';
 import { validateRequiredString, validateOptionalString, validateOptionalNumber, isValidationError } from '../validation.js';
+import { cachedSearch } from './cached-search.js';
 import {
   buildQueryProfile,
   compareByOverlapThenScore,
@@ -171,62 +169,19 @@ get_patreon_patterns({ topic: "${topic}" })`);
     sources: getSourceNames(source as FreeSourceName | 'all'),
   };
 
-  // Try to get cached result
-  const cached = await intentCache.get(intentKey);
-
-  let results: BasePattern[];
-  let wasCacheHit = false;
-
-  if (cached) {
-    // Cache hit - use cached patterns
-    results = (cached.patterns as BasePattern[]) || [];
-    wasCacheHit = true;
-  } else {
-    // Cache miss - dual-search + merge:
-    // 1) strict search with raw query
-    // 2) broad search with token-weighted query variants
-    const searchSource = source as FreeSourceName | 'all';
-    const profile = buildQueryProfile(topic);
-    const [strictResults, broadResults] = await Promise.all([
-      searchMultipleSources(topic, searchSource),
-      runBroadSearch(topic, searchSource, profile),
-    ]);
-
-    results = mergeAndRankPatterns(topic, minQuality, strictResults, broadResults);
-
-    // Cache the results (patterns are already metadata, not full articles)
-    if (results.length > 0) {
-      const cacheData: StorableCachedSearchResult = {
-        patternIds: results.map(p => p.id),
-        scores: Object.fromEntries(results.map(p => [p.id, p.relevanceScore])),
-        totalCount: results.length,
-        patterns: results,
-      };
-      await intentCache.set(intentKey, cacheData);
-    }
-  }
-
-  // Memvid persistent memory integration (when not from cache)
-  if (!wasCacheHit) {
-    const sourceManager = new SourceManager();
-    const memvidConfig = sourceManager.getMemvidConfig();
-
-    if (memvidConfig.enabled && memvidConfig.autoStore && results.length > 0) {
-      try {
-        const memvidMemory = getMemvidMemory();
-        
-        // Store patterns asynchronously for future cross-session recall
-        memvidMemory.storePatterns(results, {
-          enableEmbedding: memvidConfig.useEmbeddings,
-          embeddingModel: memvidConfig.embeddingModel,
-        }).catch(err => {
-          logger.warn({ err }, 'Failed to store patterns in memvid');
-        });
-      } catch (error) {
-        logger.warn({ err: error }, 'Memvid memory operation failed');
-      }
-    }
-  }
+  const { results } = await cachedSearch({
+    intentKey,
+    sourceManager: context.sourceManager,
+    fetcher: async () => {
+      const searchSource = source as FreeSourceName | 'all';
+      const profile = buildQueryProfile(topic);
+      const [strictResults, broadResults] = await Promise.all([
+        searchMultipleSources(topic, searchSource),
+        runBroadSearch(topic, searchSource, profile),
+      ]);
+      return mergeAndRankPatterns(topic, minQuality, strictResults, broadResults);
+    },
+  });
 
   if (results.length === 0) {
     return createMarkdownResponse(
