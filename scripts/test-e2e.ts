@@ -66,6 +66,20 @@ function assert(condition: boolean, message: string): void {
   }
 }
 
+function extractCount(text: string, pattern: RegExp): number | null {
+  const match = text.match(pattern);
+  if (!match) return null;
+  const value = Number.parseInt(match[1], 10);
+  return Number.isNaN(value) ? null : value;
+}
+
+function preview(text: string): string {
+  const firstNonEmptyLine = text.split('\n').find(line => line.trim().length > 0) ?? '';
+  return firstNonEmptyLine.length > 120
+    ? `${firstNonEmptyLine.slice(0, 117)}...`
+    : firstNonEmptyLine;
+}
+
 async function main(): Promise<void> {
   const client = new MCPTestClient();
   console.log('Starting MCP server...');
@@ -79,10 +93,13 @@ async function main(): Promise<void> {
       });
 
       assert(hasText(response), 'Expected non-empty response');
-      assert(
-        response.includes('No patterns found') || response.includes('## '),
-        'Expected either results list or no-results message'
-      );
+      assert(!response.includes('No patterns found'), 'Expected at least one pattern result');
+      assert(response.includes('## '), 'Expected markdown pattern sections');
+
+      const count = extractCount(response, /Found\s+(\d+)\s+results?/i);
+      const shown = count ?? (response.match(/^## /gm) || []).length;
+      console.log(`  get_swift_pattern returned ${shown} result(s)`);
+      console.log(`  preview: ${preview(response)}`);
     });
 
     await runTest('search_swift_content happy path', async () => {
@@ -92,10 +109,13 @@ async function main(): Promise<void> {
       });
 
       assert(hasText(response), 'Expected non-empty response');
-      assert(
-        response.includes('No results found') || response.includes('# Search Results'),
-        'Expected search results markdown or no-results message'
-      );
+      assert(!response.includes('No results found'), 'Expected at least one search result');
+      assert(response.includes('# Search Results'), 'Expected search results markdown');
+
+      const count = extractCount(response, /Found\s+(\d+)\s+results?/i);
+      const shown = count ?? (response.match(/^## /gm) || []).length;
+      console.log(`  search_swift_content returned ${shown} result(s)`);
+      console.log(`  preview: ${preview(response)}`);
     });
 
     await runTest('creator source routes to Patreon tool', async () => {
@@ -106,6 +126,7 @@ async function main(): Promise<void> {
 
       assert(response.includes('Patreon creator'), 'Expected Patreon creator guidance');
       assert(response.includes('get_patreon_patterns'), 'Expected get_patreon_patterns guidance');
+      console.log(`  routing preview: ${preview(response)}`);
     });
 
     const hasPatreonEnv = Boolean(
@@ -125,6 +146,7 @@ async function main(): Promise<void> {
 
         assert(hasText(response), 'Expected non-empty response');
         assert(!response.toLowerCase().includes('unknown tool'), 'Patreon tool should be available');
+        console.log(`  patreon preview: ${preview(response)}`);
       },
       {
         skip: !hasPatreonEnv,
@@ -139,6 +161,7 @@ async function main(): Promise<void> {
 
       assert(response.includes('Unknown source'), 'Expected unknown source error');
       assert(response.includes('Available sources'), 'Expected available sources in error message');
+      console.log(`  error preview: ${preview(response)}`);
     });
   } finally {
     await client.stop();
