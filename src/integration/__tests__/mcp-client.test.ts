@@ -74,6 +74,21 @@ describeIntegration('MCP Server Integration', () => {
       expect(result.content[0].text.length).toBeGreaterThan(0);
     }, 120000);
 
+    it('should provide routing guidance to Patreon tool when creator source is used', async () => {
+      const response = await client.callTool('get_swift_pattern', {
+        topic: 'how to build a Dynamic Island animation',
+        source: 'kavsoft',
+      });
+
+      expect(response.error).toBeUndefined();
+
+      const result = response.result as { content: Array<{ type: string; text: string }> };
+      const text = result.content[0].text;
+      expect(text).toContain('Patreon creator');
+      expect(text).toContain('get_patreon_patterns');
+      expect(text).toContain('how to build a Dynamic Island animation');
+    });
+
     // enable_source unknown source test removed — covered by unit test in handlers.test.ts
   });
 
