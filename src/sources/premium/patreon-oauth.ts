@@ -5,6 +5,7 @@ import { execFile } from 'child_process';
 import { URL } from 'url';
 import { join } from 'path';
 import { homedir } from 'os';
+import { createHash, randomBytes } from 'crypto';
 import fs from 'fs/promises';
 import { fetch } from '../../utils/fetch.js';
 
@@ -47,6 +48,26 @@ export interface OAuthResult {
   success: boolean;
   tokens?: PatreonTokens;
   error?: string;
+}
+
+function toBase64Url(input: Buffer): string {
+  return input
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function createOAuthState(): string {
+  return toBase64Url(randomBytes(24));
+}
+
+function createCodeVerifier(): string {
+  return toBase64Url(randomBytes(48));
+}
+
+function createCodeChallenge(verifier: string): string {
+  return createHash('sha256').update(verifier).digest('base64url');
 }
 
 export async function saveTokens(tokens: PatreonTokens): Promise<void> {
@@ -132,14 +153,39 @@ export async function startOAuthFlow(
 ): Promise<OAuthResult> {
   return new Promise((resolve) => {
     const redirectUri = `http://localhost:${CALLBACK_PORT}/callback`;
+    const state = createOAuthState();
+    const codeVerifier = createCodeVerifier();
+    const codeChallenge = createCodeChallenge(codeVerifier);
 
     const authUrl = new URL(PATREON_AUTH_URL);
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('scope', PATREON_SCOPES);
+    authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('code_challenge', codeChallenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
 
     let serverClosed = false;
+    let timeoutHandle: NodeJS.Timeout | null = null;
+
+    const finalize = (result: OAuthResult): void => {
+      if (serverClosed) {
+        return;
+      }
+
+      serverClosed = true;
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+      }
+
+      if (server.listening) {
+        server.close(() => resolve(result));
+      } else {
+        resolve(result);
+      }
+    };
 
     const server = http.createServer(async (req, res) => {
       if (!req.url?.startsWith('/callback')) {
@@ -151,21 +197,32 @@ export async function startOAuthFlow(
       const url = new URL(req.url, `http://localhost:${CALLBACK_PORT}`);
       const code = url.searchParams.get('code');
       const error = url.searchParams.get('error');
+      const callbackState = url.searchParams.get('state');
 
       if (error) {
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end('<h1>Authorization Denied</h1><p>You can close this window.</p>');
-        if (!serverClosed) {
-          serverClosed = true;
-          server.close();
-          resolve({ success: false, error });
-        }
+        finalize({ success: false, error });
         return;
       }
 
       if (!code) {
         res.writeHead(400, { 'Content-Type': 'text/html' });
         res.end('<h1>Error</h1><p>No authorization code received.</p>');
+        return;
+      }
+
+      if (!callbackState) {
+        res.writeHead(400, { 'Content-Type': 'text/html' });
+        res.end('<h1>Error</h1><p>Missing OAuth state.</p>');
+        finalize({ success: false, error: 'Missing OAuth state parameter' });
+        return;
+      }
+
+      if (callbackState !== state) {
+        res.writeHead(400, { 'Content-Type': 'text/html' });
+        res.end('<h1>Error</h1><p>Invalid OAuth state.</p>');
+        finalize({ success: false, error: 'OAuth state mismatch' });
         return;
       }
 
@@ -180,6 +237,7 @@ export async function startOAuthFlow(
             client_id: clientId,
             client_secret: clientSecret,
             redirect_uri: redirectUri,
+            code_verifier: codeVerifier,
           }),
         });
 
@@ -213,20 +271,16 @@ export async function startOAuthFlow(
           </html>
         `);
 
-        if (!serverClosed) {
-          serverClosed = true;
-          server.close();
-          resolve({ success: true, tokens });
-        }
+        finalize({ success: true, tokens });
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'text/html' });
         res.end('<h1>Error</h1><p>Failed to complete authorization.</p>');
-        if (!serverClosed) {
-          serverClosed = true;
-          server.close();
-          resolve({ success: false, error: String(err) });
-        }
+        finalize({ success: false, error: String(err) });
       }
+    });
+
+    server.on('error', (err) => {
+      finalize({ success: false, error: `OAuth callback server failed: ${err.message}` });
     });
 
     server.listen(CALLBACK_PORT, '127.0.0.1', () => {
@@ -247,12 +301,8 @@ export async function startOAuthFlow(
     });
 
     // Timeout after 60 seconds
-    setTimeout(() => {
-      if (!serverClosed) {
-        serverClosed = true;
-        server.close();
-        resolve({ success: false, error: 'Authorization timed out after 60 seconds' });
-      }
+    timeoutHandle = setTimeout(() => {
+      finalize({ success: false, error: 'Authorization timed out after 60 seconds' });
     }, 60000);
   });
 }

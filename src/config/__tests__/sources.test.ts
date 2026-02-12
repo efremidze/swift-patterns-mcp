@@ -149,26 +149,6 @@ describe('SourceManager', () => {
     });
   });
 
-  describe('getSourcesByType', () => {
-    it('should filter by free type', () => {
-      const freeSources = manager.getSourcesByType('free');
-
-      expect(freeSources.length).toBeGreaterThan(0);
-      for (const source of freeSources) {
-        expect(source.type).toBe('free');
-      }
-    });
-
-    it('should filter by premium type', () => {
-      const premiumSources = manager.getSourcesByType('premium');
-
-      expect(premiumSources.length).toBeGreaterThan(0);
-      for (const source of premiumSources) {
-        expect(source.type).toBe('premium');
-      }
-    });
-  });
-
   describe('enableSource', () => {
     it('should enable a free source', () => {
       const result = manager.enableSource('sundell');

@@ -1,7 +1,5 @@
 /**
- * Shared fetch implementation based on undici.
+ * Shared fetch implementation using Node.js global fetch.
  */
 
-import { fetch as undiciFetch } from 'undici';
-
-export const fetch = undiciFetch;
+export const fetch = globalThis.fetch.bind(globalThis);

@@ -6,7 +6,6 @@ import { z } from 'zod';
 import { getConfigPath } from '../utils/paths.js';
 
 export type SourceType = 'free' | 'premium';
-export type SourceStatus = 'enabled' | 'disabled' | 'not-configured';
 
 export interface ContentSource {
   id: string;
@@ -15,8 +14,6 @@ export interface ContentSource {
   type: SourceType;
   enabled: boolean;
   requiresAuth: boolean;
-  status: SourceStatus;
-  setupFunction?: string; // Function name to call for setup
   configKeys?: string[]; // Required env vars
 }
 
@@ -32,9 +29,8 @@ export const AVAILABLE_SOURCES: ContentSource[] = [
     type: 'free',
     enabled: true,
     requiresAuth: false,
-    status: 'enabled',
   },
-  
+
   {
     id: 'vanderlee',
     name: 'Antoine van der Lee',
@@ -42,7 +38,6 @@ export const AVAILABLE_SOURCES: ContentSource[] = [
     type: 'free',
     enabled: true,
     requiresAuth: false,
-    status: 'enabled',
   },
 
   {
@@ -52,9 +47,8 @@ export const AVAILABLE_SOURCES: ContentSource[] = [
     type: 'free',
     enabled: true,
     requiresAuth: false,
-    status: 'enabled',
   },
-  
+
   {
     id: 'pointfree',
     name: 'Point-Free',
@@ -62,13 +56,12 @@ export const AVAILABLE_SOURCES: ContentSource[] = [
     type: 'free',
     enabled: true,
     requiresAuth: false,
-    status: 'enabled',
   },
-  
+
   // ============================================================================
   // PREMIUM SOURCES - Optional, require authentication
   // ============================================================================
-  
+
   {
     id: 'patreon',
     name: 'Patreon',
@@ -76,8 +69,6 @@ export const AVAILABLE_SOURCES: ContentSource[] = [
     type: 'premium',
     enabled: false,
     requiresAuth: true,
-    status: 'not-configured',
-    setupFunction: 'setupPatreon',
     configKeys: ['YOUTUBE_API_KEY', 'PATREON_CLIENT_ID', 'PATREON_CLIENT_SECRET'],
   },
 ];
@@ -86,7 +77,6 @@ export interface SourceConfig {
   sources: Record<string, {
     enabled: boolean;
     configured?: boolean;
-    lastSync?: string;
   }>;
   prefetchSources?: boolean;
   semanticRecall?: {
@@ -106,7 +96,6 @@ const sourceConfigSchema = z.object({
   sources: z.record(z.string(), z.object({
     enabled: z.boolean(),
     configured: z.boolean().optional(),
-    lastSync: z.string().optional(),
   })),
   prefetchSources: z.boolean().optional(),
   semanticRecall: z.object({
@@ -207,7 +196,7 @@ export class SourceManager {
     // Check if requires configuration
     if (source.requiresAuth && !this.isSourceConfigured(id)) {
       throw new Error(
-        `Source "${source.name}" requires configuration. Run: swift-patterns-mcp setup --${id}`
+        `Source "${source.name}" requires configuration. Run: swift-patterns-mcp ${id} setup`
       );
     }
     
@@ -275,13 +264,6 @@ export class SourceManager {
   }
   
   /**
-   * Get sources by type
-   */
-  getSourcesByType(type: SourceType): ContentSource[] {
-    return AVAILABLE_SOURCES.filter(s => s.type === type);
-  }
-
-  /**
    * Check if prefetching is enabled
    */
   isPrefetchEnabled(): boolean {
@@ -304,25 +286,12 @@ export class SourceManager {
   }
 
   /**
-   * Check if semantic recall is enabled
-   */
-  isSemanticRecallEnabled(): boolean {
-    return this.config.semanticRecall?.enabled ?? false;
-  }
-
-  /**
    * Get memvid configuration
    */
   getMemvidConfig() {
     return this.config.memvid || DEFAULT_CONFIG.memvid!;
   }
 
-  /**
-   * Check if memvid is enabled
-   */
-  isMemvidEnabled(): boolean {
-    return this.config.memvid?.enabled ?? true;
-  }
 }
 
 export default SourceManager;

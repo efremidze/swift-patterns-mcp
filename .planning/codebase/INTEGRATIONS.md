@@ -1,209 +1,192 @@
 # External Integrations
 
-**Analysis Date:** 2026-02-07
+**Analysis Date:** 2026-02-09
 
 ## APIs & External Services
 
-**Patreon API:**
-- Service: Patreon OAuth 2.0 + Content API
-- What it's used for: Authenticate users and fetch premium content from creators they support
-- SDK/Client: Custom OAuth client in `src/sources/premium/patreon-oauth.ts`
-- Auth: PATREON_CLIENT_ID, PATREON_CLIENT_SECRET environment variables
-- Token Storage: OS keychain via keytar (macOS/Linux/Windows)
-- Scopes: `identity`, `identity.memberships` (required for patron data), `campaigns`, `campaigns.members`
-- OAuth Flow: Initiated by `src/cli/patreon.ts` → `startOAuthFlow()` at line 89
-- Token Endpoint: `https://www.patreon.com/api/oauth2/token`
-- Auth Endpoint: `https://www.patreon.com/oauth2/authorize`
-- Callback Port: 9876 (local http listener during OAuth)
+**Patreon:**
+- Purpose: Access creator content (videos, code) for premium Swift learning patterns
+- SDK/Client: Custom OAuth flow + fetch-based API calls
+- Auth: `PATREON_CLIENT_ID` + `PATREON_CLIENT_SECRET` env vars
+- Implementation: `src/sources/premium/patreon-oauth.ts`, `src/sources/premium/patreon.ts`
+- Endpoints:
+  - OAuth: `https://www.patreon.com/oauth2/authorize` (authZ)
+  - Token: `https://www.patreon.com/api/oauth2/token` (token exchange & refresh)
+  - API: `https://www.patreon.com/api/` (identity, memberships, campaigns)
+- Scopes: `identity`, `identity.memberships`, `campaigns`, `campaigns.members`
+- Token Storage: System keyring (keytar) with fallback to in-memory
+- Token Refresh: Automatic 5-min before expiry, `PATREON_TOKEN_URL`
+- Session: Playwright persistent context stores cookies in `.patreon-profile/`
 
 **YouTube Data API v3:**
-- Service: Google YouTube Data API
-- What it's used for: Fetch video metadata and descriptions from creator channels to supplement Patreon content
-- SDK/Client: Custom HTTP client in `src/sources/premium/youtube.ts`
-- Auth: YOUTUBE_API_KEY environment variable
-- API Base: `https://www.googleapis.com/youtube/v3`
-- Cache TTL: 3600 seconds (1 hour)
-- Fetch Timeout: 10 seconds
-- Data Extracted: Video metadata (title, description, publishedAt, tags), Patreon links, GitHub code links
-- Error Tracking: Module-level status object tracks failures via `getYouTubeStatus()` at line 32
+- Purpose: Search for video content from creator channels
+- SDK/Client: Direct HTTP requests via `undici`
+- Auth: `YOUTUBE_API_KEY` env var (API key)
+- Implementation: `src/sources/premium/youtube.ts`
+- Endpoints:
+  - Search: `https://www.googleapis.com/youtube/v3/search`
+  - Videos: `https://www.googleapis.com/youtube/v3/videos`
+- Query params: `key`, `q`, `channelId`, `part=snippet`, `maxResults`
+- Caching: 1-hour TTL in `cache/youtube/`
+- Error tracking: Module-level `YouTubeStatus` for tracking API failures
+- Timeout: 10 seconds per request
 
-**RSS Feeds (Free Sources):**
-- Swift by Sundell: `https://www.swiftbysundell.com/feed.rss`
-  - Implementation: `src/sources/free/sundell.ts`
-  - Cache TTL: 3600 seconds
-
-- Antoine van der Lee: `https://www.avanderlee.com/feed/`
-  - Implementation: `src/sources/free/vanderlee.ts`
-  - Fetches full article HTML content (not just RSS summary)
-  - HTML extraction via linkedom
-
-- Nil Coalescing: `https://nilcoalescing.com/feed.rss`
-  - Implementation: `src/sources/free/nilcoalescing.ts`
-
-- Point-Free (GitHub-based):
-  - GitHub API: `https://api.github.com/repos/{owner}/{repo}`
-  - Raw content: `https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{file}`
-  - Implementation: `src/sources/free/pointfree.ts`
-  - Fetches Swift source files directly from repository
-
-**GitHub API:**
-- Service: GitHub REST API v3
-- What it's used for: Fetch open-source Swift library code and documentation from Point-Free repository
-- No explicit auth (public repo, rate-limited by IP)
-- Endpoints used in `src/sources/free/pointfree.ts`:
-  - `/repos/{owner}/{repo}` - Repository metadata
-  - `/repos/{owner}/{repo}/git/trees/{branch}?recursive=1` - Repository structure
-  - Raw content at `raw.githubusercontent.com`
+**RSS Feeds:**
+- Purpose: Parse free Swift learning content from curated blogs
+- SDK/Client: rss-parser 3.13.0
+- Sources: Multiple (Sundell, van der Lee, Nil Coalescing, Point Free)
+- Implementation: `src/sources/free/rssPatternSource.ts` (base class)
+- Feed URLs configured in: `src/config/sources.ts`
+- Caching: RSS metadata cached 1 hour, article content cached 24 hours
+- Full article fetching: Optional `fetchFullArticle` via `linkedom` DOM parsing
+- HTML cleaning: `string-strip-html` for content extraction
 
 ## Data Storage
 
 **Databases:**
-- None (in-memory and file-based storage only)
+- None (no traditional database)
 
 **File Storage:**
 - Local filesystem only
-- Cache directory: `~/.swift-patterns-mcp/cache/`
-  - RSS cache: `cache/rss/`
-  - Article content cache: `cache/articles/`
-  - Semantic embeddings: `cache/semantic-embeddings/`
-  - YouTube metadata: `cache/youtube/`
-  - Search index: `cache/search-index/`
+- Cache directory: `~/.swift-patterns-mcp/`
+  - Structure: `.planning/cache/{rss,articles,youtube,semantic-embeddings}/`
+  - Files: JSON format with TTL expiration metadata
+- Implementation: `src/utils/cache.ts` (`FileCache` class)
+  - Memory + file hybrid cache (LRU + persistent)
+  - Automatic cleanup of expired entries (1-hour intervals)
+
+**Persistent Memory:**
+- Memvid database: `~/.swift-patterns-mcp/swift-patterns-memory.mv2`
+- Purpose: Cross-session semantic memory of searched patterns
+- Features:
+  - Full-text search + semantic similarity search
+  - Automatic deduplication
+  - Embedding vectors cached separately
+- Implementation: `src/utils/memvid-memory.ts` (`MemvidMemoryManager`)
+- Auto-store: Enabled by default when searching (`autoStore` config)
 
 **Caching:**
-- FileCache with LRU memory layer in `src/utils/cache.ts`
-- Dual-layer: Memory cache (QuickLRU max 100 entries) + File cache (persistent, TTL-based)
-- Cache expiration: Configurable per operation (default 24 hours)
-- Automatic cleanup: Hourly expired entry cleanup (fire-and-forget)
-
-**Memvid Memory Database:**
-- Service: Memvid (local semantic memory store)
-- Implementation: `src/utils/memvid-memory.ts`
-- Storage: `~/.swift-patterns-mcp/swift-patterns-memory.mv2`
-- Features: Full-text + semantic search, persistent across sessions
-- Modes: Lexical ('lex'), semantic ('sem'), or automatic ('auto')
-- Auto-store: Configurable to store search results for future recall
+- Memory: QuickLRU (configurable max entries, default 100)
+- File: `.swift-patterns-mcp/cache/{namespace}/{hash}.json`
+- Cache deduplication: Prevents duplicate in-flight fetches (`async-cache-dedupe`)
+- TTL: Configurable per entry (default 24 hours)
 
 ## Authentication & Identity
 
 **Auth Provider:**
-- Custom OAuth 2.0 implementation (no auth SDK used)
-- Implementation: `src/sources/premium/patreon-oauth.ts`
-- Flow: Authorization Code Grant with PKCE
-- Token Management:
-  - Refresh logic: 5-minute pre-expiry refresh window
-  - Storage: OS keychain via keytar (encrypted)
-  - Fallback: Graceful degradation if keytar unavailable (no persistence)
+- Patreon OAuth 2.0 (primary)
+- Custom implementation: `src/sources/premium/patreon-oauth.ts`
 
-**Credential Management:**
-- keytar wrapper (`src/sources/premium/patreon-oauth.ts` lines 18-25) for cross-platform support
-- Service name: `swift-patterns-mcp`
-- Account name: `patreon-tokens`
-- Graceful handling of missing system libraries (keytar optional on Linux systems without libsecret)
+**Auth Flow:**
+- Type: Authorization Code flow
+- Redirect URI: `http://localhost:9876/callback` (local HTTP server)
+- Browser launch: Platform-specific (macOS only: `execFile('open', ...)`)
+- Token exchange: POST to `/api/oauth2/token`
+- Token refresh: Automatic using refresh token
+- Session timeout: 60 seconds for OAuth flow completion
+- Token validation: Checked before API calls, auto-refreshed if expired
 
-**Session Management:**
-- Patreon tokens expire and auto-refresh via `refreshAccessToken()` at line 91
-- No explicit session management (stateless requests with bearer tokens)
+**Credential Storage:**
+- Keytar (system keyring):
+  - Service: `swift-patterns-mcp`
+  - Account: `patreon-tokens`
+  - Encrypted storage per platform (Keychain/Credential Manager/libsecret)
+- Fallback: In-memory only (tokens lost on restart)
+- Legacy: `~/.swift-patterns-mcp/tokens.json` (cleaned up by migration)
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- None (no external error tracking service)
-- Local error handling with structured logging
+- None (no external service)
 
 **Logs:**
-- Pino JSON structured logging at `src/utils/logger.ts`
-- Configurable log level: LOG_LEVEL env var (default: info)
-- Service name: `swift-patterns-mcp`
-- Error logging: `logError()` helpers in `src/utils/errors.ts` with context
-- Request/response logging in HTTP operations
+- Framework: Pino 9.5.0 (structured logging)
+- Implementation: `src/utils/logger.js`
+- Log levels: debug, info, warn, error
+- Output: stdout/stderr
+- Format: JSON (Pino default)
+- No external log aggregation
 
-**Status Monitoring:**
-- YouTube API health: `getYouTubeStatus()` in `src/sources/premium/youtube.ts` (tracks last error + timestamp)
-- Patreon auth status: `showStatus()` in `src/cli/patreon.ts` (connection state, creator count, content stats)
+**YouTube API Error Tracking:**
+- Module-level state tracking: `YouTubeStatus`
+- Captures: Last error message + timestamp
+- Used for: Diagnostics in handler responses
+- Query: `getYouTubeStatus()` in `src/sources/premium/youtube.ts`
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- npm registry (published as package)
-- Entrypoint: `build/index.js` (bin field in package.json)
-- Invoked as: `swift-patterns-mcp` command
+- Not a hosted service (local CLI tool + MCP server)
+- Distribution: npm package (`swift-patterns-mcp`)
+- Deployment: Via npm install locally
 
 **CI Pipeline:**
-- GitHub Actions (`.github/` directory structure)
-- Tests run via: `npm test` (Vitest runner)
-- Linting: `npm run lint` (ESLint + TypeScript strict check)
-
-**CLI Commands:**
-- `swift-patterns-mcp` - Start MCP server on stdio
-- `swift-patterns-mcp sources` - List/manage content sources
-- `swift-patterns-mcp patreon` - Setup/manage Patreon integration
+- None detected (no GitHub Actions, no CI config)
+- Manual: `npm run lint`, `npm run test`, `npm run build`
 
 ## Environment Configuration
 
-**Required env vars (for premium features):**
-- `PATREON_CLIENT_ID` - OAuth client ID from Patreon Portal
-- `PATREON_CLIENT_SECRET` - OAuth client secret from Patreon Portal
-- `YOUTUBE_API_KEY` - API key from Google Cloud Console
+**Required env vars (optional features):**
+- `PATREON_CLIENT_ID` - Get from: https://www.patreon.com/portal/registration/register-clients
+- `PATREON_CLIENT_SECRET` - Get from: https://www.patreon.com/portal/registration/register-clients
+- `YOUTUBE_API_KEY` - Get from: https://console.cloud.google.com/apis/credentials
 
-**Optional env vars:**
-- `LOG_LEVEL` - Pino logging level (default: info)
+**Config env vars (optional, via SourceManager):**
+- `SWIFT_PATTERNS_SKIP_WIZARD` - Skip interactive setup (set to '1')
+- `MEMVID_ENABLED` - Enable semantic memory (SourceManager config)
+- `SEMANTIC_RECALL_ENABLED` - Enable embedding-based search (SourceManager config)
 
 **Secrets location:**
-- Patreon tokens: OS keychain (encrypted, not in files)
-- YouTube API key: `.env` file (developers responsible for security)
+- `.env` file (not committed, `gitignore`d)
+- `.env.example` - Template for required vars
+- Patreon tokens: System keyring (encrypted)
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- Patreon OAuth callback: Local http listener on port 9876 during setup (line 13 of patreon-oauth.ts)
-- No persistent webhook endpoints
+- OAuth callback: `http://localhost:9876/callback` (local HTTP server)
+  - Method: GET with `code` or `error` query param
+  - Response: HTML success/error page, auto-closes browser
+  - Duration: Server closes after callback received or 60-second timeout
 
 **Outgoing:**
 - None
 
-## Rate Limiting & Quotas
+## Browser Automation
 
-**RSS Feeds:**
-- No documented rate limits (caching mitigates impact)
-- Cache TTL: 1 hour per feed
+**Playwright 1.58.0:**
+- Purpose: Extract Patreon session cookies
+- Implementation: `src/tools/extract-cookie.ts`
+- Browser: Chromium
+- Profile directory: `.patreon-profile/` (persistent context)
+- Usage:
+  - Launches browser for Patreon login
+  - Waits for `session_id` cookie
+  - Saves to `.patreon-session` file
+  - macOS platform only (CLI tool limitation)
 
-**GitHub API:**
-- Public API: 60 requests/hour per IP (no auth)
-- Cached to minimize requests
+## Search & Content Analysis
 
-**YouTube API:**
-- Quota: Depends on API key quota allocation
-- Cache TTL: 1 hour per video
-- Timeout: 10 seconds per request with fallback to cached data
+**Full-Text Search:**
+- Framework: minisearch 7.2.0
+- Implementation: `src/utils/search.ts` (`CachedSearchIndex`)
+- Indexes: title, content, topics
+- Cache: In-memory with invalidation on new fetches
 
-**Patreon API:**
-- Token-based auth (subscriber-specific quotas)
-- Auto-refresh logic handles expiration
+**Semantic Search:**
+- Framework: @xenova/transformers 2.17.2
+- Model: Xenova/all-MiniLM-L6-v2 (ONNX format)
+- Similarity: ml-distance cosine similarity
+- Implementation: `src/utils/semantic-recall.ts`
+- Caching: Embeddings cached 7 days per pattern
+- Fallback: Graceful degradation if embeddings fail
 
-## Data Flow
-
-**Free Source Fetch:**
-1. RSS feed URL → rss-parser → HTML extraction (if needed, via linkedom)
-2. Content analysis → minisearch indexing + relevance scoring
-3. Results cached in FileCache
-4. Optionally stored in Memvid (if autoStore enabled)
-
-**Premium Source Fetch (Patreon):**
-1. Load Patreon tokens from OS keychain
-2. Validate/refresh tokens via Patreon API
-3. Fetch patron memberships via `/identity` endpoint
-4. Fetch creator content via Patreon API
-5. Supplement with YouTube metadata via Google API
-6. Combine and cache in FileCache + Memvid
-
-**Search Flow:**
-1. Query → Lexical search via minisearch
-2. If score < threshold AND semantic recall enabled:
-   - Generate embedding via @xenova/transformers
-   - Vector similarity search in Memvid
-   - Merge results
-3. Return ranked results with relevance scores
+**NLP Analysis:**
+- Framework: natural 8.1.0
+- Used for: Tokenization, stemming, topic detection
+- Implementation: `src/utils/swift-analysis.ts`
+- Topic keywords: Hardcoded in `src/config/creators.ts`
 
 ---
 
-*Integration audit: 2026-02-07*
+*Integration audit: 2026-02-09*

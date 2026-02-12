@@ -5,9 +5,6 @@ import { stripHtml as stripHtmlLib } from 'string-strip-html';
 import { RssPatternSource, type BasePattern } from './rssPatternSource.js';
 import { createSourceConfig } from '../../config/swift-keywords.js';
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface VanderLeePattern extends BasePattern {}
-
 const { topicKeywords, qualitySignals } = createSourceConfig(
   {
     'debugging': ['debug', 'breakpoint', 'lldb', 'xcode'],
@@ -59,7 +56,7 @@ function stripHtml(html: string): string {
   }).result;
 }
 
-export class VanderLeeSource extends RssPatternSource<VanderLeePattern> {
+export class VanderLeeSource extends RssPatternSource<BasePattern> {
   constructor() {
     super({
       feedUrl: 'https://www.avanderlee.com/feed/',

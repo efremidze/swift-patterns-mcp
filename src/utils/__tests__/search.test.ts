@@ -1,7 +1,7 @@
 // src/utils/search.test.ts
 
 import { describe, it, expect } from 'vitest';
-import { SearchIndex, fuzzySearch, combineScores, suggestSimilar, SearchableDocument } from '../search.js';
+import { SearchIndex, SearchableDocument } from '../search.js';
 
 // Test documents
 const testDocs: SearchableDocument[] = [
@@ -133,88 +133,6 @@ describe('SearchIndex', () => {
       expect(swiftResults.length).toBe(0);
       expect(kotlinResults.length).toBe(1);
     });
-  });
-});
-
-describe('fuzzySearch helper', () => {
-  it('should provide standalone fuzzy search', () => {
-    const results = fuzzySearch(testDocs, 'async await');
-
-    expect(results.length).toBeGreaterThan(0);
-    expect(results[0].item.id).toBe('doc1');
-  });
-
-  it('should return results with scores', () => {
-    const results = fuzzySearch(testDocs, 'SwiftUI');
-
-    expect(results.length).toBeGreaterThan(0);
-    expect(results[0]).toHaveProperty('score');
-    expect(results[0]).toHaveProperty('matches');
-  });
-});
-
-describe('combineScores', () => {
-  it('should combine search and static relevance scores', () => {
-    const combined = combineScores(10, 80);
-
-    expect(combined).toBeGreaterThan(0);
-    expect(combined).toBeLessThanOrEqual(100);
-  });
-
-  it('should respect search weight parameter', () => {
-    const highSearchWeight = combineScores(10, 50, 0.9);
-    const lowSearchWeight = combineScores(10, 50, 0.1);
-
-    // With high search weight, search score matters more
-    // With low search weight, static relevance matters more
-    expect(highSearchWeight).not.toBe(lowSearchWeight);
-  });
-
-  it('should cap scores at 100', () => {
-    const combined = combineScores(100, 100, 0.5);
-
-    expect(combined).toBeLessThanOrEqual(100);
-  });
-
-  it('should handle zero scores', () => {
-    const combined = combineScores(0, 0);
-
-    expect(combined).toBe(0);
-  });
-});
-
-describe('suggestSimilar', () => {
-  const knownTerms = ['swiftui', 'combine', 'async', 'await', 'protocol', 'struct'];
-
-  it('should suggest similar terms for typos', () => {
-    const suggestions = suggestSimilar('swiftiu', knownTerms);
-
-    expect(suggestions).toContain('swiftui');
-  });
-
-  it('should not suggest exact matches', () => {
-    const suggestions = suggestSimilar('swiftui', knownTerms);
-
-    expect(suggestions).not.toContain('swiftui');
-  });
-
-  it('should respect max suggestions limit', () => {
-    const suggestions = suggestSimilar('s', knownTerms, 2);
-
-    expect(suggestions.length).toBeLessThanOrEqual(2);
-  });
-
-  it('should return empty array for very different terms', () => {
-    const suggestions = suggestSimilar('xyzabc123', knownTerms);
-
-    expect(suggestions.length).toBe(0);
-  });
-
-  it('should sort by similarity (Levenshtein distance)', () => {
-    const suggestions = suggestSimilar('async', ['asyncc', 'asyncxx', 'asyn']);
-
-    // 'asyn' has distance 1, 'asyncc' has distance 1, 'asyncxx' has distance 2
-    expect(suggestions.length).toBeGreaterThan(0);
   });
 });
 

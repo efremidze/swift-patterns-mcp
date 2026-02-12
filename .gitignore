@@ -11,6 +11,7 @@ dist/
 
 # Keep root files
 !src/**/*.js
+!scripts/**/*.js
 
 # IDE
 .vscode/

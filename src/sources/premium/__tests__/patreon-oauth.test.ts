@@ -1,0 +1,282 @@
+import http from 'http';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const mockFetch = vi.hoisted(() => vi.fn());
+const mockExecFile = vi.hoisted(() => vi.fn());
+const mockKeytar = vi.hoisted(() => ({
+  setPassword: vi.fn(),
+  getPassword: vi.fn(),
+  deletePassword: vi.fn(),
+}));
+
+vi.mock('../../../utils/fetch.js', () => ({
+  fetch: mockFetch,
+}));
+
+vi.mock('child_process', () => ({
+  execFile: mockExecFile,
+}));
+
+vi.mock('keytar', () => ({
+  default: mockKeytar,
+}));
+
+import {
+  isTokenExpired,
+  refreshAccessToken,
+  startOAuthFlow,
+  type OAuthResult,
+  type PatreonTokens,
+} from '../patreon-oauth.js';
+
+let logSpy: ReturnType<typeof vi.spyOn>;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function httpRequest(pathname: string): Promise<{ statusCode: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        host: '127.0.0.1',
+        port: 9876,
+        path: pathname,
+        method: 'GET',
+      },
+      (res) => {
+        let body = '';
+        res.on('data', (chunk) => {
+          body += chunk;
+        });
+        res.on('end', () => {
+          resolve({ statusCode: res.statusCode ?? 0, body });
+        });
+      }
+    );
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+async function requestWithRetry(pathname: string): Promise<{ statusCode: number; body: string }> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    try {
+      return await httpRequest(pathname);
+    } catch (error) {
+      lastError = error;
+      await sleep(10);
+    }
+  }
+
+  throw lastError;
+}
+
+function getTokenRequestBody(): URLSearchParams {
+  const call = mockFetch.mock.calls[0];
+  const options = call?.[1] as { body?: URLSearchParams } | undefined;
+  return options?.body ?? new URLSearchParams();
+}
+
+async function getLatestAuthState(): Promise<string> {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const lines = logSpy.mock.calls
+      .flatMap((call) => call.map((value) => String(value)))
+      .filter((line) => line.includes('If browser doesn\'t open, visit:'));
+
+    const last = lines[lines.length - 1];
+    if (last) {
+      const url = last.split('visit:')[1]?.trim();
+      if (url) {
+        return new URL(url).searchParams.get('state') ?? '';
+      }
+    }
+
+    await sleep(10);
+  }
+
+  throw new Error('Auth URL log line not found');
+}
+
+describe('patreon-oauth', () => {
+  beforeEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    mockExecFile.mockImplementation((_: string, __: string[], callback: ((err: Error | null) => void) | undefined) => {
+      callback?.(null);
+      return {} as never;
+    });
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        access_token: 'access-token',
+        refresh_token: 'refresh-token',
+        expires_in: 3600,
+        scope: 'identity',
+      }),
+    });
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('exchanges callback code for tokens and stores them', async () => {
+    const flowPromise = startOAuthFlow('client-id', 'client-secret');
+    const state = await getLatestAuthState();
+
+    const callbackResponse = await requestWithRetry(`/callback?code=test-code&state=${encodeURIComponent(state)}`);
+    const result = await flowPromise;
+
+    expect(callbackResponse.statusCode).toBe(200);
+    expect(result.success).toBe(true);
+    expect(result.tokens).toBeDefined();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockKeytar.setPassword).toHaveBeenCalledTimes(1);
+    const requestBody = getTokenRequestBody();
+    expect(requestBody.get('code_verifier')).toBeTruthy();
+    expect(requestBody.get('code')).toBe('test-code');
+    if (process.platform === 'darwin') {
+      expect(mockExecFile).toHaveBeenCalledWith(
+        'open',
+        [
+          expect.stringMatching(/client_id=client-id/),
+        ],
+        expect.any(Function)
+      );
+      const authUrl = mockExecFile.mock.calls[0]?.[1]?.[0] as string;
+      expect(authUrl).toContain('state=');
+      expect(authUrl).toContain('code_challenge=');
+      expect(authUrl).toContain('code_challenge_method=S256');
+    } else {
+      expect(mockExecFile).not.toHaveBeenCalled();
+    }
+  });
+
+  it('returns an error result when provider sends error query param', async () => {
+    const flowPromise = startOAuthFlow('client-id', 'client-secret');
+
+    const callbackResponse = await requestWithRetry('/callback?error=access_denied');
+    const result = await flowPromise;
+
+    expect(callbackResponse.statusCode).toBe(200);
+    expect(result).toEqual({ success: false, error: 'access_denied' });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('keeps flow pending after missing code response and resolves on valid callback', async () => {
+    const flowPromise = startOAuthFlow('client-id', 'client-secret');
+    const state = await getLatestAuthState();
+
+    const missingCodeResponse = await requestWithRetry('/callback');
+    expect(missingCodeResponse.statusCode).toBe(400);
+    expect(missingCodeResponse.body).toContain('No authorization code received');
+
+    const successResponse = await requestWithRetry(`/callback?code=retry-code&state=${encodeURIComponent(state)}`);
+    const result = await flowPromise;
+
+    expect(successResponse.statusCode).toBe(200);
+    expect(result.success).toBe(true);
+  });
+
+  it('returns failure when token exchange response is not ok', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: async () => ({}),
+    });
+
+    const flowPromise = startOAuthFlow('client-id', 'client-secret');
+    const state = await getLatestAuthState();
+    const callbackResponse = await requestWithRetry(`/callback?code=bad-code&state=${encodeURIComponent(state)}`);
+    const result = await flowPromise;
+
+    expect(callbackResponse.statusCode).toBe(500);
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Token exchange failed: 401');
+  });
+
+  it('rejects callback when state is missing', async () => {
+    const flowPromise = startOAuthFlow('client-id', 'client-secret');
+
+    const callbackResponse = await requestWithRetry('/callback?code=missing-state');
+    const result = await flowPromise;
+
+    expect(callbackResponse.statusCode).toBe(400);
+    expect(result).toEqual({ success: false, error: 'Missing OAuth state parameter' });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects callback when state does not match', async () => {
+    const flowPromise = startOAuthFlow('client-id', 'client-secret');
+
+    const callbackResponse = await requestWithRetry('/callback?code=bad-state&state=other-state');
+    const result = await flowPromise;
+
+    expect(callbackResponse.statusCode).toBe(400);
+    expect(result).toEqual({ success: false, error: 'OAuth state mismatch' });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('refreshes access token successfully and persists new tokens', async () => {
+    const refreshed = await refreshAccessToken('client-id', 'client-secret', 'refresh-token');
+
+    expect(refreshed.access_token).toBe('access-token');
+    expect(refreshed.refresh_token).toBe('refresh-token');
+    expect(refreshed.scope).toBe('identity');
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://www.patreon.com/api/oauth2/token',
+      expect.objectContaining({ method: 'POST' })
+    );
+    expect(mockKeytar.setPassword).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws on refresh failure responses', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    });
+
+    await expect(refreshAccessToken('client-id', 'client-secret', 'refresh-token')).rejects.toThrow(
+      'Token refresh failed: 500'
+    );
+  });
+
+  it('checks token expiry boundary with 5 minute refresh window', () => {
+    const now = Date.now();
+    const safelyValid: PatreonTokens = {
+      access_token: 'a',
+      refresh_token: 'r',
+      expires_at: now + 6 * 60 * 1000,
+      scope: 'identity',
+    };
+    const nearExpiry: PatreonTokens = {
+      access_token: 'a',
+      refresh_token: 'r',
+      expires_at: now + 4 * 60 * 1000 + 59 * 1000,
+      scope: 'identity',
+    };
+
+    expect(isTokenExpired(safelyValid)).toBe(false);
+    expect(isTokenExpired(nearExpiry)).toBe(true);
+  });
+
+  it('times out if no callback arrives in 60 seconds', async () => {
+    vi.useFakeTimers();
+
+    const flowPromise: Promise<OAuthResult> = startOAuthFlow('client-id', 'client-secret');
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    await expect(flowPromise).resolves.toEqual({
+      success: false,
+      error: 'Authorization timed out after 60 seconds',
+    });
+  });
+});

@@ -4,12 +4,14 @@ import type { ToolHandler } from '../types.js';
 import { searchMultipleSources, getSourceNames, fetchAllPatterns, type FreeSourceName } from '../../utils/source-registry.js';
 import { formatSearchPatterns, COMMON_FORMAT_OPTIONS, detectCodeIntent } from '../../utils/pattern-formatter.js';
 import { createMarkdownResponse, createTextResponse } from '../../utils/response-helpers.js';
-import { intentCache, type IntentKey, type StorableCachedSearchResult } from '../../utils/intent-cache.js';
+import type { IntentKey } from '../../utils/intent-cache.js';
 import type { BasePattern } from '../../sources/free/rssPatternSource.js';
 import { SemanticRecallIndex, type SemanticRecallConfig } from '../../utils/semantic-recall.js';
-import SourceManager from '../../config/sources.js';
+import type SourceManager from '../../config/sources.js';
 import { getMemvidMemory } from '../../utils/memvid-memory.js';
 import logger from '../../utils/logger.js';
+import { validateRequiredString, validateOptionalBoolean, isValidationError } from '../validation.js';
+import { cachedSearch } from './cached-search.js';
 
 // Module-level singleton for semantic recall index
 let semanticIndex: SemanticRecallIndex | null = null;
@@ -30,6 +32,7 @@ interface SemanticRecallOptions {
 }
 
 const SEMANTIC_TIMEOUT_MS = 5_000;
+const PATREON_UNIFIED_TIMEOUT_MS = 5_000;
 
 /**
  * Attempt semantic recall with a timeout.
@@ -83,127 +86,118 @@ async function trySemanticRecallInner(options: SemanticRecallOptions): Promise<B
   }
 }
 
-export const searchSwiftContentHandler: ToolHandler = async (args) => {
-  const query = args?.query as string;
-  const requireCode = args?.requireCode as boolean;
+export const searchSwiftContentHandler: ToolHandler = async (args, context) => {
+  const query = validateRequiredString(args, 'query', `Usage: search_swift_content({ query: "async await" })`);
+  if (isValidationError(query)) return query;
+
+  const requireCodeValidated = validateOptionalBoolean(args, 'requireCode');
+  if (isValidationError(requireCodeValidated)) return requireCodeValidated;
+  const requireCode = requireCodeValidated || false;
+
   const wantsCode = detectCodeIntent(args, query);
 
-  if (!query) {
-    return createTextResponse(`Missing required argument: query
-
-Usage: search_swift_content({ query: "async await" })`);
-  }
+  const enabledSourceIds = context.sourceManager.getEnabledSources().map(s => s.id);
+  const patreonEnabled = enabledSourceIds.includes('patreon') && !!context.patreonSource;
+  const sourceManager = context.sourceManager;
 
   // Build intent key for caching
-  // This handler always uses 'all' sources and default minQuality of 0
+  const sourcesForCache = [
+    ...getSourceNames('all'),
+    ...(patreonEnabled ? ['patreon'] : []),
+  ].sort();
   const intentKey: IntentKey = {
     tool: 'search_swift_content',
     query,
     minQuality: 0,
-    sources: getSourceNames('all'),
+    sources: sourcesForCache,
     requireCode: requireCode || false,
   };
 
-  // Try to get cached result
-  const cached = await intentCache.get(intentKey);
+  const { results: finalResults } = await cachedSearch({
+    intentKey,
+    sourceManager,
+    fetcher: async () => {
+      // Lexical search across free sources
+      const results = await searchMultipleSources(query);
+      let filtered: BasePattern[] = requireCode
+        ? results.filter(r => r.hasCode)
+        : results;
 
-  let filtered: BasePattern[];
+      // Patreon unified search
+      if (patreonEnabled && context.patreonSource) {
+        try {
+          const patreon = new context.patreonSource();
+          const patreonResults = await Promise.race([
+            patreon.searchPatterns(query, { mode: 'fast' }),
+            new Promise<[]>(resolve => setTimeout(() => resolve([]), PATREON_UNIFIED_TIMEOUT_MS)),
+          ]);
+          const patreonFiltered = requireCode
+            ? patreonResults.filter(r => r.hasCode)
+            : patreonResults;
 
-  // Track whether this was a cache hit (to avoid re-caching)
-  let wasCacheHit = false;
+          if (patreonFiltered.length > 0) {
+            const existingIds = new Set(filtered.map(p => p.id));
+            const existingUrls = new Set(filtered.map(p => p.url));
+            const dedupedPatreon = patreonFiltered.filter(p =>
+              !existingIds.has(p.id) && !existingUrls.has(p.url)
+            );
+            filtered = [...filtered, ...dedupedPatreon];
+          }
+        } catch (error) {
+          logger.warn({ err: error }, 'Patreon search failed in unified search');
+        }
+      }
 
-  if (cached) {
-    // Cache hit - use cached patterns (includes any semantic results from prior search)
-    filtered = (cached.patterns as BasePattern[]) || [];
-    wasCacheHit = true;
-  } else {
-    // Cache miss - fetch from sources
-    const results = await searchMultipleSources(query);
+      filtered.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
-    // Filter by code if requested
-    filtered = requireCode
-      ? results.filter(r => r.hasCode)
-      : results;
-  }
-
-  // Semantic recall: supplement lexical results when enabled and not cached
-  const sourceManager = new SourceManager();
-  const semanticConfig = sourceManager.getSemanticRecallConfig();
-
-  let finalResults = filtered;
-
-  if (!wasCacheHit && semanticConfig.enabled) {
-    const semanticResults = await trySemanticRecall({
-      query,
-      lexicalResults: filtered,
-      config: semanticConfig,
-      sourceManager,
-      requireCode: requireCode || false,
-    });
-
-    if (semanticResults.length > 0) {
-      finalResults = [...filtered, ...semanticResults]
-        .sort((a, b) => b.relevanceScore - a.relevanceScore);
-    }
-  }
-
-  // Memvid persistent memory: supplement with cross-session recall
-  const memvidConfig = sourceManager.getMemvidConfig();
-  
-  if (!wasCacheHit && memvidConfig.enabled) {
-    try {
-      const memvidMemory = getMemvidMemory();
-      
-      // Search memvid for relevant patterns from past sessions
-      const memvidResults = await memvidMemory.search(query, {
-        k: 5,
-        mode: memvidConfig.useEmbeddings ? 'sem' : 'auto',
-      });
-
-      // Filter out duplicates and add new results
-      // Dedup by both id and url since memvid-derived IDs may differ from originals
-      if (memvidResults.length > 0) {
-        const existingIds = new Set(finalResults.map(p => p.id));
-        const existingUrls = new Set(finalResults.map(p => p.url));
-        const newMemvidResults = memvidResults.filter(p =>
-          !existingIds.has(p.id) &&
-          !existingUrls.has(p.url) &&
-          (!requireCode || p.hasCode)
-        );
-
-        if (newMemvidResults.length > 0) {
-          logger.info({ count: newMemvidResults.length }, 'Added patterns from memvid persistent memory');
-          finalResults = [...finalResults, ...newMemvidResults]
+      // Semantic recall: supplement lexical results when enabled
+      const semanticConfig = sourceManager.getSemanticRecallConfig();
+      if (semanticConfig.enabled) {
+        const semanticResults = await trySemanticRecall({
+          query,
+          lexicalResults: filtered,
+          config: semanticConfig,
+          sourceManager,
+          requireCode: requireCode || false,
+        });
+        if (semanticResults.length > 0) {
+          filtered = [...filtered, ...semanticResults]
             .sort((a, b) => b.relevanceScore - a.relevanceScore);
         }
       }
 
-      // Auto-store current results in memvid for future recall
-      if (memvidConfig.autoStore && finalResults.length > 0) {
-        // Store asynchronously without blocking the response
-        memvidMemory.storePatterns(finalResults, {
-          enableEmbedding: memvidConfig.useEmbeddings,
-          embeddingModel: memvidConfig.embeddingModel,
-        }).catch(err => {
-          logger.warn({ err }, 'Failed to auto-store patterns in memvid');
-        });
-      }
-    } catch (error) {
-      // Memvid errors shouldn't break the search
-      logger.warn({ err: error }, 'Memvid memory operation failed');
-    }
-  }
+      // Memvid recall: supplement with cross-session patterns
+      const memvidConfig = sourceManager.getMemvidConfig();
+      if (memvidConfig.enabled) {
+        try {
+          const memvidMemory = getMemvidMemory();
+          const memvidResults = await memvidMemory.search(query, {
+            k: 5,
+            mode: memvidConfig.useEmbeddings ? 'sem' : 'auto',
+          });
 
-  // Cache final results (after semantic merge) if this was a cache miss
-  if (!wasCacheHit && finalResults.length > 0) {
-    const cacheData: StorableCachedSearchResult = {
-      patternIds: finalResults.map(p => p.id),
-      scores: Object.fromEntries(finalResults.map(p => [p.id, p.relevanceScore])),
-      totalCount: finalResults.length,
-      patterns: finalResults,
-    };
-    await intentCache.set(intentKey, cacheData);
-  }
+          if (memvidResults.length > 0) {
+            const existingIds = new Set(filtered.map(p => p.id));
+            const existingUrls = new Set(filtered.map(p => p.url));
+            const newMemvidResults = memvidResults.filter(p =>
+              !existingIds.has(p.id) &&
+              !existingUrls.has(p.url) &&
+              (!requireCode || p.hasCode)
+            );
+            if (newMemvidResults.length > 0) {
+              logger.info({ count: newMemvidResults.length }, 'Added patterns from memvid persistent memory');
+              filtered = [...filtered, ...newMemvidResults]
+                .sort((a, b) => b.relevanceScore - a.relevanceScore);
+            }
+          }
+        } catch (error) {
+          logger.warn({ err: error }, 'Memvid memory operation failed');
+        }
+      }
+
+      return filtered;
+    },
+  });
 
   if (finalResults.length === 0) {
     return createMarkdownResponse(

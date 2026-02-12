@@ -1,0 +1,201 @@
+{
+  "createdAt": "2026-02-11T06:48:29.846Z",
+  "nodeVersion": "v23.11.0",
+  "platform": "darwin-arm64",
+  "commit": "8c3d9eb",
+  "runsPerScenario": 5,
+  "cold": [
+    {
+      "scenario": {
+        "name": "list sources",
+        "tool": "list_content_sources",
+        "args": {}
+      },
+      "runs": 5,
+      "successes": 5,
+      "failures": 0,
+      "p50_ms": 2.16,
+      "p90_ms": 2.34,
+      "p99_ms": 2.34,
+      "min_ms": 0.97,
+      "max_ms": 2.34,
+      "mean_ms": 1.92,
+      "errors": []
+    },
+    {
+      "scenario": {
+        "name": "enable unknown source (error path)",
+        "tool": "enable_source",
+        "args": {
+          "source": "invalid_source_xyz"
+        }
+      },
+      "runs": 5,
+      "successes": 5,
+      "failures": 0,
+      "p50_ms": 0.99,
+      "p90_ms": 2.12,
+      "p99_ms": 2.12,
+      "min_ms": 0.91,
+      "max_ms": 2.12,
+      "mean_ms": 1.19,
+      "errors": []
+    },
+    {
+      "scenario": {
+        "name": "search swift content",
+        "tool": "search_swift_content",
+        "args": {
+          "query": "async await"
+        }
+      },
+      "runs": 5,
+      "successes": 5,
+      "failures": 0,
+      "p50_ms": 8.27,
+      "p90_ms": 9.65,
+      "p99_ms": 9.65,
+      "min_ms": 6.1,
+      "max_ms": 9.65,
+      "mean_ms": 8.06,
+      "errors": []
+    },
+    {
+      "scenario": {
+        "name": "get swift pattern",
+        "tool": "get_swift_pattern",
+        "args": {
+          "topic": "swiftui",
+          "minQuality": 70
+        }
+      },
+      "runs": 5,
+      "successes": 5,
+      "failures": 0,
+      "p50_ms": 3.63,
+      "p90_ms": 4.08,
+      "p99_ms": 4.08,
+      "min_ms": 3.53,
+      "max_ms": 4.08,
+      "mean_ms": 3.7,
+      "errors": []
+    },
+    {
+      "scenario": {
+        "name": "search swift content (code only)",
+        "tool": "search_swift_content",
+        "args": {
+          "query": "swift concurrency",
+          "requireCode": true
+        }
+      },
+      "runs": 5,
+      "successes": 5,
+      "failures": 0,
+      "p50_ms": 8.76,
+      "p90_ms": 9.61,
+      "p99_ms": 9.61,
+      "min_ms": 8.5,
+      "max_ms": 9.61,
+      "mean_ms": 8.94,
+      "errors": []
+    }
+  ],
+  "warm": [
+    {
+      "scenario": {
+        "name": "list sources",
+        "tool": "list_content_sources",
+        "args": {}
+      },
+      "runs": 5,
+      "successes": 5,
+      "failures": 0,
+      "p50_ms": 0.91,
+      "p90_ms": 1.23,
+      "p99_ms": 1.23,
+      "min_ms": 0.3,
+      "max_ms": 1.23,
+      "mean_ms": 0.81,
+      "errors": []
+    },
+    {
+      "scenario": {
+        "name": "enable unknown source (error path)",
+        "tool": "enable_source",
+        "args": {
+          "source": "invalid_source_xyz"
+        }
+      },
+      "runs": 5,
+      "successes": 5,
+      "failures": 0,
+      "p50_ms": 0.31,
+      "p90_ms": 2.29,
+      "p99_ms": 2.29,
+      "min_ms": 0.13,
+      "max_ms": 2.29,
+      "mean_ms": 0.69,
+      "errors": []
+    },
+    {
+      "scenario": {
+        "name": "search swift content",
+        "tool": "search_swift_content",
+        "args": {
+          "query": "async await"
+        }
+      },
+      "runs": 5,
+      "successes": 5,
+      "failures": 0,
+      "p50_ms": 0.27,
+      "p90_ms": 3.46,
+      "p99_ms": 3.46,
+      "min_ms": 0.16,
+      "max_ms": 3.46,
+      "mean_ms": 0.88,
+      "errors": []
+    },
+    {
+      "scenario": {
+        "name": "get swift pattern",
+        "tool": "get_swift_pattern",
+        "args": {
+          "topic": "swiftui",
+          "minQuality": 70
+        }
+      },
+      "runs": 5,
+      "successes": 5,
+      "failures": 0,
+      "p50_ms": 0.13,
+      "p90_ms": 0.54,
+      "p99_ms": 0.54,
+      "min_ms": 0.13,
+      "max_ms": 0.54,
+      "mean_ms": 0.22,
+      "errors": []
+    },
+    {
+      "scenario": {
+        "name": "search swift content (code only)",
+        "tool": "search_swift_content",
+        "args": {
+          "query": "swift concurrency",
+          "requireCode": true
+        }
+      },
+      "runs": 5,
+      "successes": 5,
+      "failures": 0,
+      "p50_ms": 0.16,
+      "p90_ms": 3.39,
+      "p99_ms": 3.39,
+      "min_ms": 0.15,
+      "max_ms": 3.39,
+      "mean_ms": 0.83,
+      "errors": []
+    }
+  ]
+}

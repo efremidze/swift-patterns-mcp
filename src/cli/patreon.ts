@@ -10,6 +10,7 @@ import PatreonSource from '../sources/premium/patreon.js';
 import SourceManager from '../config/sources.js';
 import { withYouTube } from '../config/creators.js';
 import logger from '../utils/logger.js';
+import { PATREON_SEARCH_ENV_VARS, getMissingEnvVars } from '../utils/patreon-env.js';
 
 type Action = 'setup' | 'reset' | 'status';
 
@@ -48,15 +49,8 @@ async function showStatus(): Promise<void> {
 async function setup(): Promise<void> {
   console.log('\n# Patreon Setup\n');
 
-  const clientId = process.env.PATREON_CLIENT_ID;
-  const clientSecret = process.env.PATREON_CLIENT_SECRET;
-  const youtubeKey = process.env.YOUTUBE_API_KEY;
-
   // Check required env vars
-  const missing: string[] = [];
-  if (!clientId) missing.push('PATREON_CLIENT_ID');
-  if (!clientSecret) missing.push('PATREON_CLIENT_SECRET');
-  if (!youtubeKey) missing.push('YOUTUBE_API_KEY');
+  const missing = getMissingEnvVars(PATREON_SEARCH_ENV_VARS);
 
   if (missing.length > 0) {
     console.log('Missing required environment variables:\n');
@@ -86,7 +80,7 @@ async function setup(): Promise<void> {
 
   // OAuth flow
   console.log('Step 1/2: Authentication\n');
-  const result = await startOAuthFlow(clientId!, clientSecret!);
+  const result = await startOAuthFlow(process.env.PATREON_CLIENT_ID!, process.env.PATREON_CLIENT_SECRET!);
 
   if (!result.success) {
     console.log(`\nAuthentication failed: ${result.error}\n`);

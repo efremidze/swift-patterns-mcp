@@ -72,11 +72,54 @@ Access exclusive content from top iOS educators: **Kavsoft**, **SwiftUI Codes**,
 
 ## 🚀 Quick Start
 
-### Install
+### Run Setup
 
 ```bash
 npx -y swift-patterns-mcp@latest
 ```
+
+In an interactive terminal, this opens the setup wizard.  
+When launched by an MCP client (non-interactive stdio), it runs as the MCP server automatically.
+
+### Interactive Setup Wizard
+
+```bash
+npx -y swift-patterns-mcp@latest setup
+```
+
+If installed globally, you can also run:
+
+```bash
+swift-patterns-mcp setup
+```
+
+The wizard helps you choose:
+- Config scope (local project vs global)
+- MCP client (Cursor, Claude Code, Windsurf, VS Code)
+- Optional Patreon setup prompt
+
+### Non-interactive Setup (CI/Scripts)
+
+```bash
+# Cursor
+npx -y swift-patterns-mcp@latest setup --cursor --global
+npx -y swift-patterns-mcp@latest setup --cursor --local
+
+# Claude Code
+npx -y swift-patterns-mcp@latest setup --claude --global
+
+# Windsurf
+npx -y swift-patterns-mcp@latest setup --windsurf --global
+
+# VS Code
+npx -y swift-patterns-mcp@latest setup --vscode --local
+
+# All clients
+npx -y swift-patterns-mcp@latest setup --all --global
+```
+
+Use `--global` (`-g`) or `--local` (`-l`) to skip the location prompt.  
+Use `--cursor`, `--claude`, `--windsurf`, `--vscode`, or `--all` to skip the client prompt.
 
 ### Configure Your AI Assistant
 
@@ -359,6 +402,9 @@ Patreon requires OAuth apps to be registered by creators. You don't need to laun
 # List all content sources and status
 swift-patterns-mcp sources
 
+# Interactive onboarding/configuration wizard
+swift-patterns-mcp setup
+
 # Patreon integration
 swift-patterns-mcp patreon setup     # Connect your Patreon account
 swift-patterns-mcp patreon status    # Check connection status
@@ -450,4 +496,4 @@ MIT License - Copyright (c) 2026 Lasha Efremidze
 
 **Made with ❤️ for the Swift community**
 
-[⭐ Star this repo](https://github.com/efremidze/swift-patterns-mcp) • [🐛 Report Bug](./issues) • [✨ Request Feature](./issues)
+[⭐ Star this repo](https://github.com/efremidze/swift-patterns-mcp) • [🐛 Report Bug](https://github.com/efremidze/swift-patterns-mcp/issues) • [✨ Request Feature](https://github.com/efremidze/swift-patterns-mcp/issues)

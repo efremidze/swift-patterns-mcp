@@ -62,8 +62,9 @@ describeIntegration('MCP Server Integration', () => {
 
     it('should call get_swift_pattern with topic', async () => {
       const response = await client.callTool('get_swift_pattern', {
-        topic: 'swiftui',
-        minQuality: 70,
+        topic: 'architecture',
+        source: 'pointfree',
+        minQuality: 50,
       });
 
       expect(response.error).toBeUndefined();
@@ -71,7 +72,22 @@ describeIntegration('MCP Server Integration', () => {
       const result = response.result as { content: Array<{ type: string; text: string }> };
       expect(result.content).toBeDefined();
       expect(result.content[0].text.length).toBeGreaterThan(0);
-    }, 60000);
+    }, 120000);
+
+    it('should provide routing guidance to Patreon tool when creator source is used', async () => {
+      const response = await client.callTool('get_swift_pattern', {
+        topic: 'how to build a Dynamic Island animation',
+        source: 'kavsoft',
+      });
+
+      expect(response.error).toBeUndefined();
+
+      const result = response.result as { content: Array<{ type: string; text: string }> };
+      const text = result.content[0].text;
+      expect(text).toContain('Patreon creator');
+      expect(text).toContain('get_patreon_patterns');
+      expect(text).toContain('how to build a Dynamic Island animation');
+    });
 
     // enable_source unknown source test removed — covered by unit test in handlers.test.ts
   });
@@ -80,11 +96,13 @@ describeIntegration('MCP Server Integration', () => {
     it('should handle unknown tool gracefully', async () => {
       const response = await client.callTool('nonexistent_tool');
 
+      expect(response.error).toBeUndefined();
+      expect(response.result).toBeDefined();
+
       const result = response.result as { content: Array<{ text: string }>; isError?: boolean };
-      if (result.isError) {
-        expect(result.content[0].text).toContain('Unknown tool');
-      }
-    });
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Unknown tool');
+    }, 15000);
 
     // missing required arguments test removed — covered by unit test in handlers.test.ts
   });

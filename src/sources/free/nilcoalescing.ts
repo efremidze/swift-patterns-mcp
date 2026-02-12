@@ -3,9 +3,6 @@
 import { RssPatternSource, type BasePattern } from './rssPatternSource.js';
 import { createSourceConfig } from '../../config/swift-keywords.js';
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface NilCoalescingPattern extends BasePattern {}
-
 const { topicKeywords, qualitySignals } = createSourceConfig(
   {
     'swiftui': ['navigation', 'animation', 'layout', 'viewbuilder'],
@@ -20,7 +17,7 @@ const { topicKeywords, qualitySignals } = createSourceConfig(
   }
 );
 
-export class NilCoalescingSource extends RssPatternSource<NilCoalescingPattern> {
+export class NilCoalescingSource extends RssPatternSource<BasePattern> {
   constructor() {
     super({
       feedUrl: 'https://nilcoalescing.com/feed.rss',

@@ -1,76 +1,57 @@
 // src/sources/premium/patreon.ts
 
 import { loadTokens, getValidAccessToken } from './patreon-oauth.js';
-import { searchVideos, Video } from './youtube.js';
-import { downloadPost, DownloadedPost, DownloadedFile } from './patreon-dl.js';
-import { CREATORS, withYouTube } from '../../config/creators.js';
-import { detectTopics, hasCodeContent, calculateRelevance } from '../../utils/swift-analysis.js';
-import { createSourceConfig } from '../../config/swift-keywords.js';
+import { searchVideos, type Video } from './youtube.js';
+import { downloadPost, extractPostId, scanDownloadedContent } from './patreon-dl.js';
+import { CREATORS } from '../../config/creators.js';
 import { logError } from '../../utils/errors.js';
 import { fetch } from '../../utils/fetch.js';
 import logger from '../../utils/logger.js';
+import { createCache, type Cache } from 'async-cache-dedupe';
+import { buildQueryProfile } from '../../utils/query-analysis.js';
+import { rankPatternsForQuery, selectCreatorsForQuery } from './patreon-scoring.js';
+import {
+  dedupePatterns,
+  isPatreonPostUrl,
+  getPatreonSearchCacheKey,
+} from './patreon-dedup.js';
+import {
+  enrichPatternsWithContent,
+  filesToPatterns,
+  downloadedPostToPatterns,
+  videoToPattern,
+  getDownloadedPatterns,
+  getPositiveIntEnv,
+} from './patreon-enrichment.js';
+import type { PatreonPattern, CreatorInfo } from '../../tools/types.js';
+
+export type { PatreonPattern, CreatorInfo };
 
 const PATREON_API = 'https://www.patreon.com/api/oauth2/v2';
 
-export interface PatreonPattern {
-  id: string;
-  title: string;
-  url: string;
-  publishDate: string;
-  excerpt: string;
-  content: string;
-  creator: string;
-  topics: string[];
-  relevanceScore: number;
-  hasCode: boolean;
-}
+type PatreonSearchMode = 'fast' | 'deep';
 
-export interface CreatorInfo {
-  id: string;
-  name: string;
-  url: string;
-  isSwiftRelated: boolean;
-}
+interface PatreonSearchOptions { mode?: PatreonSearchMode }
 
-interface PatreonCampaign {
-  id: string;
-  type: 'campaign';
-  attributes: {
-    creation_name: string;
-    url: string;
-    summary?: string;
-  };
-}
+interface InternalPatreonSearchOptions { enrichLinkedPosts: boolean; includeDownloadedFallback: boolean }
 
-interface PatreonMember {
-  id: string;
-  type: 'member';
-  attributes: {
-    patron_status: 'active_patron' | 'declined_patron' | 'former_patron' | null;
-  };
-  relationships?: {
-    campaign?: { data: { id: string; type: string } };
-  };
-}
+interface PatreonCampaign { id: string; type: 'campaign'; attributes: { creation_name: string; url: string; summary?: string } }
+interface PatreonMember { id: string; type: 'member'; attributes: { patron_status: 'active_patron' | 'declined_patron' | 'former_patron' | null }; relationships?: { campaign?: { data: { id: string; type: string } } } }
+interface PatreonIdentityResponse { data: { id: string; type: string }; included?: Array<PatreonMember | PatreonCampaign> }
 
-interface PatreonIdentityResponse {
-  data: {
-    id: string;
-    type: string;
-  };
-  included?: Array<PatreonMember | PatreonCampaign>;
-}
-
-const { topicKeywords: patreonTopicKeywords, qualitySignals: patreonQualitySignals } = createSourceConfig(
-  { 'swiftui': ['@observable'], 'architecture': ['clean architecture'] },
-  { 'swift': 10, 'ios': 8, 'pattern': 6, 'best practice': 8 }
-);
-
-// Patreon-specific scoring constants (matched to free source defaults)
-const PATREON_CODE_BONUS = 10;
-const PATREON_BASE_SCORE = 50;
-const PATREON_EXCERPT_LENGTH = 300;
+const MAX_VIDEOS_PER_CREATOR = 8;
+const PATREON_SEARCH_CACHE_TTL_SECONDS = 1800;
+const PATREON_SEARCH_STALE_SECONDS = 1800;
+const PATREON_DEEP_MAX_ENRICHED_POSTS = 5;
+const PATREON_DIRECT_URL_TIMEOUT_MS = 4000;
 const PATREON_DEFAULT_QUERY = 'swiftui';
+const PATREON_YOUTUBE_MAX_CREATORS = 2;
+const PATREON_YOUTUBE_MAX_VARIANTS = 2;
+const PATREON_YOUTUBE_GLOBAL_MAX_RESULTS = 30;
+const PATREON_YOUTUBE_MIN_MATCHES_BEFORE_FALLBACK = 4;
+const PATREON_YOUTUBE_FALLBACK_MAX_CREATORS = 1;
+const PATREON_YOUTUBE_FALLBACK_MAX_VARIANTS = 1;
+const PATREON_YOUTUBE_SEARCH_CALL_BUDGET = 3;
 
 function isSwiftRelated(name: string, summary?: string): boolean {
   const text = `${name} ${summary || ''}`.toLowerCase();
@@ -78,14 +59,36 @@ function isSwiftRelated(name: string, summary?: string): boolean {
   return keywords.some(k => text.includes(k));
 }
 
-
 export class PatreonSource {
   private clientId: string;
   private clientSecret: string;
+  private fastSearchCache: Cache & {
+    fastSearch: (query: string) => Promise<PatreonPattern[]>;
+  };
 
   constructor() {
     this.clientId = process.env.PATREON_CLIENT_ID || '';
     this.clientSecret = process.env.PATREON_CLIENT_SECRET || '';
+
+    this.fastSearchCache = createCache({
+      storage: { type: 'memory', options: { size: 200 } },
+      ttl: PATREON_SEARCH_CACHE_TTL_SECONDS,
+      stale: PATREON_SEARCH_STALE_SECONDS,
+      onError: (err: unknown) => {
+        logError('Patreon', err, { source: 'fast-cache' });
+      },
+    }).define('fastSearch', {
+      ttl: PATREON_SEARCH_CACHE_TTL_SECONDS,
+      stale: PATREON_SEARCH_STALE_SECONDS,
+      serialize: (q: string) => getPatreonSearchCacheKey(q),
+    }, async (q: string) => {
+      return this.searchPatternsInternal(q, {
+        enrichLinkedPosts: false,
+        includeDownloadedFallback: true,
+      });
+    }) as Cache & {
+      fastSearch: (query: string) => Promise<PatreonPattern[]>;
+    };
   }
 
   async isConfigured(): Promise<boolean> {
@@ -94,15 +97,7 @@ export class PatreonSource {
     return tokens !== null;
   }
 
-  /**
-   * Returns creators the user PAYS (patron memberships).
-   * 
-   * IMPORTANT: This uses the identity endpoint with memberships.campaign include,
-   * NOT the /campaigns endpoint. The /campaigns endpoint only returns campaigns
-   * you OWN as a creator, not campaigns you subscribe to as a patron.
-   * 
-   * Correct API: GET /identity?include=memberships.campaign
-   */
+  // Returns creators the user PAYS (patron memberships) via identity endpoint with memberships.campaign include.
   async getSubscribedCreators(): Promise<CreatorInfo[]> {
     const accessToken = await getValidAccessToken(this.clientId, this.clientSecret);
     if (!accessToken) return [];
@@ -121,40 +116,21 @@ export class PatreonSource {
 
       const data = await response.json() as PatreonIdentityResponse;
 
-      if (!data.included) {
-        return [];
-      }
+      if (!data.included) return [];
 
-      // Extract active memberships and their campaigns
-      const members = data.included.filter(
-        (item): item is PatreonMember =>
-          item.type === 'member' &&
-          (item as PatreonMember).attributes?.patron_status === 'active_patron'
-      );
-
-      const campaigns = data.included.filter(
-        (item): item is PatreonCampaign => item.type === 'campaign'
-      );
-
-      // Get campaign IDs from active memberships
+      const members = data.included.filter((item): item is PatreonMember =>
+        item.type === 'member' && (item as PatreonMember).attributes?.patron_status === 'active_patron');
+      const campaigns = data.included.filter((item): item is PatreonCampaign => item.type === 'campaign');
       const activeCampaignIds = new Set(
-        members
-          .map(m => m.relationships?.campaign?.data?.id)
-          .filter((id): id is string => !!id)
+        members.map(m => m.relationships?.campaign?.data?.id).filter((id): id is string => !!id)
       );
 
-      // Return campaigns user is actively subscribed to
-      return campaigns
-        .filter(c => activeCampaignIds.has(c.id))
-        .map(campaign => ({
-          id: campaign.id,
-          name: campaign.attributes.creation_name,
-          url: campaign.attributes.url,
-          isSwiftRelated: isSwiftRelated(
-            campaign.attributes.creation_name,
-            campaign.attributes.summary
-          ),
-        }));
+      return campaigns.filter(c => activeCampaignIds.has(c.id)).map(campaign => ({
+        id: campaign.id,
+        name: campaign.attributes.creation_name,
+        url: campaign.attributes.url,
+        isSwiftRelated: isSwiftRelated(campaign.attributes.creation_name, campaign.attributes.summary),
+      }));
     } catch (error) {
       logError('Patreon', error);
       return [];
@@ -177,147 +153,184 @@ export class PatreonSource {
     return patterns.filter(pattern => pattern.creator === creator.name);
   }
 
-  /**
-   * Convert downloaded post to patterns
-   */
-  private downloadedPostToPatterns(post: DownloadedPost): PatreonPattern[] {
-    return this.filesToPatterns(post.files, {
-      id: `dl-${post.postId}`,
-      title: post.title,
-      publishDate: post.publishDate || new Date().toISOString(),
-      creator: post.creator,
-    });
+  private async searchDirectPostUrl(query: string, mode: PatreonSearchMode): Promise<PatreonPattern[] | null> {
+    if (!isPatreonPostUrl(query)) return null;
+
+    const postId = extractPostId(query);
+    const posts = scanDownloadedContent();
+
+    if (postId) {
+      const existing = posts.find(post =>
+        post.postId === postId ||
+        post.dirName === postId ||
+        post.dirName?.startsWith(`${postId} -`) ||
+        post.dirName?.startsWith(`${postId}-`)
+      );
+      if (existing) {
+        return downloadedPostToPatterns(existing)
+          .sort((a, b) => b.relevanceScore - a.relevanceScore);
+      }
+    }
+
+    if (mode === 'fast') {
+      // Unified search should remain low-latency and avoid direct download side effects.
+      return [];
+    }
+
+    const timeoutMs = getPositiveIntEnv('PATREON_DIRECT_URL_TIMEOUT_MS', PATREON_DIRECT_URL_TIMEOUT_MS);
+    const downloadResult = await Promise.race([
+      downloadPost(query, 'Patreon'),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), timeoutMs)),
+    ]);
+
+    if (!downloadResult || !downloadResult.success || !downloadResult.files || downloadResult.files.length === 0) {
+      return [];
+    }
+
+    return filesToPatterns(downloadResult.files, {
+      id: postId ? `direct-${postId}` : `direct-${Date.now()}`,
+      title: postId ? `Patreon Post ${postId}` : 'Patreon Post',
+      publishDate: new Date().toISOString(),
+      creator: 'Patreon',
+    }).sort((a, b) => b.relevanceScore - a.relevanceScore);
   }
 
+  private async searchPatternsInternal(
+    query: string,
+    options: InternalPatreonSearchOptions
+  ): Promise<PatreonPattern[]> {
+    const { enrichLinkedPosts, includeDownloadedFallback } = options;
+    const queryProfile = buildQueryProfile(query);
 
-  private videoToPattern(video: Video, creatorName: string): PatreonPattern {
-    const text = `${video.title} ${video.description}`;
-    const topics = detectTopics(text, patreonTopicKeywords);
-    const hasCode = hasCodeContent(video.description) || (video.codeLinks?.length ?? 0) > 0;
-    const relevanceScore = calculateRelevance(text, hasCode, patreonQualitySignals, PATREON_BASE_SCORE, PATREON_CODE_BONUS);
-
-    return {
-      id: `yt-${video.id}`,
-      title: video.title,
-      url: video.patreonLink || `https://youtube.com/watch?v=${video.id}`,
-      publishDate: video.publishedAt,
-      excerpt: video.description.substring(0, PATREON_EXCERPT_LENGTH),
-      content: video.description,
-      creator: creatorName,
-      topics,
-      relevanceScore,
-      hasCode,
-    };
-  }
-
-  async searchPatterns(query: string): Promise<PatreonPattern[]> {
-    // Search YouTube for all known creators in parallel
-    const creators = withYouTube();
-    const results = await Promise.allSettled(
-      creators.map(creator =>
-        searchVideos(query, creator.youtubeChannelId!, 25)
-          .then(videos => videos.map(video => this.videoToPattern(video, creator.name)))
-      )
+    const selectedCreators = selectCreatorsForQuery(query)
+      .slice(0, getPositiveIntEnv('PATREON_YOUTUBE_MAX_CREATORS', PATREON_YOUTUBE_MAX_CREATORS));
+    const queryVariants = queryProfile.compiledQueries
+      .slice(0, getPositiveIntEnv('PATREON_YOUTUBE_MAX_VARIANTS', PATREON_YOUTUBE_MAX_VARIANTS));
+    const globalMaxResults = getPositiveIntEnv('PATREON_YOUTUBE_GLOBAL_MAX_RESULTS', PATREON_YOUTUBE_GLOBAL_MAX_RESULTS);
+    const minMatchesBeforeFallback = getPositiveIntEnv(
+      'PATREON_YOUTUBE_MIN_MATCHES_BEFORE_FALLBACK',
+      PATREON_YOUTUBE_MIN_MATCHES_BEFORE_FALLBACK
+    );
+    const fallbackMaxCreators = getPositiveIntEnv(
+      'PATREON_YOUTUBE_FALLBACK_MAX_CREATORS',
+      PATREON_YOUTUBE_FALLBACK_MAX_CREATORS
+    );
+    const fallbackMaxVariants = getPositiveIntEnv(
+      'PATREON_YOUTUBE_FALLBACK_MAX_VARIANTS',
+      PATREON_YOUTUBE_FALLBACK_MAX_VARIANTS
+    );
+    let remainingSearchCalls = getPositiveIntEnv(
+      'PATREON_YOUTUBE_SEARCH_CALL_BUDGET',
+      PATREON_YOUTUBE_SEARCH_CALL_BUDGET
     );
 
-    const patterns: PatreonPattern[] = [];
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i];
-      if (result.status === 'fulfilled') {
-        patterns.push(...result.value);
-      } else {
-        logError('Patreon', result.reason, { creator: creators[i].name, query });
+    const creatorByChannelId = new Map<string, string>();
+    for (const creator of selectedCreators) {
+      if (creator.youtubeChannelId) {
+        creatorByChannelId.set(creator.youtubeChannelId, creator.name);
       }
     }
 
-    // Fetch actual content for patterns with Patreon links
-    const enrichedPatterns = await this.enrichPatternsWithContent(patterns);
-    return enrichedPatterns;
-  }
+    logger.info({
+      query,
+      queryVariants,
+      weightedTokens: queryProfile.weightedTokens.slice(0, 5),
+      creators: selectedCreators.map(c => c.name),
+      globalMaxResults,
+      remainingSearchCalls,
+    }, 'Patreon search strategy');
 
-  /**
-   * Fetch actual code content from Patreon for patterns that have Patreon links
-   */
-  private async enrichPatternsWithContent(patterns: PatreonPattern[]): Promise<PatreonPattern[]> {
-    const concurrencyRaw = Number.parseInt(process.env.PATREON_ENRICH_CONCURRENCY || '3', 10);
-    const concurrency = Number.isFinite(concurrencyRaw) && concurrencyRaw > 0 ? concurrencyRaw : 1;
-    const outputs: PatreonPattern[][] = new Array(patterns.length);
-    let index = 0;
-
-    const worker = async () => {
-      while (index < patterns.length) {
-        const currentIndex = index++;
-        const pattern = patterns[currentIndex];
-
-        // Only fetch content for Patreon URLs
-        if (!pattern.url.includes('patreon.com/posts/')) {
-          outputs[currentIndex] = [pattern];
-          continue;
-        }
-
-        try {
-          logger.info({ url: pattern.url }, 'Fetching Patreon post content');
-          const result = await downloadPost(pattern.url, pattern.creator);
-
-          if (result.success && result.files && result.files.length > 0) {
-            // Create patterns from downloaded files
-            const filePatterns = this.filesToPatterns(result.files, {
-              id: pattern.id,
-              title: pattern.title,
-              publishDate: pattern.publishDate,
-              creator: pattern.creator,
-            });
-            outputs[currentIndex] = filePatterns.length > 0 ? filePatterns : [pattern];
-          } else {
-            // Keep original pattern if download failed or no files
-            outputs[currentIndex] = [pattern];
-          }
-        } catch (error) {
-          logError('Patreon', error, { url: pattern.url });
-          outputs[currentIndex] = [pattern];
+    const patternByVideoId = new Map<string, PatreonPattern>();
+    const addVideosForKnownCreators = (videos: Video[]) => {
+      for (const video of videos) {
+        const creatorName = creatorByChannelId.get(video.channelId);
+        if (!creatorName) continue;
+        if (!patternByVideoId.has(video.id)) {
+          patternByVideoId.set(video.id, videoToPattern(video, creatorName));
         }
       }
     };
 
-    const workers = Array.from({ length: Math.min(concurrency, patterns.length) }, () => worker());
-    await Promise.all(workers);
+    // 1) Global-first: query all channels once per variant, then filter to known creators.
+    for (const variant of queryVariants) {
+      if (remainingSearchCalls <= 0) break;
+      remainingSearchCalls -= 1;
 
-    return outputs.flat();
-  }
+      try {
+        const videos = await searchVideos(variant, undefined, globalMaxResults);
+        addVideosForKnownCreators(videos);
+      } catch (error) {
+        logError('Patreon', error, { strategy: 'global', query, variant });
+      }
 
-  /**
-   * Convert downloaded files to patterns
-   */
-  private filesToPatterns(
-    files: DownloadedFile[],
-    source: Pick<PatreonPattern, 'id' | 'title' | 'publishDate' | 'creator'>
-  ): PatreonPattern[] {
-    const patterns: PatreonPattern[] = [];
-
-    for (const file of files) {
-      if (file.type === 'other') continue;
-
-      const content = file.content || '';
-      const text = `${file.filename} ${content}`;
-      const topics = detectTopics(text, patreonTopicKeywords);
-      const hasCode = file.type === 'swift' || hasCodeContent(content);
-      const relevanceScore = calculateRelevance(text, hasCode, patreonQualitySignals, PATREON_BASE_SCORE, PATREON_CODE_BONUS);
-
-      patterns.push({
-        id: `${source.id}-${file.filename}`,
-        title: `${source.title} - ${file.filename}`,
-        url: `file://${file.filepath}`,
-        publishDate: source.publishDate,
-        excerpt: content.substring(0, PATREON_EXCERPT_LENGTH),
-        content,
-        creator: source.creator,
-        topics,
-        relevanceScore,
-        hasCode,
-      });
+      if (patternByVideoId.size >= MAX_VIDEOS_PER_CREATOR * selectedCreators.length) {
+        break;
+      }
     }
 
-    return patterns;
+    // 2) Sparse fallback: only probe top creator(s) and top variant(s).
+    if (patternByVideoId.size < minMatchesBeforeFallback && remainingSearchCalls > 0) {
+      const fallbackCreators = selectedCreators.slice(0, fallbackMaxCreators);
+      const fallbackVariants = queryVariants.slice(0, fallbackMaxVariants);
+
+      for (const creator of fallbackCreators) {
+        if (!creator.youtubeChannelId) continue;
+
+        for (const variant of fallbackVariants) {
+          if (remainingSearchCalls <= 0) break;
+          remainingSearchCalls -= 1;
+
+          try {
+            const videos = await searchVideos(variant, creator.youtubeChannelId, MAX_VIDEOS_PER_CREATOR);
+            addVideosForKnownCreators(videos);
+          } catch (error) {
+            logError('Patreon', error, { strategy: 'fallback', creator: creator.name, query, variant });
+          }
+        }
+
+        if (remainingSearchCalls <= 0) break;
+      }
+    }
+
+    const patterns = rankPatternsForQuery(
+      Array.from(patternByVideoId.values()),
+      queryProfile,
+      pattern => `${pattern.title} ${pattern.excerpt} ${pattern.topics.join(' ')}`,
+      { fallbackToOriginal: true }
+    );
+
+    let enrichedPatterns = patterns;
+    if (enrichLinkedPosts) {
+      const sorted = [...patterns].sort((a, b) => b.relevanceScore - a.relevanceScore);
+      const maxEnrichedPosts = getPositiveIntEnv('PATREON_DEEP_MAX_ENRICHED_POSTS', PATREON_DEEP_MAX_ENRICHED_POSTS);
+      const toEnrich = sorted.filter(p => p.url.includes('patreon.com/posts/')).slice(0, maxEnrichedPosts);
+      const enrichKeys = new Set(toEnrich.map(p => `${p.id}::${p.url}`));
+      const passthrough = sorted.filter(p => !enrichKeys.has(`${p.id}::${p.url}`));
+
+      const enrichedSubset = await enrichPatternsWithContent(toEnrich, filesToPatterns);
+      enrichedPatterns = [...enrichedSubset, ...passthrough];
+    }
+
+    const downloadedPatterns = includeDownloadedFallback ? getDownloadedPatterns(query, queryProfile) : [];
+
+    const merged = dedupePatterns([...enrichedPatterns, ...downloadedPatterns], 'prefer-best');
+    return merged.sort((a, b) => b.relevanceScore - a.relevanceScore);
+  }
+
+  async searchPatterns(query: string, options: PatreonSearchOptions = {}): Promise<PatreonPattern[]> {
+    const mode: PatreonSearchMode = options.mode ?? 'deep';
+    const directPatterns = await this.searchDirectPostUrl(query, mode);
+    if (directPatterns !== null) {
+      return directPatterns;
+    }
+
+    if (mode === 'fast') {
+      const localMatches = getDownloadedPatterns(query);
+      if (localMatches.length > 0) return localMatches;
+      return this.fastSearchCache.fastSearch(query);
+    }
+
+    return this.searchPatternsInternal(query, { enrichLinkedPosts: true, includeDownloadedFallback: true });
   }
 
   isAvailable(): boolean {

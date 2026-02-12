@@ -2,11 +2,8 @@
 // Advanced search utilities with fuzzy matching and smart stemming
 
 import MiniSearch from 'minisearch';
-import natural from 'natural';
+import { stemmer } from 'stemmer';
 import { normalizeTokens } from './search-terms.js';
-
-// Porter Stemmer for English
-const stemmer = natural.PorterStemmer;
 
 export interface SearchableDocument {
   id: string;
@@ -29,7 +26,7 @@ interface SearchOptions {
 
 // Custom tokenizer with smart hyphen handling and stemming
 function tokenize(text: string): string[] {
-  return normalizeTokens(text, (token) => stemmer.stem(token));
+  return normalizeTokens(text, (token) => stemmer(token));
 }
 
 // Process query with same tokenization for consistent matching
@@ -124,65 +121,6 @@ export class SearchIndex<T extends SearchableDocument> {
 
     return [...new Set(matches)];
   }
-}
-
-// Standalone search function for simple use cases
-export function fuzzySearch<T extends SearchableDocument>(
-  documents: T[],
-  query: string,
-  options: SearchOptions = {}
-): SearchResult<T>[] {
-  const index = new SearchIndex<T>();
-  index.addDocuments(documents);
-  return index.search(query, options);
-}
-
-// Get search relevance score (combines MiniSearch score with static relevance)
-export function combineScores(
-  searchScore: number,
-  staticRelevance: number,
-  searchWeight: number = 0.8
-): number {
-  // Normalize search score (MiniSearch scores can vary widely)
-  // Divide by 5 to spread scores further apart (was /10)
-  const normalizedSearch = Math.min(searchScore / 5, 1) * 100;
-
-  // Weighted combination: heavily favor query-aware search score (80%)
-  // over static quality score (20%)
-  let combined = Math.round(
-    normalizedSearch * searchWeight +
-    staticRelevance * (1 - searchWeight)
-  );
-
-  // Cap score at 50 when search relevance is very low — prevents
-  // irrelevant content from scoring high just because it's "quality" content
-  if (searchScore < 1.0) {
-    combined = Math.min(combined, 50);
-  }
-
-  return combined;
-}
-
-// Suggest similar terms (for "did you mean?" functionality)
-export function suggestSimilar(
-  query: string,
-  knownTerms: string[],
-  maxSuggestions: number = 3
-): string[] {
-  const queryLower = query.toLowerCase();
-
-  // Calculate Levenshtein distance
-  const suggestions = knownTerms
-    .map(term => ({
-      term,
-      distance: natural.LevenshteinDistance(queryLower, term.toLowerCase()),
-    }))
-    .filter(({ distance }) => distance <= 3 && distance > 0)
-    .sort((a, b) => a.distance - b.distance)
-    .slice(0, maxSuggestions)
-    .map(({ term }) => term);
-
-  return suggestions;
 }
 
 /**
@@ -281,4 +219,3 @@ export class CachedSearchIndex<T extends SearchableDocument> {
     this.indexedPatternsHash = null;
   }
 }
-

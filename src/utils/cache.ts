@@ -22,6 +22,10 @@ export class FileCache {
   private memoryCache: QuickLRU<string, CacheEntry<unknown>>;
   private inFlightFetches: Map<string, Promise<unknown>> = new Map();
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
+  private hits = 0;
+  private misses = 0;
+  private memoryHits = 0;
+  private fileHits = 0;
 
   constructor(namespace: string = 'default', maxMemoryEntries: number = DEFAULT_MAX_MEMORY_ENTRIES) {
     this.cacheDir = getCacheDir(namespace);
@@ -67,6 +71,8 @@ export class FileCache {
     const memEntry = this.memoryCache.get(key) as CacheEntry<T> | undefined;
     if (memEntry) {
       if (!this.isExpired(memEntry)) {
+        this.hits += 1;
+        this.memoryHits += 1;
         return memEntry.data;
       }
       // Remove expired entry from memory cache
@@ -82,6 +88,8 @@ export class FileCache {
       if (!this.isExpired(entry)) {
         // Populate memory cache
         this.memoryCache.set(key, entry);
+        this.hits += 1;
+        this.fileHits += 1;
         return entry.data;
       } else {
         // Clean up expired entry
@@ -91,6 +99,7 @@ export class FileCache {
       // Cache read failed (file doesn't exist or is corrupted), return null
     }
 
+    this.misses += 1;
     return null;
   }
 
@@ -150,6 +159,10 @@ export class FileCache {
 
   async clear(): Promise<void> {
     this.memoryCache.clear();
+    this.hits = 0;
+    this.misses = 0;
+    this.memoryHits = 0;
+    this.fileHits = 0;
     try {
       const files = await fsp.readdir(this.cacheDir);
       await Promise.allSettled(
@@ -200,6 +213,23 @@ export class FileCache {
     }
 
     return cleared;
+  }
+
+  getStats(): {
+    hits: number;
+    misses: number;
+    memoryHits: number;
+    fileHits: number;
+    hitRate: number;
+  } {
+    const total = this.hits + this.misses;
+    return {
+      hits: this.hits,
+      misses: this.misses,
+      memoryHits: this.memoryHits,
+      fileHits: this.fileHits,
+      hitRate: total > 0 ? this.hits / total : 0,
+    };
   }
 }
 

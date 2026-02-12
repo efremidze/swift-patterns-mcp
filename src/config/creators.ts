@@ -1,7 +1,7 @@
 // src/config/creators.ts
 // Registry mapping creators to their Patreon and YouTube
 
-interface Creator {
+export interface Creator {
   id: string;
   name: string;
   patreonCampaignId: string;

@@ -6,107 +6,31 @@ import { searchSwiftContentHandler } from '../searchSwiftContent.js';
 import { listContentSourcesHandler } from '../listContentSources.js';
 import { enableSourceHandler } from '../enableSource.js';
 import type { ToolContext } from '../../types.js';
-
-// Test fixtures - known patterns with specific properties for testing
-const MOCK_PATTERNS = {
-  sundell: [
-    {
-      id: 'sundell-1',
-      title: 'Advanced SwiftUI Patterns',
-      url: 'https://swiftbysundell.com/swiftui',
-      excerpt: 'Learn advanced SwiftUI patterns for production apps',
-      content: 'Full content about SwiftUI state management and views',
-      topics: ['swiftui', 'architecture'],
-      relevanceScore: 85,
-      hasCode: true,
-      publishDate: '2024-01-15T00:00:00Z',
-    },
-    {
-      id: 'sundell-2',
-      title: 'Basic Swift Tips',
-      url: 'https://swiftbysundell.com/tips',
-      excerpt: 'Simple tips for Swift developers',
-      content: 'Basic content without code examples',
-      topics: ['swift'],
-      relevanceScore: 55, // Below default minQuality of 65
-      hasCode: false,
-      publishDate: '2024-01-10T00:00:00Z',
-    },
-  ],
-  vanderlee: [
-    {
-      id: 'vanderlee-1',
-      title: 'iOS Performance Optimization',
-      url: 'https://avanderlee.com/performance',
-      excerpt: 'Optimize your iOS app performance',
-      content: 'Detailed performance optimization techniques',
-      topics: ['performance', 'optimization'],
-      relevanceScore: 78,
-      hasCode: true,
-      publishDate: '2024-01-12T00:00:00Z',
-    },
-    {
-      id: 'vanderlee-2',
-      title: 'Debugging Tips',
-      url: 'https://avanderlee.com/debugging',
-      excerpt: 'Debug your iOS apps effectively',
-      content: 'Debugging techniques without code',
-      topics: ['debugging'],
-      relevanceScore: 65,
-      hasCode: false,
-      publishDate: '2024-01-08T00:00:00Z',
-    },
-  ],
-  nilcoalescing: [
-    {
-      id: 'nilcoalescing-1',
-      title: 'SwiftUI Navigation Deep Dive',
-      url: 'https://nilcoalescing.com/navigation',
-      excerpt: 'Master SwiftUI navigation patterns',
-      content: 'Navigation code examples and patterns',
-      topics: ['swiftui', 'navigation'],
-      relevanceScore: 72,
-      hasCode: true,
-      publishDate: '2024-01-14T00:00:00Z',
-    },
-  ],
-  pointfree: [
-    {
-      id: 'pointfree-1',
-      title: 'Composable Architecture Case Study',
-      url: 'https://github.com/pointfreeco/pointfreeco/blob/main/Sources/Models/Episodes/0001-functions.md',
-      excerpt: 'Build apps with TCA',
-      content: 'TCA reducer and store patterns',
-      topics: ['architecture', 'tca'],
-      relevanceScore: 90,
-      hasCode: true,
-      publishDate: '2024-01-16T00:00:00Z',
-    },
-  ],
-};
+import { FREE_SOURCE_PATTERNS } from '../../../__tests__/fixtures/patterns.js';
+import { createHandlerContext } from './harness.js';
 
 // Mock sources to return our test fixtures
 vi.mock('../../../sources/free/sundell.js', () => ({
   default: class SundellSourceMock {
-    searchPatterns = vi.fn().mockResolvedValue(MOCK_PATTERNS.sundell);
+    searchPatterns = vi.fn().mockResolvedValue(FREE_SOURCE_PATTERNS.sundell);
   },
 }));
 
 vi.mock('../../../sources/free/vanderlee.js', () => ({
   default: class VanderLeeSourceMock {
-    searchPatterns = vi.fn().mockResolvedValue(MOCK_PATTERNS.vanderlee);
+    searchPatterns = vi.fn().mockResolvedValue(FREE_SOURCE_PATTERNS.vanderlee);
   },
 }));
 
 vi.mock('../../../sources/free/nilcoalescing.js', () => ({
   default: class NilCoalescingSourceMock {
-    searchPatterns = vi.fn().mockResolvedValue(MOCK_PATTERNS.nilcoalescing);
+    searchPatterns = vi.fn().mockResolvedValue(FREE_SOURCE_PATTERNS.nilcoalescing);
   },
 }));
 
 vi.mock('../../../sources/free/pointfree.js', () => ({
   default: class PointFreeSourceMock {
-    searchPatterns = vi.fn().mockResolvedValue(MOCK_PATTERNS.pointfree);
+    searchPatterns = vi.fn().mockResolvedValue(FREE_SOURCE_PATTERNS.pointfree);
   },
 }));
 
@@ -118,48 +42,20 @@ vi.mock('../../../config/sources.js', () => ({
       minLexicalScore: 0.35,
       minRelevanceScore: 70,
     });
-    isSemanticRecallEnabled = vi.fn().mockReturnValue(false);
     getMemvidConfig = vi.fn().mockReturnValue({
       enabled: false,
       autoStore: false,
       useEmbeddings: false,
       embeddingModel: 'bge-small',
     });
-    isMemvidEnabled = vi.fn().mockReturnValue(false);
   },
 }));
-
-// Create mock SourceManager
-function createMockSourceManager() {
-  const sources = [
-    { id: 'sundell', name: 'Swift by Sundell', type: 'free', requiresAuth: false, isEnabled: true, isConfigured: true, description: 'Swift articles' },
-    { id: 'vanderlee', name: 'Antoine van der Lee', type: 'free', requiresAuth: false, isEnabled: true, isConfigured: true, description: 'iOS tips' },
-    { id: 'nilcoalescing', name: 'Nil Coalescing', type: 'free', requiresAuth: false, isEnabled: true, isConfigured: true, description: 'SwiftUI tips' },
-    { id: 'pointfree', name: 'Point-Free', type: 'free', requiresAuth: false, isEnabled: true, isConfigured: true, description: 'Open source patterns' },
-    { id: 'patreon', name: 'Patreon', type: 'premium', requiresAuth: true, isEnabled: false, isConfigured: false, description: 'Premium content' },
-  ];
-
-  return {
-    getAllSources: vi.fn().mockReturnValue(sources),
-    getSource: vi.fn((id: string) => sources.find(s => s.id === id)),
-    isSourceConfigured: vi.fn((id: string) => {
-      const source = sources.find(s => s.id === id);
-      return source?.isConfigured ?? false;
-    }),
-    enableSource: vi.fn(),
-    disableSource: vi.fn(),
-    getEnabledSources: vi.fn().mockReturnValue(sources.filter(s => s.isEnabled)),
-  };
-}
 
 describe('getSwiftPatternHandler', () => {
   let context: ToolContext;
 
   beforeEach(() => {
-    context = {
-      sourceManager: createMockSourceManager() as any,
-      patreonSource: null,
-    };
+    context = createHandlerContext();
   });
 
   it('should return error when topic is missing', async () => {
@@ -262,6 +158,18 @@ describe('getSwiftPatternHandler', () => {
     expect(text).toContain('get_patreon_patterns');
   });
 
+  it('should avoid generic matches for long specific queries and suggest broader search', async () => {
+    const result = await getSwiftPatternHandler({
+      topic: 'dynamic island animation',
+      minQuality: 70,
+    }, context);
+    const text = result.content[0].text;
+
+    expect(text).toContain('No patterns found');
+    expect(text).toContain('search_swift_content({ query: "dynamic island animation" })');
+    expect(text).not.toContain('Composable Architecture Case Study');
+  });
+
   // Format validation tests (quality scores, source attribution, URLs, sorting,
   // empty results) removed — covered by src/integration/__tests__/response-quality.test.ts
 });
@@ -270,10 +178,7 @@ describe('searchSwiftContentHandler', () => {
   let context: ToolContext;
 
   beforeEach(() => {
-    context = {
-      sourceManager: createMockSourceManager() as any,
-      patreonSource: null,
-    };
+    context = createHandlerContext();
   });
 
   it('should return error when query is missing', async () => {
@@ -315,9 +220,11 @@ describe('searchSwiftContentHandler', () => {
     }, context);
     const text = result.content[0].text;
 
-    // Should include patterns both with and without code
+    // Should include patterns both with and without code.
+    // Low-scoring no-code items may be outside top-4 render window.
     expect(text).toContain('Advanced SwiftUI Patterns'); // hasCode: true
-    expect(text).toContain('Basic Swift Tips'); // hasCode: false
+    expect(text).toContain('Found 6 results');
+    expect(text).toContain('Showing top 4 of 6 results');
   });
 
   it('should have search results header', async () => {
@@ -332,10 +239,7 @@ describe('listContentSourcesHandler', () => {
   let context: ToolContext;
 
   beforeEach(() => {
-    context = {
-      sourceManager: createMockSourceManager() as any,
-      patreonSource: null,
-    };
+    context = createHandlerContext();
   });
 
   it('should list all sources with categories', async () => {
@@ -370,7 +274,7 @@ describe('listContentSourcesHandler', () => {
     const result = await listContentSourcesHandler({}, context);
     const text = result.content[0].text;
 
-    expect(text).toContain('swift-patterns-mcp setup');
+    expect(text).toContain('swift-patterns-mcp patreon setup');
   });
 });
 
@@ -378,10 +282,7 @@ describe('enableSourceHandler', () => {
   let context: ToolContext;
 
   beforeEach(() => {
-    context = {
-      sourceManager: createMockSourceManager() as any,
-      patreonSource: null,
-    };
+    context = createHandlerContext();
   });
 
   it('should return error for unknown source', async () => {
@@ -409,8 +310,7 @@ describe('enableSourceHandler', () => {
     const text = result.content[0].text;
 
     expect(text).toContain('requires setup');
-    expect(text).toContain('swift-patterns-mcp setup');
-    expect(text).toContain('--patreon');
+    expect(text).toContain('swift-patterns-mcp patreon setup');
   });
 
   it('should enable configured free sources', async () => {

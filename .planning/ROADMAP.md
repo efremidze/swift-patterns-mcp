@@ -1,20 +1,22 @@
-# Roadmap: Swift Patterns MCP — Security & Bug Fixes
+# Roadmap: Swift Patterns MCP — Security, Quality & Architecture
 
 ## Overview
 
-This milestone hardens the MCP server against security vulnerabilities and known bugs through four focused phases. Phase 1 eliminates shell command injection vectors, Phase 2 secures credential handling, Phase 3 fixes user-visible bugs in scoring and parsing, and Phase 4 adds comprehensive input validation and test coverage to prevent regression.
+This milestone hardens the MCP server against security vulnerabilities and known bugs, then refactors architecture for testability and adds comprehensive test coverage. Phases 1-2 fix critical security/bugs, Phase 3 decomposes monolithic files, Phase 4 adds test coverage for critical paths, and Phase 5 establishes sustainable test infrastructure with security hardening.
 
 ## Phases
 
 **Phase Numbering:**
-- Integer phases (1, 2, 3): Planned milestone work
+- Integer phases (1, 2, 3...): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Command Injection Elimination** - Replace shell interpolation with safe execution
 - [x] **Phase 2: Bug Fixes** - Fix memvid scoring, YouTube parsing, code detection
-- [ ] **Phase 3: Input Validation & Test Coverage** - Zod schemas and comprehensive tests
+- [x] **Phase 3: Architecture Refactoring** - Decompose monolithic files, eliminate anti-patterns
+- [x] **Phase 4: Test Coverage** - Critical/high-priority test coverage, fix failing tests, enable CI
+- [x] **Phase 5: Test Infrastructure & Hardening** - Coverage tools, fixtures, error paths, security, benchmarks
 
 ## Phase Details
 
@@ -46,32 +48,77 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md — Fix memvid scoring, YouTube parsing, and code detection
 
-### Phase 3: Input Validation & Test Coverage
-**Goal**: Tool inputs are validated and all fixes have test coverage
-**Depends on**: Phase 2 (tests verify fixes from all prior phases)
-**Requirements**: HARD-01, HARD-02, HARD-03
+### Phase 3: Architecture Refactoring
+**Goal**: Server code is modular and testable with monolithic files decomposed
+**Depends on**: Phase 2 (refactoring stable, correct code)
+**Recommendations**: C3, C4, C5, H3 (from 004-REVIEW-REPORT)
 **Success Criteria** (what must be TRUE):
-  1. Tool handler inputs validated via Zod schemas with minQuality range 0-100 enforced
-  2. Invalid tool inputs (out-of-range values, missing required fields) return clear MCP error responses
-  3. Tests exist proving SEC-01 and SEC-03 injection vectors are closed
-  4. Tests exist proving BUG-01, BUG-02, BUG-03 fixes work correctly
-  5. Tests exist proving HARD-01 Zod validation catches invalid inputs
-**Plans**: TBD
+  1. `src/index.ts` is < 60 lines, delegating to `src/cli/router.ts`, `src/server.ts`, `src/tools/registration.ts`
+  2. `src/sources/premium/patreon.ts` is < 300 lines, delegating to scoring, dedup, enrichment, query-analysis modules
+  3. YouTube module (`src/sources/premium/youtube.ts`) has zero module-level mutable state
+  4. `src/tools/validation.ts` exists and all 6 handlers use it for consistent argument validation
+  5. All existing tests pass without modification (backward compatibility maintained)
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: TBD (will be created during planning)
+- [x] 03-01-PLAN.md — Entry point decomposition (CLI router, server module, tool registration, shared validation)
+- [x] 03-02-PLAN.md — Patreon source decomposition & YouTube state fix
+
+### Phase 4: Test Coverage
+**Goal**: Critical paths have test coverage and all tests pass in CI
+**Depends on**: Phase 3 (refactored modules are easier to test)
+**Recommendations**: C1, C2, H1, H2, H4, H5, H6, M4 (from 004-REVIEW-REPORT)
+**Success Criteria** (what must be TRUE):
+  1. OAuth flow has integration tests with mock provider (8+ test cases)
+  2. Server startup tests verify tool registration and error handling (6+ test cases)
+  3. Patreon download tests cover file extraction, post matching, error paths (10+ test cases)
+  4. Setup wizard tests verify config writing and path validation (8+ test cases)
+  5. Zero failing YouTube tests (3 previously-failing tests fixed via mocked fixtures)
+  6. Patreon scoring/dedup have dedicated test files (15+ test cases each)
+  7. Integration tests run in CI without keytar dependency (mocked)
+  8. Cookie extraction has injection security tests (5+ test cases)
+**Plans**: 3 plans
+
+Plans:
+- [x] 04-01-PLAN.md — Critical path testing (OAuth, server startup, Patreon download, cookie extraction)
+- [x] 04-02-PLAN.md — Premium logic testing (scoring, dedup, query analysis, setup wizard)
+- [x] 04-03-PLAN.md — Test infrastructure fixes (YouTube mock fixtures, CI integration tests)
+
+### Phase 5: Test Infrastructure & Hardening
+**Goal**: Sustainable test infrastructure with coverage metrics, security hardening, and performance baselines
+**Depends on**: Phase 4 (infrastructure most valuable when comprehensive tests exist)
+**Recommendations**: M1-M3, M5-M8, L1-L5 (from 004-REVIEW-REPORT)
+**Success Criteria** (what must be TRUE):
+  1. `@vitest/coverage-v8` configured with thresholds enforced in CI
+  2. HTTP utilities and inflight dedup have unit tests (10+ test cases each)
+  3. Shared test fixtures in `src/__tests__/fixtures/` used by 5+ test files
+  4. Error path tests added to all free source tests (3+ error cases per source)
+  5. OAuth uses state parameter and PKCE for security
+  6. Cache observability tracks hit/miss rates for intent cache and file cache
+  7. Performance benchmark baseline for 5 common queries (< 500ms target)
+  8. Load tests verify 10 concurrent requests without degradation
+  9. Handler test harness reduces boilerplate
+  10. ESLint rules enforce test quality
+**Plans**: 3 plans
+
+Plans:
+- [x] 05-01-PLAN.md — Enforce coverage in CI and extract shared test fixtures/harness with lint quality guardrails
+- [x] 05-02-PLAN.md — Expand HTTP/dedup and free-source error-path coverage plus infrastructure edge-case tests
+- [x] 05-03-PLAN.md — Add OAuth state+PKCE hardening, cache observability metrics, and benchmark/load-test baselines
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Command Injection Elimination | 1/1 | Complete | 2026-01-29 |
 | 2. Bug Fixes | 1/1 | Complete | 2026-01-30 |
-| 3. Input Validation & Test Coverage | 0/1 | Not started | - |
+| 3. Architecture Refactoring | 2/2 | Complete | 2026-02-10 |
+| 4. Test Coverage | 3/3 | Complete | 2026-02-11 |
+| 5. Test Infrastructure & Hardening | 3/3 | Complete | 2026-02-11 |
 
 ---
 *Roadmap created: 2026-01-29*
-*Last updated: 2026-01-30 after phase 2 execution*
+*Last updated: 2026-02-11 — Marked Phases 3-5 complete after plan execution*
