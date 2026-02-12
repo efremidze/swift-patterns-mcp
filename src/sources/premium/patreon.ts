@@ -1,7 +1,7 @@
 // src/sources/premium/patreon.ts
 
 import { loadTokens, getValidAccessToken } from './patreon-oauth.js';
-import { searchVideos } from './youtube.js';
+import { searchVideos, type Video } from './youtube.js';
 import { downloadPost, extractPostId, scanDownloadedContent } from './patreon-dl.js';
 import { CREATORS } from '../../config/creators.js';
 import { logError } from '../../utils/errors.js';
@@ -39,12 +39,19 @@ interface PatreonCampaign { id: string; type: 'campaign'; attributes: { creation
 interface PatreonMember { id: string; type: 'member'; attributes: { patron_status: 'active_patron' | 'declined_patron' | 'former_patron' | null }; relationships?: { campaign?: { data: { id: string; type: string } } } }
 interface PatreonIdentityResponse { data: { id: string; type: string }; included?: Array<PatreonMember | PatreonCampaign> }
 
-const MAX_VIDEOS_PER_CREATOR = 15;
+const MAX_VIDEOS_PER_CREATOR = 8;
 const PATREON_SEARCH_CACHE_TTL_SECONDS = 1800;
 const PATREON_SEARCH_STALE_SECONDS = 1800;
 const PATREON_DEEP_MAX_ENRICHED_POSTS = 5;
 const PATREON_DIRECT_URL_TIMEOUT_MS = 4000;
 const PATREON_DEFAULT_QUERY = 'swiftui';
+const PATREON_YOUTUBE_MAX_CREATORS = 2;
+const PATREON_YOUTUBE_MAX_VARIANTS = 2;
+const PATREON_YOUTUBE_GLOBAL_MAX_RESULTS = 30;
+const PATREON_YOUTUBE_MIN_MATCHES_BEFORE_FALLBACK = 4;
+const PATREON_YOUTUBE_FALLBACK_MAX_CREATORS = 1;
+const PATREON_YOUTUBE_FALLBACK_MAX_VARIANTS = 1;
+const PATREON_YOUTUBE_SEARCH_CALL_BUDGET = 3;
 
 function isSwiftRelated(name: string, summary?: string): boolean {
   const text = `${name} ${summary || ''}`.toLowerCase();
@@ -195,44 +202,102 @@ export class PatreonSource {
     const { enrichLinkedPosts, includeDownloadedFallback } = options;
     const queryProfile = buildQueryProfile(query);
 
-    const creators = selectCreatorsForQuery(query);
-    const queryVariants = queryProfile.compiledQueries;
-    logger.info({ query, queryVariants, weightedTokens: queryProfile.weightedTokens.slice(0, 5), creators: creators.map(c => c.name) }, 'Patreon search variants');
-
-    const results = await Promise.allSettled(
-      creators.map(async (creator) => {
-        const byId = new Map<string, PatreonPattern>();
-
-        for (const variant of queryVariants) {
-          const videos = await searchVideos(variant, creator.youtubeChannelId!, MAX_VIDEOS_PER_CREATOR);
-          for (const video of videos) {
-            if (!byId.has(video.id)) {
-              byId.set(video.id, videoToPattern(video, creator.name));
-            }
-          }
-
-          if (byId.size >= MAX_VIDEOS_PER_CREATOR) break;
-        }
-
-        const allPatterns = Array.from(byId.values());
-        return rankPatternsForQuery(
-          allPatterns,
-          queryProfile,
-          pattern => `${pattern.title} ${pattern.excerpt} ${pattern.topics.join(' ')}`,
-          { fallbackToOriginal: true }
-        );
-      })
+    const selectedCreators = selectCreatorsForQuery(query)
+      .slice(0, getPositiveIntEnv('PATREON_YOUTUBE_MAX_CREATORS', PATREON_YOUTUBE_MAX_CREATORS));
+    const queryVariants = queryProfile.compiledQueries
+      .slice(0, getPositiveIntEnv('PATREON_YOUTUBE_MAX_VARIANTS', PATREON_YOUTUBE_MAX_VARIANTS));
+    const globalMaxResults = getPositiveIntEnv('PATREON_YOUTUBE_GLOBAL_MAX_RESULTS', PATREON_YOUTUBE_GLOBAL_MAX_RESULTS);
+    const minMatchesBeforeFallback = getPositiveIntEnv(
+      'PATREON_YOUTUBE_MIN_MATCHES_BEFORE_FALLBACK',
+      PATREON_YOUTUBE_MIN_MATCHES_BEFORE_FALLBACK
+    );
+    const fallbackMaxCreators = getPositiveIntEnv(
+      'PATREON_YOUTUBE_FALLBACK_MAX_CREATORS',
+      PATREON_YOUTUBE_FALLBACK_MAX_CREATORS
+    );
+    const fallbackMaxVariants = getPositiveIntEnv(
+      'PATREON_YOUTUBE_FALLBACK_MAX_VARIANTS',
+      PATREON_YOUTUBE_FALLBACK_MAX_VARIANTS
+    );
+    let remainingSearchCalls = getPositiveIntEnv(
+      'PATREON_YOUTUBE_SEARCH_CALL_BUDGET',
+      PATREON_YOUTUBE_SEARCH_CALL_BUDGET
     );
 
-    const patterns: PatreonPattern[] = [];
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i];
-      if (result.status === 'fulfilled') {
-        patterns.push(...result.value);
-      } else {
-        logError('Patreon', result.reason, { creator: creators[i].name, query });
+    const creatorByChannelId = new Map<string, string>();
+    for (const creator of selectedCreators) {
+      if (creator.youtubeChannelId) {
+        creatorByChannelId.set(creator.youtubeChannelId, creator.name);
       }
     }
+
+    logger.info({
+      query,
+      queryVariants,
+      weightedTokens: queryProfile.weightedTokens.slice(0, 5),
+      creators: selectedCreators.map(c => c.name),
+      globalMaxResults,
+      remainingSearchCalls,
+    }, 'Patreon search strategy');
+
+    const patternByVideoId = new Map<string, PatreonPattern>();
+    const addVideosForKnownCreators = (videos: Video[]) => {
+      for (const video of videos) {
+        const creatorName = creatorByChannelId.get(video.channelId);
+        if (!creatorName) continue;
+        if (!patternByVideoId.has(video.id)) {
+          patternByVideoId.set(video.id, videoToPattern(video, creatorName));
+        }
+      }
+    };
+
+    // 1) Global-first: query all channels once per variant, then filter to known creators.
+    for (const variant of queryVariants) {
+      if (remainingSearchCalls <= 0) break;
+      remainingSearchCalls -= 1;
+
+      try {
+        const videos = await searchVideos(variant, undefined, globalMaxResults);
+        addVideosForKnownCreators(videos);
+      } catch (error) {
+        logError('Patreon', error, { strategy: 'global', query, variant });
+      }
+
+      if (patternByVideoId.size >= MAX_VIDEOS_PER_CREATOR * selectedCreators.length) {
+        break;
+      }
+    }
+
+    // 2) Sparse fallback: only probe top creator(s) and top variant(s).
+    if (patternByVideoId.size < minMatchesBeforeFallback && remainingSearchCalls > 0) {
+      const fallbackCreators = selectedCreators.slice(0, fallbackMaxCreators);
+      const fallbackVariants = queryVariants.slice(0, fallbackMaxVariants);
+
+      for (const creator of fallbackCreators) {
+        if (!creator.youtubeChannelId) continue;
+
+        for (const variant of fallbackVariants) {
+          if (remainingSearchCalls <= 0) break;
+          remainingSearchCalls -= 1;
+
+          try {
+            const videos = await searchVideos(variant, creator.youtubeChannelId, MAX_VIDEOS_PER_CREATOR);
+            addVideosForKnownCreators(videos);
+          } catch (error) {
+            logError('Patreon', error, { strategy: 'fallback', creator: creator.name, query, variant });
+          }
+        }
+
+        if (remainingSearchCalls <= 0) break;
+      }
+    }
+
+    const patterns = rankPatternsForQuery(
+      Array.from(patternByVideoId.values()),
+      queryProfile,
+      pattern => `${pattern.title} ${pattern.excerpt} ${pattern.topics.join(' ')}`,
+      { fallbackToOriginal: true }
+    );
 
     let enrichedPatterns = patterns;
     if (enrichLinkedPosts) {
