@@ -41,7 +41,6 @@ interface PatreonIdentityResponse { data: { id: string; type: string }; included
 
 const MAX_VIDEOS_PER_CREATOR = 8;
 const PATREON_SEARCH_CACHE_TTL_SECONDS = 1800;
-const PATREON_SEARCH_STALE_SECONDS = 1800;
 const PATREON_DEEP_MAX_ENRICHED_POSTS = 5;
 const PATREON_DIRECT_URL_TIMEOUT_MS = 4000;
 const PATREON_YOUTUBE_MAX_CREATORS = 2;
@@ -72,13 +71,13 @@ export class PatreonSource {
     this.fastSearchCache = createCache({
       storage: { type: 'memory', options: { size: 200 } },
       ttl: PATREON_SEARCH_CACHE_TTL_SECONDS,
-      stale: PATREON_SEARCH_STALE_SECONDS,
+      stale: PATREON_SEARCH_CACHE_TTL_SECONDS,
       onError: (err: unknown) => {
         logError('Patreon', err, { source: 'fast-cache' });
       },
     }).define('fastSearch', {
       ttl: PATREON_SEARCH_CACHE_TTL_SECONDS,
-      stale: PATREON_SEARCH_STALE_SECONDS,
+      stale: PATREON_SEARCH_CACHE_TTL_SECONDS,
       serialize: (q: string) => getPatreonSearchCacheKey(q),
     }, async (q: string) => {
       return this.searchPatternsInternal(q, {
@@ -306,7 +305,7 @@ export class PatreonSource {
       const enrichKeys = new Set(toEnrich.map(p => `${p.id}::${p.url}`));
       const passthrough = sorted.filter(p => !enrichKeys.has(`${p.id}::${p.url}`));
 
-      const enrichedSubset = await enrichPatternsWithContent(toEnrich, filesToPatterns);
+      const enrichedSubset = await enrichPatternsWithContent(toEnrich);
       enrichedPatterns = [...enrichedSubset, ...passthrough];
     }
 

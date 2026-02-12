@@ -68,7 +68,6 @@ export function filesToPatterns(
  */
 export async function enrichPatternsWithContent(
   patterns: PatreonPattern[],
-  filesToPatternsImpl: typeof filesToPatterns
 ): Promise<PatreonPattern[]> {
   const concurrencyRaw = Number.parseInt(process.env.PATREON_ENRICH_CONCURRENCY || '3', 10);
   const concurrency = Number.isFinite(concurrencyRaw) && concurrencyRaw > 0 ? concurrencyRaw : 1;
@@ -100,7 +99,7 @@ export async function enrichPatternsWithContent(
 
           if (result.success && result.files && result.files.length > 0) {
             // Create patterns from downloaded files
-            const filePatterns = filesToPatternsImpl(result.files, {
+            const filePatterns = filesToPatterns(result.files, {
               id: pattern.id,
               title: pattern.title,
               publishDate: pattern.publishDate,

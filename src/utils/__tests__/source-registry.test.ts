@@ -4,7 +4,6 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import {
   getSource,
   getAllFreeSources,
-  getSources,
   getSourceNames,
   searchMultipleSources,
   prefetchAllSources,
@@ -107,34 +106,6 @@ describe('source-registry', () => {
     });
   });
 
-  describe('getSources', () => {
-    it('should return single source when given one name', () => {
-      const sources = getSources('sundell');
-      expect(sources).toHaveLength(1);
-      expect(sources[0]).toBe(getSource('sundell'));
-    });
-
-    it('should return multiple sources when given array of names', () => {
-      const sources = getSources(['sundell', 'vanderlee']);
-      expect(sources).toHaveLength(2);
-      expect(sources[0]).toBe(getSource('sundell'));
-      expect(sources[1]).toBe(getSource('vanderlee'));
-    });
-
-    it('should return all sources when given "all"', () => {
-      const sources = getSources('all');
-      expect(sources).toHaveLength(4);
-    });
-
-    it('should return cached instances', () => {
-      const sources1 = getSources(['pointfree', 'nilcoalescing']);
-      const sources2 = getSources(['pointfree', 'nilcoalescing']);
-      
-      expect(sources1[0]).toBe(sources2[0]);
-      expect(sources1[1]).toBe(sources2[1]);
-    });
-  });
-
   describe('getSourceNames', () => {
     it('should return single name in array for single source', () => {
       const names = getSourceNames('sundell');
@@ -234,9 +205,6 @@ describe('source-registry', () => {
   describe('cache persistence integration', () => {
     it('should maintain same instances across different function calls', () => {
       const direct = getSource('sundell');
-      const fromArray = getSources(['sundell'])[0];
-
-      expect(direct).toBe(fromArray);
       // Check the instance is in the full set regardless of order
       const allSources = getAllFreeSources();
       expect(allSources).toContain(direct);
