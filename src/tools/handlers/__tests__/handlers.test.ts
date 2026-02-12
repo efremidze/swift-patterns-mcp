@@ -42,14 +42,12 @@ vi.mock('../../../config/sources.js', () => ({
       minLexicalScore: 0.35,
       minRelevanceScore: 70,
     });
-    isSemanticRecallEnabled = vi.fn().mockReturnValue(false);
     getMemvidConfig = vi.fn().mockReturnValue({
       enabled: false,
       autoStore: false,
       useEmbeddings: false,
       embeddingModel: 'bge-small',
     });
-    isMemvidEnabled = vi.fn().mockReturnValue(false);
   },
 }));
 
