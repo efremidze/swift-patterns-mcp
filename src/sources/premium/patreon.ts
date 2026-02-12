@@ -23,28 +23,11 @@ import {
   getDownloadedPatterns,
   getPositiveIntEnv,
 } from './patreon-enrichment.js';
+import type { PatreonPattern, CreatorInfo } from '../../tools/types.js';
+
+export type { PatreonPattern, CreatorInfo };
 
 const PATREON_API = 'https://www.patreon.com/api/oauth2/v2';
-
-export interface PatreonPattern {
-  id: string;
-  title: string;
-  url: string;
-  publishDate: string;
-  excerpt: string;
-  content: string;
-  creator: string;
-  topics: string[];
-  relevanceScore: number;
-  hasCode: boolean;
-}
-
-export interface CreatorInfo {
-  id: string;
-  name: string;
-  url: string;
-  isSwiftRelated: boolean;
-}
 
 type PatreonSearchMode = 'fast' | 'deep';
 
