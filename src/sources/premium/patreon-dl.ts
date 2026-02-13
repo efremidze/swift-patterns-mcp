@@ -45,8 +45,18 @@ export function invalidateScanCache(): void {
   cachedScanResult = null;
 }
 
+/** Match a downloaded post against a postId (handles directory name formats like "148144034 - Title") */
+function matchesPostId(post: DownloadedPost, postId: string): boolean {
+  return (
+    post.postId === postId ||
+    post.dirName === postId ||
+    post.dirName?.startsWith(`${postId} -`) === true ||
+    post.dirName?.startsWith(`${postId}-`) === true
+  );
+}
+
 function getCookiePath(): string {
-  // Use .patreon-session in project root (created by extract-cookie.ts)
+  // Use .patreon-session in project root (created by scripts/extract-cookie.ts)
   return path.join(process.cwd(), '.patreon-session');
 }
 
@@ -105,12 +115,7 @@ export function extractPostId(url: string): string | null {
  */
 export function isPostDownloaded(postId: string): boolean {
   const posts = scanDownloadedContent();
-  return posts.some(p =>
-    p.postId === postId ||
-    p.dirName === postId ||
-    p.dirName?.startsWith(`${postId} -`) ||
-    p.dirName?.startsWith(`${postId}-`)
-  );
+  return posts.some(p => matchesPostId(p, postId));
 }
 
 /**
@@ -134,12 +139,7 @@ export async function downloadPost(
   if (isPostDownloaded(postId)) {
     const posts = scanDownloadedContent();
     // Match by postId OR by directory name (handles case where metadata postId differs from directory name)
-    const post = posts.find(p => 
-      p.postId === postId || 
-      p.dirName === postId ||
-      p.dirName?.startsWith(`${postId} -`) ||
-      p.dirName?.startsWith(`${postId}-`)
-    );
+    const post = posts.find(p => matchesPostId(p, postId));
     if (post) {
       return { success: true, files: post.files };
     }
@@ -166,12 +166,7 @@ export async function downloadPost(
     // Scan for downloaded files
     const posts = scanDownloadedContent();
     // Match by postId OR by directory name (handles case where metadata postId differs from directory name)
-    const post = posts.find(p => 
-      p.postId === postId || 
-      p.dirName === postId ||
-      p.dirName?.startsWith(`${postId} -`) ||
-      p.dirName?.startsWith(`${postId}-`)
-    );
+    const post = posts.find(p => matchesPostId(p, postId));
 
     if (post) {
       return { success: true, files: post.files };
