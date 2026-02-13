@@ -63,7 +63,6 @@
     "adm-zip": "^0.5.16",
     "async-cache-dedupe": "^3.4.0",
     "dotenv": "^17.2.4",
-    "fastest-levenshtein": "^1.0.16",
     "keytar": "^7.9.0",
     "linkedom": "^0.18.12",
     "minisearch": "^7.2.0",
