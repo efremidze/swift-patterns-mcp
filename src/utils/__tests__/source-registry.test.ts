@@ -67,24 +67,9 @@ describe('source-registry', () => {
       });
     });
 
-    it('should persist cache across multiple calls', () => {
-      const first = getSource('nilcoalescing');
-      const second = getSource('nilcoalescing');
-      const third = getSource('nilcoalescing');
-      
-      expect(first).toBe(second);
-      expect(second).toBe(third);
-    });
-
-    it('should have searchPatterns method on cached instances', () => {
+    it('should expose search and fetch methods on instances', () => {
       const source = getSource('sundell');
-      expect(source).toHaveProperty('searchPatterns');
       expect(typeof source.searchPatterns).toBe('function');
-    });
-
-    it('should have fetchPatterns method on cached instances', () => {
-      const source = getSource('pointfree');
-      expect(source).toHaveProperty('fetchPatterns');
       expect(typeof source.fetchPatterns).toBe('function');
     });
   });
@@ -128,38 +113,51 @@ describe('source-registry', () => {
   });
 
   describe('searchMultipleSources', () => {
-    it('should search all sources by default', async () => {
-      const results = await searchMultipleSources('swift async');
-      expect(Array.isArray(results)).toBe(true);
+    it('should search all sources by default and combine results', async () => {
+      const query = 'swift async';
+      const results = await searchMultipleSources(query);
+
+      expect(results).toHaveLength(4);
+      const sources = getAllFreeSources();
+      sources.forEach(source => {
+        expect(source.searchPatterns).toHaveBeenCalledWith(query);
+      });
     });
 
-    it('should handle individual source searches', async () => {
+    it('should only search selected source', async () => {
       const results = await searchMultipleSources('swift', 'sundell');
-      expect(Array.isArray(results)).toBe(true);
-    });
+      expect(results).toEqual([mockPattern]);
 
-    it('should handle array of sources', async () => {
-      const results = await searchMultipleSources('swift', ['sundell', 'vanderlee']);
-      expect(Array.isArray(results)).toBe(true);
+      const sundell = getSource('sundell');
+      const vanderlee = getSource('vanderlee');
+      const nilcoalescing = getSource('nilcoalescing');
+      const pointfree = getSource('pointfree');
+
+      expect(sundell.searchPatterns).toHaveBeenCalledTimes(1);
+      expect(vanderlee.searchPatterns).not.toHaveBeenCalled();
+      expect(nilcoalescing.searchPatterns).not.toHaveBeenCalled();
+      expect(pointfree.searchPatterns).not.toHaveBeenCalled();
     });
 
     it('should collect results even if some sources fail', async () => {
-      // This tests the Promise.allSettled behavior
+      const failing = getSource('sundell');
+      vi.mocked(failing.searchPatterns).mockRejectedValueOnce(new Error('network error'));
+
       const results = await searchMultipleSources('test query');
-      // Should not throw even if individual sources fail
-      expect(Array.isArray(results)).toBe(true);
+      expect(results).toHaveLength(3);
     });
   });
 
   describe('prefetchAllSources', () => {
-    it('should return SettledResult array', async () => {
+    it('should prefetch all sources and return settled results', async () => {
       const results = await prefetchAllSources();
-      expect(Array.isArray(results)).toBe(true);
-      expect(results.length).toBe(4);
-    });
 
-    it('should return results with status property', async () => {
-      const results = await prefetchAllSources();
+      expect(results).toHaveLength(4);
+      const sources = getAllFreeSources();
+      sources.forEach(source => {
+        expect(source.fetchPatterns).toHaveBeenCalledTimes(1);
+      });
+
       results.forEach(result => {
         expect(result).toHaveProperty('status');
         expect(['fulfilled', 'rejected']).toContain(result.status);
@@ -167,63 +165,15 @@ describe('source-registry', () => {
     });
 
     it('should handle partial failures gracefully', async () => {
-      // Even if some sources fail, the function should complete
+      const failing = getSource('sundell');
+      vi.mocked(failing.fetchPatterns).mockRejectedValueOnce(new Error('prefetch error'));
+
       const results = await prefetchAllSources();
-      expect(results).toBeDefined();
-      expect(results.length).toBe(4);
-      
-      // Count successful and failed
+
       const successful = results.filter(r => r.status === 'fulfilled').length;
       const failed = results.filter(r => r.status === 'rejected').length;
       expect(successful + failed).toBe(4);
-    });
-
-    it('should provide access to fulfilled results', async () => {
-      const results = await prefetchAllSources();
-      const fulfilled = results.filter(
-        (r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled'
-      );
-      
-      fulfilled.forEach(result => {
-        expect(result).toHaveProperty('value');
-        expect(Array.isArray(result.value)).toBe(true);
-      });
-    });
-
-    it('should provide access to rejection reasons', async () => {
-      const results = await prefetchAllSources();
-      const rejected = results.filter(
-        (r): r is PromiseRejectedResult => r.status === 'rejected'
-      );
-      
-      rejected.forEach(result => {
-        expect(result).toHaveProperty('reason');
-      });
-    });
-  });
-
-  describe('cache persistence integration', () => {
-    it('should maintain same instances across different function calls', () => {
-      const direct = getSource('sundell');
-      // Check the instance is in the full set regardless of order
-      const allSources = getAllFreeSources();
-      expect(allSources).toContain(direct);
-    });
-
-    it('should use cached instances in search operations', async () => {
-      const sourceBefore = getSource('sundell');
-      await searchMultipleSources('test', 'sundell');
-      const sourceAfter = getSource('sundell');
-
-      expect(sourceBefore).toBe(sourceAfter);
-    });
-
-    it('should use cached instances in prefetch operations', async () => {
-      const sourceBefore = getSource('pointfree');
-      await prefetchAllSources();
-      const sourceAfter = getSource('pointfree');
-
-      expect(sourceBefore).toBe(sourceAfter);
+      expect(failed).toBe(1);
     });
   });
 

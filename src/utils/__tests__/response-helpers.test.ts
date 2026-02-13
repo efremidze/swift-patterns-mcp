@@ -10,16 +10,10 @@ import {
 
 describe('response-helpers', () => {
   describe('createTextResponse', () => {
-    it('should return MCP-compliant text content', () => {
-      const result = createTextResponse('hello');
-      expect(result.content).toHaveLength(1);
-      expect(result.content[0].type).toBe('text');
-      expect(result.content[0].text).toBe('hello');
-    });
-
-    it('should not set isError', () => {
-      const result = createTextResponse('hello');
-      expect(result.isError).toBeUndefined();
+    it('returns text response shape without error flag', () => {
+      expect(createTextResponse('hello')).toEqual({
+        content: [{ type: 'text', text: 'hello' }],
+      });
     });
   });
 
@@ -36,40 +30,23 @@ describe('response-helpers', () => {
   });
 
   describe('createErrorResponse', () => {
-    it('should set isError to true', () => {
-      const result = createErrorResponse('something went wrong');
-      expect(result.isError).toBe(true);
-    });
-
-    it('should prefix message with "Error: "', () => {
-      const result = createErrorResponse('not found');
-      expect(result.content[0].text).toBe('Error: not found');
-    });
-
-    it('should return MCP-compliant content structure', () => {
-      const result = createErrorResponse('fail');
-      expect(result.content).toHaveLength(1);
-      expect(result.content[0].type).toBe('text');
+    it('returns MCP error response with prefix', () => {
+      expect(createErrorResponse('not found')).toEqual({
+        content: [{ type: 'text', text: 'Error: not found' }],
+        isError: true,
+      });
     });
   });
 
   describe('createErrorResponseFromError', () => {
-    it('should handle Error objects', () => {
-      const result = createErrorResponseFromError(new Error('oops'));
+    it.each([
+      [new Error('oops'), 'oops'],
+      ['string error', 'string error'],
+      [42, '42'],
+    ])('handles %p', (input, expectedPart) => {
+      const result = createErrorResponseFromError(input);
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('oops');
-    });
-
-    it('should handle string errors', () => {
-      const result = createErrorResponseFromError('string error');
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('string error');
-    });
-
-    it('should handle unknown error types', () => {
-      const result = createErrorResponseFromError(42);
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toBeDefined();
+      expect(result.content[0].text).toContain(expectedPart);
     });
   });
 });

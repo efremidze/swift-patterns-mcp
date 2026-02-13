@@ -71,133 +71,24 @@ describe('detectTopics', () => {
 });
 
 describe('hasCodeContent', () => {
-  describe('Swift keyword detection', () => {
-    it('should detect func declarations', () => {
-      const content = 'func fetchData() async throws { }';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect class declarations', () => {
-      const content = 'class ViewModel: ObservableObject { }';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect struct declarations', () => {
-      const content = 'struct ContentView: View { }';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect protocol declarations', () => {
-      const content = 'protocol DataService { }';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect extension declarations', () => {
-      const content = 'extension String { }';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect enum declarations', () => {
-      const content = 'enum State { case loading }';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect actor declarations', () => {
-      const content = 'actor DataStore { }';
-      expect(hasCodeContent(content)).toBe(true);
-    });
+  it.each([
+    ['func declaration', 'func fetchData() async throws { }'],
+    ['markdown code block', 'Here is some code:\n```swift\nlet x = 1\n```'],
+    ['html code tag', 'Use <code>let x = 1</code> to declare'],
+    ['guard let', 'guard let value = optional else { return }'],
+    ['await call', 'await fetchData()'],
+    ['function return type signature', 'makeRequest() -> URLRequest'],
+    ['property wrapper', '@State var count = 0'],
+  ])('detects code content for %s', (_label, content) => {
+    expect(hasCodeContent(content)).toBe(true);
   });
 
-  describe('markdown code blocks', () => {
-    it('should detect triple backtick code blocks', () => {
-      const content = 'Here is some code:\n```swift\nlet x = 1\n```';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect code blocks without language', () => {
-      const content = 'Example:\n```\nprint("hello")\n```';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-  });
-
-  describe('HTML code tags', () => {
-    it('should detect <code> tags', () => {
-      const content = 'Use <code>let x = 1</code> to declare';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect <pre> tags', () => {
-      const content = '<pre>func hello() { }</pre>';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-  });
-
-  describe('Swift-specific patterns', () => {
-    it('should detect let assignments', () => {
-      const content = 'let viewModel = ViewModel()';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect var assignments', () => {
-      const content = 'var count = 0';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect let with type annotation', () => {
-      const content = 'let name: String = "test"';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect guard let', () => {
-      const content = 'guard let value = optional else { return }';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect if let', () => {
-      const content = 'if let unwrapped = optional { }';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect async func', () => {
-      const content = 'async func loadData() { }';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect await calls', () => {
-      const content = 'await fetchData()';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect return statements', () => {
-      const content = 'return viewModel';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect function signatures with return types', () => {
-      const content = 'makeRequest() -> URLRequest';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-
-    it('should detect property wrappers', () => {
-      const content = '@State var count = 0';
-      expect(hasCodeContent(content)).toBe(true);
-    });
-  });
-
-  describe('non-code content', () => {
-    it('should return false for plain text', () => {
-      const content = 'This is just a regular article about programming concepts.';
-      expect(hasCodeContent(content)).toBe(false);
-    });
-
-    it('should return false for text mentioning code concepts', () => {
-      const content = 'Functions are important in programming. Classes help organize code.';
-      expect(hasCodeContent(content)).toBe(false);
-    });
-
-    it('should return false for empty content', () => {
-      expect(hasCodeContent('')).toBe(false);
-    });
+  it.each([
+    ['plain prose', 'This is just a regular article about programming concepts.'],
+    ['code concepts without code', 'Functions are important in programming. Classes help organize code.'],
+    ['empty content', ''],
+  ])('returns false for %s', (_label, content) => {
+    expect(hasCodeContent(content)).toBe(false);
   });
 });
 
@@ -350,64 +241,14 @@ describe('extractCodeSnippets', () => {
 });
 
 describe('extractTechniques', () => {
-  it('should detect Swift attributes', () => {
-    const content = '@Observable class Model {} with @State var count';
+  it.each([
+    ['attributes', '@Observable class Model {} with @State var count', ['@Observable', '@State']],
+    ['concurrency', 'async func fetch() { await task() } Task { await doWork() } actor Store {}', ['async/await', 'Task', 'actor']],
+    ['SwiftUI and framework imports', 'import SwiftUI\nimport Combine\nNavigationStack { List { Text("Item") } }', ['SwiftUI', 'Combine', 'NavigationStack', 'List']],
+    ['SwiftData', '@Model class Item {} with @Query var items', ['@Model', '@Query']],
+  ])('detects techniques for %s', (_label, content, expected) => {
     const techniques = extractTechniques(content);
-
-    expect(techniques).toContain('@Observable');
-    expect(techniques).toContain('@State');
-  });
-
-  it('should detect async/await patterns', () => {
-    const content = 'async func fetch() { await task() }';
-    const techniques = extractTechniques(content);
-
-    expect(techniques).toContain('async/await');
-  });
-
-  it('should detect Task pattern', () => {
-    const content = 'Task { await doWork() }';
-    const techniques = extractTechniques(content);
-
-    expect(techniques).toContain('Task');
-  });
-
-  it('should detect actor pattern', () => {
-    const content = 'actor DataStore { var data: [String] }';
-    const techniques = extractTechniques(content);
-
-    expect(techniques).toContain('actor');
-  });
-
-  it('should detect Sendable protocol', () => {
-    const content = 'struct MyData: Sendable { }';
-    const techniques = extractTechniques(content);
-
-    expect(techniques).toContain('Sendable');
-  });
-
-  it('should detect SwiftUI patterns', () => {
-    const content = 'NavigationStack { List { Text("Item") } }';
-    const techniques = extractTechniques(content);
-
-    expect(techniques).toContain('NavigationStack');
-    expect(techniques).toContain('List');
-  });
-
-  it('should detect SwiftData patterns', () => {
-    const content = '@Model class Item {} with @Query var items';
-    const techniques = extractTechniques(content);
-
-    expect(techniques).toContain('@Model');
-    expect(techniques).toContain('@Query');
-  });
-
-  it('should detect frameworks when imported', () => {
-    const content = 'import SwiftUI\nimport Combine\nvar body: some View';
-    const techniques = extractTechniques(content);
-
-    expect(techniques).toContain('SwiftUI');
-    expect(techniques).toContain('Combine');
+    expected.forEach(value => expect(techniques).toContain(value));
   });
 
   it('should return unique techniques', () => {

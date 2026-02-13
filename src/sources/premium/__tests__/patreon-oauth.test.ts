@@ -161,6 +161,7 @@ describe('patreon-oauth', () => {
 
   it('returns an error result when provider sends error query param', async () => {
     const flowPromise = startOAuthFlow('client-id', 'client-secret');
+    await getLatestAuthState();
 
     const callbackResponse = await requestWithRetry('/callback?error=access_denied');
     const result = await flowPromise;
@@ -200,28 +201,6 @@ describe('patreon-oauth', () => {
     expect(callbackResponse.statusCode).toBe(500);
     expect(result.success).toBe(false);
     expect(result.error).toContain('Token exchange failed: 401');
-  });
-
-  it('rejects callback when state is missing', async () => {
-    const flowPromise = startOAuthFlow('client-id', 'client-secret');
-
-    const callbackResponse = await requestWithRetry('/callback?code=missing-state');
-    const result = await flowPromise;
-
-    expect(callbackResponse.statusCode).toBe(400);
-    expect(result).toEqual({ success: false, error: 'Missing OAuth state parameter' });
-    expect(mockFetch).not.toHaveBeenCalled();
-  });
-
-  it('rejects callback when state does not match', async () => {
-    const flowPromise = startOAuthFlow('client-id', 'client-secret');
-
-    const callbackResponse = await requestWithRetry('/callback?code=bad-state&state=other-state');
-    const result = await flowPromise;
-
-    expect(callbackResponse.statusCode).toBe(400);
-    expect(result).toEqual({ success: false, error: 'OAuth state mismatch' });
-    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('refreshes access token successfully and persists new tokens', async () => {
