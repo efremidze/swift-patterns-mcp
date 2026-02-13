@@ -18,9 +18,3 @@ export function getHandler(name: string): ToolHandler | undefined {
   return handlers.get(name);
 }
 
-/**
- * Check if a handler is registered
- */
-export function hasHandler(name: string): boolean {
-  return handlers.has(name);
-}

@@ -245,7 +245,7 @@ describe('patreon-oauth', () => {
     });
 
     await expect(refreshAccessToken('client-id', 'client-secret', 'refresh-token')).rejects.toThrow(
-      'Token refresh failed: 500'
+      'Token exchange failed: 500'
     );
   });
 

@@ -37,12 +37,7 @@ interface CachedIntentResult {
  * Storable cached search result (without immutable metadata fields)
  * Handlers use this to set cache values with complete type safety
  */
-export interface StorableCachedSearchResult {
-  patternIds: string[];
-  scores: Record<string, number>;
-  totalCount: number;
-  patterns?: unknown[];
-}
+export type StorableCachedSearchResult = Omit<CachedIntentResult, 'sourceFingerprint' | 'timestamp'>;
 
 /**
  * IntentCache - Caches tool handler results by normalized query intent

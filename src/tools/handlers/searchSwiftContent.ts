@@ -34,6 +34,13 @@ interface SemanticRecallOptions {
 const SEMANTIC_TIMEOUT_MS = 5_000;
 const PATREON_UNIFIED_TIMEOUT_MS = 5_000;
 
+/** Filter out patterns already present in `existing` by id or url */
+function dedup(candidates: BasePattern[], existing: BasePattern[]): BasePattern[] {
+  const ids = new Set(existing.map(p => p.id));
+  const urls = new Set(existing.map(p => p.url));
+  return candidates.filter(p => !ids.has(p.id) && !urls.has(p.url));
+}
+
 /**
  * Attempt semantic recall with a timeout.
  * Returns empty array if semantic recall takes too long or fails.
@@ -92,13 +99,12 @@ export const searchSwiftContentHandler: ToolHandler = async (args, context) => {
 
   const requireCodeValidated = validateOptionalBoolean(args, 'requireCode');
   if (isValidationError(requireCodeValidated)) return requireCodeValidated;
-  const requireCode = requireCodeValidated || false;
+  const requireCode = !!requireCodeValidated;
 
   const wantsCode = detectCodeIntent(args, query);
 
   const enabledSourceIds = context.sourceManager.getEnabledSources().map(s => s.id);
   const patreonEnabled = enabledSourceIds.includes('patreon') && !!context.patreonSource;
-  const sourceManager = context.sourceManager;
 
   // Build intent key for caching
   const sourcesForCache = [
@@ -110,12 +116,12 @@ export const searchSwiftContentHandler: ToolHandler = async (args, context) => {
     query,
     minQuality: 0,
     sources: sourcesForCache,
-    requireCode: requireCode || false,
+    requireCode,
   };
 
   const { results: finalResults } = await cachedSearch({
     intentKey,
-    sourceManager,
+    sourceManager: context.sourceManager,
     fetcher: async () => {
       // Lexical search across free sources
       const results = await searchMultipleSources(query);
@@ -135,12 +141,8 @@ export const searchSwiftContentHandler: ToolHandler = async (args, context) => {
             ? patreonResults.filter(r => r.hasCode)
             : patreonResults;
 
-          if (patreonFiltered.length > 0) {
-            const existingIds = new Set(filtered.map(p => p.id));
-            const existingUrls = new Set(filtered.map(p => p.url));
-            const dedupedPatreon = patreonFiltered.filter(p =>
-              !existingIds.has(p.id) && !existingUrls.has(p.url)
-            );
+          const dedupedPatreon = dedup(patreonFiltered, filtered);
+          if (dedupedPatreon.length > 0) {
             filtered = [...filtered, ...dedupedPatreon];
           }
         } catch (error) {
@@ -151,14 +153,14 @@ export const searchSwiftContentHandler: ToolHandler = async (args, context) => {
       filtered.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
       // Semantic recall: supplement lexical results when enabled
-      const semanticConfig = sourceManager.getSemanticRecallConfig();
+      const semanticConfig = context.sourceManager.getSemanticRecallConfig();
       if (semanticConfig.enabled) {
         const semanticResults = await trySemanticRecall({
           query,
           lexicalResults: filtered,
           config: semanticConfig,
-          sourceManager,
-          requireCode: requireCode || false,
+          sourceManager: context.sourceManager,
+          requireCode,
         });
         if (semanticResults.length > 0) {
           filtered = [...filtered, ...semanticResults]
@@ -167,7 +169,7 @@ export const searchSwiftContentHandler: ToolHandler = async (args, context) => {
       }
 
       // Memvid recall: supplement with cross-session patterns
-      const memvidConfig = sourceManager.getMemvidConfig();
+      const memvidConfig = context.sourceManager.getMemvidConfig();
       if (memvidConfig.enabled) {
         try {
           const memvidMemory = getMemvidMemory();
@@ -176,19 +178,14 @@ export const searchSwiftContentHandler: ToolHandler = async (args, context) => {
             mode: memvidConfig.useEmbeddings ? 'sem' : 'auto',
           });
 
-          if (memvidResults.length > 0) {
-            const existingIds = new Set(filtered.map(p => p.id));
-            const existingUrls = new Set(filtered.map(p => p.url));
-            const newMemvidResults = memvidResults.filter(p =>
-              !existingIds.has(p.id) &&
-              !existingUrls.has(p.url) &&
-              (!requireCode || p.hasCode)
-            );
-            if (newMemvidResults.length > 0) {
-              logger.info({ count: newMemvidResults.length }, 'Added patterns from memvid persistent memory');
-              filtered = [...filtered, ...newMemvidResults]
-                .sort((a, b) => b.relevanceScore - a.relevanceScore);
-            }
+          const newMemvidResults = dedup(
+            requireCode ? memvidResults.filter(p => p.hasCode) : memvidResults,
+            filtered,
+          );
+          if (newMemvidResults.length > 0) {
+            logger.info({ count: newMemvidResults.length }, 'Added patterns from memvid persistent memory');
+            filtered = [...filtered, ...newMemvidResults]
+              .sort((a, b) => b.relevanceScore - a.relevanceScore);
           }
         } catch (error) {
           logger.warn({ err: error }, 'Memvid memory operation failed');

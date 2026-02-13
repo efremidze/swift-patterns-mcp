@@ -5,7 +5,7 @@
 import type { ToolResponse } from '../tools/types.js';
 import { toErrorMessage } from './errors.js';
 
-export interface MarkdownSection {
+interface MarkdownSection {
   heading?: string;
   lines: Array<string | null | undefined>;
 }
@@ -19,7 +19,7 @@ function compactLines(lines: Array<string | null | undefined>): string[] {
 /**
  * Build markdown sections with consistent spacing.
  */
-export function formatMarkdownSections(sections: MarkdownSection[]): string {
+function formatMarkdownSections(sections: MarkdownSection[]): string {
   return sections
     .map(section => {
       const lines = compactLines(section.lines);

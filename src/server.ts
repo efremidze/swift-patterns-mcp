@@ -87,11 +87,7 @@ export async function startServer(): Promise<void> {
 
     // Prefetch sources in background if enabled
     if (sourceManager.isPrefetchEnabled()) {
-      prefetchAllSources().then((results) => {
-        const successful = results.filter(r => r.status === 'fulfilled').length;
-        const failed = results.filter(r => r.status === 'rejected').length;
-        logger.info(`Sources prefetch complete: ${successful} succeeded, ${failed} failed`);
-      }).catch((error) => {
+      prefetchAllSources().catch((error) => {
         logger.warn({ err: error }, "Failed to prefetch sources");
       });
     }

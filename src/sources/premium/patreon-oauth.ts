@@ -109,24 +109,16 @@ export function isTokenExpired(tokens: PatreonTokens): boolean {
   return Date.now() >= (tokens.expires_at - 5 * 60 * 1000);
 }
 
-export async function refreshAccessToken(
-  clientId: string,
-  clientSecret: string,
-  refreshToken: string
-): Promise<PatreonTokens> {
+/** Exchange a grant (auth code or refresh token) for tokens */
+async function exchangeToken(body: URLSearchParams): Promise<PatreonTokens> {
   const response = await fetch(PATREON_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-      client_id: clientId,
-      client_secret: clientSecret,
-    }),
+    body,
   });
 
   if (!response.ok) {
-    throw new Error(`Token refresh failed: ${response.status}`);
+    throw new Error(`Token exchange failed: ${response.status}`);
   }
 
   const data = await response.json() as {
@@ -145,6 +137,19 @@ export async function refreshAccessToken(
 
   await saveTokens(tokens);
   return tokens;
+}
+
+export async function refreshAccessToken(
+  clientId: string,
+  clientSecret: string,
+  refreshToken: string
+): Promise<PatreonTokens> {
+  return exchangeToken(new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+    client_id: clientId,
+    client_secret: clientSecret,
+  }));
 }
 
 export async function startOAuthFlow(
@@ -228,38 +233,14 @@ export async function startOAuthFlow(
 
       try {
         // Exchange code for tokens
-        const tokenResponse = await fetch(PATREON_TOKEN_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            code,
-            grant_type: 'authorization_code',
-            client_id: clientId,
-            client_secret: clientSecret,
-            redirect_uri: redirectUri,
-            code_verifier: codeVerifier,
-          }),
-        });
-
-        if (!tokenResponse.ok) {
-          throw new Error(`Token exchange failed: ${tokenResponse.status}`);
-        }
-
-        const data = await tokenResponse.json() as {
-          access_token: string;
-          refresh_token: string;
-          expires_in: number;
-          scope: string;
-        };
-
-        const tokens: PatreonTokens = {
-          access_token: data.access_token,
-          refresh_token: data.refresh_token,
-          expires_at: Date.now() + data.expires_in * 1000,
-          scope: data.scope,
-        };
-
-        await saveTokens(tokens);
+        const tokens = await exchangeToken(new URLSearchParams({
+          code,
+          grant_type: 'authorization_code',
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          code_verifier: codeVerifier,
+        }));
 
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(`

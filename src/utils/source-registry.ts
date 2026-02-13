@@ -8,6 +8,7 @@ import VanderLeeSource from '../sources/free/vanderlee.js';
 import NilCoalescingSource from '../sources/free/nilcoalescing.js';
 import PointFreeSource from '../sources/free/pointfree.js';
 import { InflightDeduper } from './inflight-dedup.js';
+import logger from './logger.js';
 
 export type FreeSourceName = 'sundell' | 'vanderlee' | 'nilcoalescing' | 'pointfree';
 
@@ -70,22 +71,6 @@ export function getAllFreeSources(): FreeSource[] {
 }
 
 /**
- * Get source instances by name(s)
- * @param sourceNames - Array of source names, or 'all' for all sources
- */
-export function getSources(sourceNames: FreeSourceName | 'all' | FreeSourceName[]): FreeSource[] {
-  if (sourceNames === 'all') {
-    return getAllFreeSources();
-  }
-
-  if (Array.isArray(sourceNames)) {
-    return sourceNames.map(name => getSource(name));
-  }
-
-  return [getSource(sourceNames)];
-}
-
-/**
  * Get source names for a given source parameter
  * Used for intent cache key generation
  */
@@ -131,18 +116,17 @@ export async function prefetchAllSources(): Promise<PromiseSettledResult<BasePat
   const results = await Promise.allSettled(
     names.map(name => dedupFetch(name, getSource(name)))
   );
-  const sourceNames = names as string[];
 
   // Log summary of results
   const successful = results.filter(r => r.status === 'fulfilled').length;
   const failed = results.filter(r => r.status === 'rejected').length;
 
-  console.log(`Prefetch complete: ${successful} succeeded, ${failed} failed`);
+  logger.info({ successful, failed }, 'Prefetch complete');
 
   // Log failed sources for debugging
   results.forEach((result, index) => {
     if (result.status === 'rejected') {
-      console.error(`Failed to prefetch ${sourceNames[index]}:`, result.reason);
+      logger.error({ source: names[index], err: result.reason }, 'Failed to prefetch source');
     }
   });
 

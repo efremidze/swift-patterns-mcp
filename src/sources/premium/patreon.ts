@@ -8,7 +8,7 @@ import { logError } from '../../utils/errors.js';
 import { fetch } from '../../utils/fetch.js';
 import logger from '../../utils/logger.js';
 import { createCache, type Cache } from 'async-cache-dedupe';
-import { buildQueryProfile } from '../../utils/query-analysis.js';
+import { buildQueryProfile, PATREON_DEFAULT_QUERY } from '../../utils/query-analysis.js';
 import { rankPatternsForQuery, selectCreatorsForQuery } from './patreon-scoring.js';
 import {
   dedupePatterns,
@@ -41,10 +41,8 @@ interface PatreonIdentityResponse { data: { id: string; type: string }; included
 
 const MAX_VIDEOS_PER_CREATOR = 8;
 const PATREON_SEARCH_CACHE_TTL_SECONDS = 1800;
-const PATREON_SEARCH_STALE_SECONDS = 1800;
 const PATREON_DEEP_MAX_ENRICHED_POSTS = 5;
 const PATREON_DIRECT_URL_TIMEOUT_MS = 4000;
-const PATREON_DEFAULT_QUERY = 'swiftui';
 const PATREON_YOUTUBE_MAX_CREATORS = 2;
 const PATREON_YOUTUBE_MAX_VARIANTS = 2;
 const PATREON_YOUTUBE_GLOBAL_MAX_RESULTS = 30;
@@ -73,13 +71,13 @@ export class PatreonSource {
     this.fastSearchCache = createCache({
       storage: { type: 'memory', options: { size: 200 } },
       ttl: PATREON_SEARCH_CACHE_TTL_SECONDS,
-      stale: PATREON_SEARCH_STALE_SECONDS,
+      stale: PATREON_SEARCH_CACHE_TTL_SECONDS,
       onError: (err: unknown) => {
         logError('Patreon', err, { source: 'fast-cache' });
       },
     }).define('fastSearch', {
       ttl: PATREON_SEARCH_CACHE_TTL_SECONDS,
-      stale: PATREON_SEARCH_STALE_SECONDS,
+      stale: PATREON_SEARCH_CACHE_TTL_SECONDS,
       serialize: (q: string) => getPatreonSearchCacheKey(q),
     }, async (q: string) => {
       return this.searchPatternsInternal(q, {
@@ -307,7 +305,7 @@ export class PatreonSource {
       const enrichKeys = new Set(toEnrich.map(p => `${p.id}::${p.url}`));
       const passthrough = sorted.filter(p => !enrichKeys.has(`${p.id}::${p.url}`));
 
-      const enrichedSubset = await enrichPatternsWithContent(toEnrich, filesToPatterns);
+      const enrichedSubset = await enrichPatternsWithContent(toEnrich);
       enrichedPatterns = [...enrichedSubset, ...passthrough];
     }
 
