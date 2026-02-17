@@ -96,8 +96,12 @@ async function main(): Promise<void> {
       assert(!response.includes('No patterns found'), 'Expected at least one pattern result');
       assert(response.includes('## '), 'Expected markdown pattern sections');
 
+      const sectionCount = (response.match(/^## /gm) || []).length;
+      assert(sectionCount >= 1, `Expected at least 1 pattern section, got ${sectionCount}`);
+      assert(/Quality.*:\s*\d+\/100/i.test(response), 'Expected quality scores in output');
+
       const count = extractCount(response, /Found\s+(\d+)\s+results?/i);
-      const shown = count ?? (response.match(/^## /gm) || []).length;
+      const shown = count ?? sectionCount;
       console.log(`  get_swift_pattern returned ${shown} result(s)`);
       console.log(`  preview: ${preview(response)}`);
     });
@@ -113,8 +117,10 @@ async function main(): Promise<void> {
       assert(response.includes('# Search Results'), 'Expected search results markdown');
 
       const count = extractCount(response, /Found\s+(\d+)\s+results?/i);
-      const shown = count ?? (response.match(/^## /gm) || []).length;
-      console.log(`  search_swift_content returned ${shown} result(s)`);
+      assert(count !== null && count > 0, `Expected positive result count, got ${count}`);
+      const sectionCount = (response.match(/^## /gm) || []).length;
+      assert(sectionCount >= 1, `Expected at least 1 result section, got ${sectionCount}`);
+      console.log(`  search_swift_content returned ${count} result(s)`);
       console.log(`  preview: ${preview(response)}`);
     });
 
@@ -146,6 +152,10 @@ async function main(): Promise<void> {
 
         assert(hasText(response), 'Expected non-empty response');
         assert(!response.toLowerCase().includes('unknown tool'), 'Patreon tool should be available');
+        assert(
+          response.includes('## ') || response.includes('No Patreon patterns found'),
+          'Expected pattern sections or explicit no-results message'
+        );
         console.log(`  patreon preview: ${preview(response)}`);
       },
       {

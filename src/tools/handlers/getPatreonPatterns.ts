@@ -4,6 +4,8 @@ import type { ToolHandler, PatreonPattern } from '../types.js';
 import { createTextResponse, formatMarkdownDocument } from '../../utils/response-helpers.js';
 import { PATREON_SEARCH_ENV_VARS, getMissingEnvVars, formatEnvExportHints } from '../../utils/patreon-env.js';
 import { validateOptionalString, validateOptionalBoolean, validateOptionalNumber, isValidationError } from '../validation.js';
+import { formatTopicPatterns, COMMON_FORMAT_OPTIONS } from '../../utils/pattern-formatter.js';
+import type { BasePattern } from '../../sources/free/rssPatternSource.js';
 
 export const getPatreonPatternsHandler: ToolHandler = async (args, context) => {
   // Check for missing environment variables and give specific feedback
@@ -55,29 +57,16 @@ export const getPatreonPatternsHandler: ToolHandler = async (args, context) => {
     return createTextResponse(`No Patreon patterns found${topic ? ` for "${topic}"` : ''}${requireCode ? ' with code' : ''}.`);
   }
 
-  const formatted = patterns.slice(0, 10).map(p => `
-## ${p.title}
-**Creator**: ${p.creator}
-**Date**: ${new Date(p.publishDate).toLocaleDateString()}
-${p.hasCode ? '**Has Code**: Yes' : ''}
-**Topics**: ${p.topics.length > 0 ? p.topics.join(', ') : 'General'}
+  // Prepend creator attribution to excerpt so it appears in formatted output
+  const patternsWithCreator: BasePattern[] = patterns.map(p => ({
+    ...p,
+    excerpt: `By ${p.creator} | ${p.excerpt}`,
+  }));
 
-${p.excerpt}...
+  const formatted = formatTopicPatterns(patternsWithCreator, topic || 'All', {
+    ...COMMON_FORMAT_OPTIONS,
+    maxResults: 10,
+  });
 
-**[Read full post](${p.url})**
-`).join('\n---\n');
-
-  const title = `Patreon Patterns${topic ? `: ${topic}` : ''}`;
-  const totalLine = `Found ${patterns.length} posts from your subscriptions:`;
-  const footer = patterns.length > 10 ? `*Showing top 10 of ${patterns.length} results*` : '';
-
-  return createTextResponse(formatMarkdownDocument(title, [
-    {
-      lines: [
-        totalLine,
-        '',
-        formatted,
-      ],
-    },
-  ], footer));
+  return createTextResponse(formatted);
 };

@@ -1,367 +1,392 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-02-09
+**Analysis Date:** 2026-02-17
 
 ## Test Framework
 
 **Runner:**
-- **Framework:** Vitest 3.2.4
-- **Config:** `vitest.config.ts`
-- **Setup file:** `vitest.setup.ts` (loads environment variables via dotenv)
+- Vitest 3.2.4
+- Config file: `vitest.config.ts`
 
 **Assertion Library:**
-- **Built-in:** Vitest uses `expect()` from its own API (compatible with Jest)
-- **No additional assertion library:** Standard `expect()` assertions throughout
+- Vitest built-in `expect` API (similar to Jest)
 
 **Run Commands:**
 ```bash
-npm test                 # Run all tests (vitest run)
-npm run watch          # Watch mode (tsc --watch)
-npm run lint           # ESLint + TypeScript check
-npm run pretest        # Runs "npm run build" before tests
-```
-
-**Config Details:**
-```typescript
-// vitest.config.ts
-export default defineConfig({
-  test: {
-    setupFiles: ['./vitest.setup.ts'],
-    exclude: [
-      '**/node_modules/**',
-      '**/build/**',
-      '**/dist/**',
-    ],
-  },
-});
+npm test                    # Run all tests (src/__tests__, src/cli/__tests__, etc.)
+npm run test:coverage       # Run with coverage report (v8 provider)
+npm run test:integration    # Run integration tests separately
+npm run test:e2e            # Run end-to-end tests
+npm run test:patreon        # Run Patreon-specific e2e tests
+npm run test:load           # Run load tests
+npm run bench               # Run benchmarks
 ```
 
 ## Test File Organization
 
 **Location:**
-- **Pattern:** Co-located in `__tests__` subdirectories adjacent to source
-- **Examples:**
-  - `src/utils/__tests__/cache.test.ts` (tests `src/utils/cache.ts`)
-  - `src/tools/__tests__/registry.test.ts` (tests `src/tools/registry.ts`)
-  - `src/tools/handlers/__tests__/handlers.test.ts` (tests multiple handlers in `src/tools/handlers/`)
-  - `src/integration/__tests__/mcp-client.test.ts` (integration tests)
+- Co-located with source: `__tests__` directory alongside modules
+- Pattern: `src/module/__tests__/`, `src/tools/__tests__/`, `src/sources/free/__tests__/`
+- Separate integration tests: `src/integration/__tests__/` (marked with `slow/` subdirectory for slow tests)
 
 **Naming:**
-- **Pattern:** `<module>.test.ts` (not `.spec.ts`)
-- **Example:** `cache.test.ts`, `handlers.test.ts`, `getPatreonPatterns.test.ts`
+- Test files: `{moduleName}.test.ts`
+- Examples: `cache.test.ts`, `handlers.test.ts`, `sundell.test.ts`, `patreon-oauth.test.ts`
 
 **Structure:**
 ```
 src/
-├── utils/
-│   ├── cache.ts
-│   └── __tests__/
-│       └── cache.test.ts
-├── tools/
-│   ├── registry.ts
-│   ├── __tests__/
-│   │   └── registry.test.ts
-│   └── handlers/
-│       ├── getSwiftPattern.ts
-│       └── __tests__/
-│           └── handlers.test.ts
-└── integration/
-    ├── test-client.ts
-    └── __tests__/
-        ├── mcp-client.test.ts
-        └── response-quality.test.ts
+├── __tests__/
+│   └── fixtures/           # Shared test data and fixtures
+├── utils/__tests__/
+│   ├── cache.test.ts
+│   ├── search.test.ts
+│   └── ...
+├── tools/__tests__/
+│   └── registry.test.ts
+└── tools/handlers/__tests__/
+    ├── handlers.test.ts
+    ├── getPatreonPatterns.test.ts
+    └── harness.ts          # Test helper utilities
 ```
 
 ## Test Structure
 
 **Suite Organization:**
 ```typescript
-// src/tools/handlers/__tests__/handlers.test.ts
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-describe('getSwiftPatternHandler', () => {
-  let context: ToolContext;
+describe('ClassName or Feature', () => {
+  let instance: TypeName;
 
   beforeEach(() => {
-    context = {
-      sourceManager: createMockSourceManager() as any,
-      patreonSource: null,
-    };
+    // Setup
+    instance = new TypeName();
   });
 
-  it('should return error when topic is missing', async () => {
-    const result = await getSwiftPatternHandler({}, context);
-    expect(result.content[0].text).toContain('Missing required argument');
+  afterEach(async () => {
+    // Teardown
+    await instance.cleanup();
   });
 
-  it('should filter by specific source when provided', async () => {
-    const result = await getSwiftPatternHandler({
-      topic: 'swift',
-      source: 'sundell',
-    }, context);
-    expect(result.content[0].text).toContain('Advanced SwiftUI Patterns');
+  describe('Logical Sub-Feature', () => {
+    it('should do X when Y', () => {
+      // Arrange
+      // Act
+      // Assert
+    });
+  });
+});
+```
+
+**Example from cache.test.ts (lines 28-82):**
+```typescript
+describe('FileCache', () => {
+  let cache: FileCache;
+
+  beforeEach(() => {
+    cache = new FileCache(uniqueNamespace(), 50);
+  });
+
+  afterEach(async () => {
+    await cache.clear();
+  });
+
+  // ─── get / set basics ───
+
+  describe('get/set basics', () => {
+    it('should return null for non-existent key', async () => {
+      const result = await cache.get('missing');
+      expect(result).toBeNull();
+    });
+    // ... more tests
   });
 });
 ```
 
 **Patterns:**
-- **Setup per test:** `beforeEach()` creates fresh context/state for isolation
-- **Teardown per test:** `afterEach()` cleans up resources (file cache, timers)
-- **Named test cases:** Describe expected behavior in plain English
-- **Single assertion focus:** Most tests verify one behavior; complex tests have related assertions
-- **Arrange-Act-Assert:** Clear separation of test setup, execution, and verification
+- Setup: create instances in `beforeEach`, assign to local `let` variables
+- Teardown: cleanup resources in `afterEach` (call `.clear()`, reset mocks)
+- Async operations: use `async` keyword in test functions, `await` async code
+- Comment separators: ASCII dividers to group related test sections (`// ─── section name ───`)
 
 ## Mocking
 
-**Framework:** Vitest's built-in `vi` (from `vitest` package)
+**Framework:** Vitest's `vi` module (similar to Jest)
 
 **Patterns:**
+
+1. **Module mocking (vi.mock):**
+   ```typescript
+   vi.mock('../../../sources/free/sundell.js', () => ({
+     default: class SundellSourceMock {
+       searchPatterns = vi.fn().mockResolvedValue(FREE_SOURCE_PATTERNS.sundell);
+     },
+   }));
+   ```
+   - Hoisted mocks defined before imports (top of file)
+   - Return default export or named exports as needed
+
+2. **Spy creation (vi.spyOn):**
+   ```typescript
+   const logSpy = vi.spyOn(console, 'log');
+   // Later: logSpy.mock.calls to inspect calls
+   ```
+
+3. **Function mocks (vi.fn):**
+   ```typescript
+   const mockFetch = vi.hoisted(() => vi.fn());
+   vi.mock('../utils/fetch.js', () => ({
+     fetch: mockFetch,
+   }));
+   ```
+   - `vi.hoisted()` ensures mock is defined before imports
+   - Use `.mockResolvedValue()` for async functions
+   - Use `.mockReturnValue()` for sync functions
+
+4. **Mock reset:**
+   ```typescript
+   beforeEach(() => {
+     mockFn.mockReset();
+     // or vi.clearAllMocks() for all mocks
+   });
+   ```
+
+**Example from handlers.test.ts (lines 12-52):**
 ```typescript
-// Mock entire module
 vi.mock('../../../sources/free/sundell.js', () => ({
   default: class SundellSourceMock {
-    searchPatterns = vi.fn().mockResolvedValue(MOCK_PATTERNS.sundell);
+    searchPatterns = vi.fn().mockResolvedValue(FREE_SOURCE_PATTERNS.sundell);
   },
 }));
 
-// Mock function within test
-const fetcher = vi.fn().mockResolvedValue('deduped');
+// ... more source mocks ...
 
-// Create mock objects
-const createMockSourceManager = () => ({
-  getAllSources: vi.fn().mockReturnValue(sources),
-  getSource: vi.fn((id: string) => sources.find(s => s.id === id)),
-  getEnabledSources: vi.fn().mockReturnValue(sources.filter(s => s.isEnabled)),
-});
-
-// Verify calls
-expect(context.sourceManager.enableSource).toHaveBeenCalledWith('sundell');
-expect(called).toBe(true);
-
-// Control timers
-vi.useFakeTimers();
-try {
-  vi.advanceTimersByTime(2000);
-} finally {
-  vi.useRealTimers();
-}
+vi.mock('../../../config/sources.js', () => ({
+  default: class SourceManagerMock {
+    getSemanticRecallConfig = vi.fn().mockReturnValue({
+      enabled: false,
+      minLexicalScore: 0.35,
+      minRelevanceScore: 70,
+    });
+    getMemvidConfig = vi.fn().mockReturnValue({
+      enabled: false,
+      autoStore: false,
+      useEmbeddings: false,
+      embeddingModel: 'bge-small',
+    });
+  },
+}));
 ```
 
 **What to Mock:**
-- External dependencies: Source classes, file system, network calls
-- Module-level imports: Import entire modules with `vi.mock()` to control behavior
-- Functions that have side effects: Network fetches, file operations
-- Expensive operations: Long-running searches, caching mechanisms
+- External dependencies: HTTP clients, file system (in integration tests), databases
+- Expensive operations: network requests, file I/O (cache operations)
+- Other modules: sources, handlers, configuration managers
+- Time-sensitive operations: timers, dates (use `vi.useFakeTimers()`)
 
 **What NOT to Mock:**
-- Pure utility functions: `calculateRelevance()`, `detectTopics()`, string formatting
-- Core business logic: Search algorithms, pattern filtering
-- Test assertions themselves: Never mock what you're testing
-- Standard library functions: Use real implementations (vitest handles globals)
+- Utility functions: pure functions like validation, formatting
+- Core business logic: functions being tested
+- Standard library: fs/promises, path (mock indirectly by controlling test data)
+
+**Example: Real timer vs fake timer (cache.test.ts lines 64-81):**
+```typescript
+it('should return null after TTL expires', async () => {
+  vi.useFakeTimers();
+  try {
+    await cache.set('ttl-key', 'value', 1); // 1 second TTL
+
+    // Still valid immediately
+    const before = await cache.get('ttl-key');
+    expect(before).toBe('value');
+
+    // Advance past TTL
+    vi.advanceTimersByTime(2000);
+
+    const after = await cache.get('ttl-key');
+    expect(after).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+```
 
 ## Fixtures and Factories
 
 **Test Data:**
-```typescript
-// Mock patterns in handlers.test.ts
-const MOCK_PATTERNS = {
-  sundell: [
-    {
-      id: 'sundell-1',
-      title: 'Advanced SwiftUI Patterns',
-      url: 'https://swiftbysundell.com/swiftui',
-      excerpt: 'Learn advanced SwiftUI patterns...',
-      content: 'Full content about SwiftUI...',
-      topics: ['swiftui', 'architecture'],
-      relevanceScore: 85,
-      hasCode: true,
-      publishDate: '2024-01-15T00:00:00Z',
-    },
-  ],
-};
+- Shared fixtures in `src/__tests__/fixtures/` (e.g., `patterns.js`, `tool-context.js`)
+- Source-specific fixtures in module directories: `src/sources/premium/__tests__/` may define test data inline
+- Helper functions for generating test data (seen in `cache.test.ts` lines 10-21):
+  ```typescript
+  function uniqueNamespace(): string {
+    namespaceCounter += 1;
+    return `cache-test-${Date.now()}-${namespaceCounter}`;
+  }
 
-// Factory functions
-function createMockSourceManager() {
-  return {
-    getAllSources: vi.fn().mockReturnValue([
-      { id: 'sundell', name: 'Swift by Sundell', type: 'free', ... },
-      { id: 'patreon', name: 'Patreon', type: 'premium', ... },
-    ]),
-    // ... more methods
-  };
-}
-
-function uniqueNamespace(): string {
-  return `cache-test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-```
+  function toCacheFilename(key: string): string {
+    if (key.length > 100) {
+      return `${'x'.repeat(32)}.json`;
+    }
+    return `${key.replace(/[^a-zA-Z0-9-_]/g, '_')}.json`;
+  }
+  ```
 
 **Location:**
-- Test fixtures defined at top of test file or in shared test utility
-- Factory functions in same test file, exported for reuse across test suites
-- No separate fixtures directory; data is inline for clarity
+- Shared fixtures: `src/__tests__/fixtures/`
+- Module-specific: `src/{module}/__tests__/harness.ts` or inline
+- Factory functions: `createHandlerContext()`, `createToolContext()` in harness files
+
+**Example from harness.ts (lines 10-12):**
+```typescript
+export function createHandlerContext(overrides: Partial<ToolContext> = {}): ToolContext {
+  return createToolContext(overrides);
+}
+```
 
 ## Coverage
 
-**Requirements:** Not enforced (no coverage threshold configured)
+**Requirements:** Minimum thresholds enforced
+- Statements: 30%
+- Branches: 25%
+- Functions: 30%
+- Lines: 30%
 
 **View Coverage:**
 ```bash
-# Vitest supports coverage but not configured
-# To enable: npm install -D @vitest/coverage-v8
-# Then: vitest --coverage
+npm run test:coverage      # Generate and view coverage report
+# Output: text + HTML report in coverage/ directory
 ```
 
-**Current approach:**
-- Coverage measured informally through test suite size (70+ test files)
-- Focus on critical paths: handlers, caching, search logic
-- Integration tests validate end-to-end flows
+**Report Format:** v8 provider generates text and HTML reports
+
+**Excluded from coverage:**
+- Test files: `**/__tests__/**`, `**/*.test.ts`, `**/*.spec.ts`
+- Type definitions: `**/*.d.ts`
+- Integration tests: `src/integration/**`
+- Fixtures: `**/fixtures/**`
+- Build output: `build/**`, `dist/**`
 
 ## Test Types
 
 **Unit Tests:**
-- **Scope:** Individual functions and classes in isolation
-- **Examples:** `src/utils/__tests__/cache.test.ts`, `src/utils/__tests__/search.test.ts`
-- **Approach:**
-  - Mock external dependencies (file system, network)
-  - Test function inputs and outputs
-  - Verify edge cases (null, empty, large inputs)
-  - Test error handling paths
+- Scope: individual functions and classes
+- Approach: mock dependencies, test behavior in isolation
+- Examples: `cache.test.ts`, `search.test.ts`, `validation` tests in handlers
+- Location: alongside source in `__tests__/` directories
 
 **Integration Tests:**
-- **Scope:** Multiple components working together
-- **Examples:** `src/integration/__tests__/mcp-client.test.ts`, `src/tools/handlers/__tests__/handlers.test.ts`
-- **Approach:**
-  - Mock sources but test handler logic against real source interfaces
-  - Verify tool context flows correctly through handlers
-  - Test response formatting end-to-end
-  - Skip in CI environments when native dependencies are problematic
+- Scope: multiple modules working together
+- Approach: real dependencies, minimal mocking
+- Examples: `src/integration/__tests__/cache-behavior.test.ts`, `mcp-client.test.ts`
+- Marked as slow: `src/integration/__tests__/slow/` directory
+- Run separately: `npm run test:integration`
 
 **E2E Tests:**
-- **Framework:** Not structured as separate E2E suite
-- **Approach:** `src/integration/__tests__/mcp-client.test.ts` spawns actual MCP server subprocess
-- **Conditional execution:** Skipped in CI (`const describeIntegration = isCI ? describe.skip : describe`)
-- **Example:**
-  ```typescript
-  describeIntegration('MCP Server Integration', () => {
-    let client: MCPTestClient;
-    beforeAll(async () => {
-      client = new MCPTestClient();
-      await client.start(); // Spawns server process
-    }, 10000);
-  });
-  ```
+- Scope: full system end-to-end
+- Tools: Playwright (included in dependencies)
+- Examples: `scripts/test-e2e.ts` (run via `npm run test:e2e`)
+- Patreon tests: `scripts/test-patreon-e2e.ts` (run via `npm run test:patreon`)
 
 ## Common Patterns
 
 **Async Testing:**
 ```typescript
-// Using async/await in test function
-it('should call fetcher on cache miss', async () => {
-  let called = false;
-  const result = await cache.getOrFetch('fetch-key', async () => {
-    called = true;
-    return 42;
+// Use async/await with await in test
+it('should fetch and cache data', async () => {
+  const result = await cache.getOrFetch('key', async () => {
+    return 'data';
   });
-  expect(called).toBe(true);
-  expect(result).toBe(42);
+  expect(result).toBe('data');
 });
 
-// Testing with fake timers
-vi.useFakeTimers();
-try {
-  await cache.set('ttl-key', 'value', 1); // 1 second TTL
-  const before = await cache.get('ttl-key');
-  expect(before).toBe('value');
-
-  vi.advanceTimersByTime(2000);
-  const after = await cache.get('ttl-key');
-  expect(after).toBeNull();
-} finally {
-  vi.useRealTimers();
-}
+// Or Promise.all for concurrent operations
+it('should deduplicate concurrent fetches', async () => {
+  const promises = Array.from({ length: 5 }, () =>
+    cache.getOrFetch('dedup-key', fetcher)
+  );
+  const results = await Promise.all(promises);
+  expect(results).toEqual(Array(5).fill('deduped'));
+});
 ```
 
 **Error Testing:**
 ```typescript
-// Catch and verify error message
+// Assert thrown errors
+it('should throw on invalid config', async () => {
+  await expect(setupInvalidConfig()).rejects.toThrow('Invalid');
+});
+
+// Assert error responses in handlers
 it('should return error when topic is missing', async () => {
   const result = await getSwiftPatternHandler({}, context);
   expect(result.content[0].text).toContain('Missing required argument');
-  expect(result.content[0].text).toContain('topic');
+  expect(result.isError).toBe(true);
 });
 
-// Mock error responses
-vi.mock('../sources', () => ({
-  SundellSource: class {
-    searchPatterns = vi.fn().mockRejectedValue(new Error('Network error'));
-  },
-}));
+// Assert error messages
+it('returns null for corrupt JSON cache file', async () => {
+  const cachePath = path.join(getCacheDir(namespace), toCacheFilename('corrupt-key'));
+  await fsp.writeFile(cachePath, '{not-valid-json');
 
-// Verify graceful degradation
-it('should return empty on fetch error', async () => {
-  const patterns = await source.fetchPatterns();
-  expect(patterns).toEqual([]);
+  await expect(cache.get('corrupt-key')).resolves.toBeNull();
 });
 ```
 
-**Test Data Deduplication:**
+**Deterministic Testing:**
+- ESLint rule forbids `Math.random()` in test files (tools tests)
+- ESLint rule forbids `crypto.randomUUID()` in test files (tools tests)
+- Use fixtures or predictable namespaces instead:
+  ```typescript
+  // Good: deterministic namespace
+  const namespace = `test-${Date.now()}-${index}`;
+
+  // Bad: would fail ESLint in tools tests
+  // const id = Math.random().toString();
+  ```
+
+**State Management in Tests:**
 ```typescript
-// Reuse mock patterns across multiple describe blocks
-const MOCK_PATTERNS = { /* shared data */ };
+describe('FileCache', () => {
+  let cache: FileCache;
 
-describe('handler1', () => {
-  it('uses MOCK_PATTERNS', () => {
-    // MOCK_PATTERNS accessible here
+  beforeEach(() => {
+    cache = new FileCache(uniqueNamespace(), 50);
   });
-});
 
-describe('handler2', () => {
-  it('also uses MOCK_PATTERNS', () => {
-    // MOCK_PATTERNS accessible here
+  afterEach(async () => {
+    await cache.clear();  // Cleanup between tests
   });
+
+  // Each test gets fresh instance
 });
 ```
 
-**Concurrency Tests:**
-```typescript
-// Test deduplication of concurrent identical fetches
-it('should deduplicate concurrent identical fetches', async () => {
-  let fetchCount = 0;
-  const fetcher = async () => {
-    fetchCount++;
-    await new Promise(r => setTimeout(r, 50));
-    return 'deduped';
-  };
+## Configuration
 
-  const promises = Array.from({ length: 5 }, () =>
-    cache.getOrFetch('dedup-key', fetcher)
-  );
+**Excluded from test runs:**
+- `**/node_modules/**`
+- `**/build/**`
+- `**/dist/**`
+- `**/.opencode/**`
+- `**/.claude/**`
 
-  const results = await Promise.all(promises);
-
-  expect(fetchCount).toBe(1); // Called once despite 5 concurrent requests
-  results.forEach(r => expect(r).toBe('deduped'));
-});
-```
-
-## Test Execution Strategy
-
-**Test Run Approach:**
-- **Single run:** `npm test` compiles and runs all tests
-- **Watch mode:** `npm run watch` recompiles on file changes (tests still require manual `npm test`)
-- **Pre-test build:** `npm run pretest` ensures `npm run build` runs before tests
-
-**Isolation:**
-- Fresh test context per test via `beforeEach()`
-- Unique namespaces for file-based tests: `uniqueNamespace()` generates timestamp-based keys
-- Module state reset between tests via fresh imports when needed: `await import('../registry.js')`
-
-**Timeout Configuration:**
-- Default: 5 seconds per test
-- Extended for integration tests: `it('...', async () => {...}, 60000)` or `beforeAll(async () => {...}, 10000)`
-- Used for MCP server startup and first-run operations
+**Setup file:** `vitest.setup.ts`
+- Environment config loading: `import 'dotenv/config'`
+- Conditional mocking: `keytar` mocked in CI environment
+- Example:
+  ```typescript
+  if (process.env.CI) {
+    vi.mock('keytar', () => ({
+      default: {
+        getPassword: vi.fn().mockResolvedValue(null),
+        setPassword: vi.fn().mockResolvedValue(undefined),
+        deletePassword: vi.fn().mockResolvedValue(true),
+      },
+    }));
+  }
+  ```
 
 ---
 
-*Testing analysis: 2026-02-09*
+*Testing analysis: 2026-02-17*

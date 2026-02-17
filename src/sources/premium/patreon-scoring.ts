@@ -4,7 +4,6 @@
 import type { PatreonPattern } from './patreon.js';
 import {
   type QueryProfile,
-  type QueryOverlap,
   type OverlapScoredPattern,
   computeQueryOverlap,
   isStrongQueryOverlap,

@@ -2,7 +2,7 @@
 // Pattern enrichment via Patreon post content download
 
 import type { PatreonPattern } from './patreon.js';
-import { downloadPost, type DownloadedPost, type DownloadedFile, scanDownloadedContent, extractPostId } from './patreon-dl.js';
+import { downloadPost, type DownloadedPost, type DownloadedFile, scanDownloadedContent } from './patreon-dl.js';
 import type { Video } from './youtube.js';
 import { detectTopics, hasCodeContent, calculateRelevance } from '../../utils/swift-analysis.js';
 import { createSourceConfig } from '../../config/swift-keywords.js';

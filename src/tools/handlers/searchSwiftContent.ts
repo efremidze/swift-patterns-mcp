@@ -34,6 +34,11 @@ interface SemanticRecallOptions {
 const SEMANTIC_TIMEOUT_MS = 5_000;
 const PATREON_UNIFIED_TIMEOUT_MS = 5_000;
 
+/** Sort comparator: descending by relevanceScore */
+function byRelevanceDesc(a: BasePattern, b: BasePattern): number {
+  return b.relevanceScore - a.relevanceScore;
+}
+
 /** Filter out patterns already present in `existing` by id or url */
 function dedup(candidates: BasePattern[], existing: BasePattern[]): BasePattern[] {
   const ids = new Set(existing.map(p => p.id));
@@ -150,7 +155,7 @@ export const searchSwiftContentHandler: ToolHandler = async (args, context) => {
         }
       }
 
-      filtered.sort((a, b) => b.relevanceScore - a.relevanceScore);
+      filtered.sort(byRelevanceDesc);
 
       // Semantic recall: supplement lexical results when enabled
       const semanticConfig = context.sourceManager.getSemanticRecallConfig();
@@ -164,7 +169,7 @@ export const searchSwiftContentHandler: ToolHandler = async (args, context) => {
         });
         if (semanticResults.length > 0) {
           filtered = [...filtered, ...semanticResults]
-            .sort((a, b) => b.relevanceScore - a.relevanceScore);
+            .sort(byRelevanceDesc);
         }
       }
 
@@ -185,7 +190,7 @@ export const searchSwiftContentHandler: ToolHandler = async (args, context) => {
           if (newMemvidResults.length > 0) {
             logger.info({ count: newMemvidResults.length }, 'Added patterns from memvid persistent memory');
             filtered = [...filtered, ...newMemvidResults]
-              .sort((a, b) => b.relevanceScore - a.relevanceScore);
+              .sort(byRelevanceDesc);
           }
         } catch (error) {
           logger.warn({ err: error }, 'Memvid memory operation failed');

@@ -41,17 +41,15 @@ export abstract class RssPatternSource<T extends BasePattern> {
 
   async fetchPatterns(): Promise<T[]> {
     try {
-      const { cacheKey, rssCacheTtl = 3600, fetchFullArticle } = this.options;
+      const { cacheKey, rssCacheTtl = 3600 } = this.options;
       const cached = await rssCache.get<T[]>(cacheKey);
       if (cached) return cached;
-      
+
       const feed = await this.parser.parseURL(this.options.feedUrl);
       const patterns = await Promise.all(
-        feed.items.map(item =>
-          fetchFullArticle ? this.processArticle(item) : this.processRssItem(item)
-        )
+        feed.items.map(item => this.processItem(item))
       );
-      
+
       await rssCache.set(cacheKey, patterns, rssCacheTtl);
       // Invalidate search index after fetching new patterns
       this.cachedSearch.invalidate();
@@ -62,8 +60,19 @@ export abstract class RssPatternSource<T extends BasePattern> {
     }
   }
 
-  protected async processRssItem(item: Parser.Item): Promise<T> {
-    const content = item.content || item.contentSnippet || '';
+  protected async processItem(item: Parser.Item): Promise<T> {
+    const rssContent = item.content || item.contentSnippet || '';
+    const url = item.link || '';
+    let content = rssContent;
+
+    if (this.options.fetchFullArticle && url) {
+      try {
+        content = await this.fetchArticleContent(url);
+      } catch {
+        content = rssContent;
+      }
+    }
+
     const text = `${item.title} ${content}`.toLowerCase();
     const topics = this.detectTopics(text);
     const hasCode = this.hasCodeContent(content);
@@ -71,38 +80,10 @@ export abstract class RssPatternSource<T extends BasePattern> {
     return this.makePattern({
       id: `${this.options.cacheKey}-${item.guid || item.link}`,
       title: item.title || '',
-      url: item.link || '',
-      publishDate: item.pubDate || '',
-      excerpt: (item.contentSnippet || '').substring(0, 300),
-      content,
-      topics,
-      relevanceScore,
-      hasCode,
-    });
-  }
-
-  protected async processArticle(item: Parser.Item): Promise<T> {
-    const rssContent = item.content || item.contentSnippet || '';
-    const url = item.link || '';
-    let fullContent = rssContent;
-    try {
-      if (url) {
-        fullContent = await this.fetchArticleContent(url);
-      }
-    } catch {
-      fullContent = rssContent;
-    }
-    const text = `${item.title} ${fullContent}`.toLowerCase();
-    const topics = this.detectTopics(text);
-    const hasCode = this.hasCodeContent(fullContent);
-    const relevanceScore = this.calculateRelevance(text, hasCode);
-    return this.makePattern({
-      id: `${this.options.cacheKey}-${item.guid || item.link}`,
-      title: item.title || '',
       url,
       publishDate: item.pubDate || '',
       excerpt: (item.contentSnippet || '').substring(0, 300),
-      content: fullContent,
+      content,
       topics,
       relevanceScore,
       hasCode,
