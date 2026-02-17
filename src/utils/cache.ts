@@ -6,6 +6,7 @@ import path from 'path';
 import { createHash } from 'crypto';
 import QuickLRU from 'quick-lru';
 import { getCacheDir } from './paths.js';
+import { InflightDeduper } from './inflight-dedup.js';
 
 const DEFAULT_TTL = 86400; // 24 hours in seconds
 const DEFAULT_MAX_MEMORY_ENTRIES = 100;
@@ -20,7 +21,7 @@ interface CacheEntry<T> {
 export class FileCache {
   private cacheDir: string;
   private memoryCache: QuickLRU<string, CacheEntry<unknown>>;
-  private inFlightFetches: Map<string, Promise<unknown>> = new Map();
+  private inFlightFetches = new InflightDeduper<string, unknown>();
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
   private hits = 0;
   private misses = 0;
@@ -130,26 +131,12 @@ export class FileCache {
       return cached;
     }
 
-    // Check if a fetch is already in progress for this key
-    const inFlight = this.inFlightFetches.get(key) as Promise<T> | undefined;
-    if (inFlight) {
-      return inFlight;
-    }
-
-    // Start a new fetch and track it
-    const fetchPromise = (async () => {
-      try {
-        const data = await fetcher();
-        await this.set(key, data, ttl);
-        return data;
-      } finally {
-        // Remove from in-flight map when complete (success or failure)
-        this.inFlightFetches.delete(key);
-      }
-    })();
-
-    this.inFlightFetches.set(key, fetchPromise);
-    return fetchPromise;
+    // Deduplicate concurrent fetches for the same key using InflightDeduper
+    return this.inFlightFetches.run(key, async () => {
+      const data = await fetcher();
+      await this.set(key, data, ttl);
+      return data;
+    }) as Promise<T>;
   }
 
   private isExpired(entry: CacheEntry<unknown>): boolean {
