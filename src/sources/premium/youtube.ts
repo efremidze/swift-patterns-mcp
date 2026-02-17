@@ -1,7 +1,7 @@
 // src/sources/premium/youtube.ts
 // YouTube Data API client
 
-import { logError, toErrorMessage } from '../../utils/errors.js';
+import { logError } from '../../utils/errors.js';
 import { fetch } from '../../utils/fetch.js';
 import { FileCache } from '../../utils/cache.js';
 
