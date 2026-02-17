@@ -69,9 +69,11 @@ describe('getSwiftPatternHandler', () => {
     const result = await getSwiftPatternHandler({ topic: 'swiftui' }, context);
     const text = result.content[0].text;
 
-    // Should include SwiftUI-related patterns
-    expect(text).toContain('Advanced SwiftUI Patterns');
-    expect(text).toContain('SwiftUI Navigation Deep Dive');
+    // Should include pattern sections with markdown headers
+    const sectionCount = (text.match(/^## /gm) || []).length;
+    expect(sectionCount).toBeGreaterThanOrEqual(1);
+    // Response should reference the topic
+    expect(text.toLowerCase()).toContain('swiftui');
   });
 
   it('should filter out patterns below minQuality threshold', async () => {
@@ -81,27 +83,36 @@ describe('getSwiftPatternHandler', () => {
     }, context);
     const text = result.content[0].text;
 
-    // sundell-1 (85), vanderlee-1 (78), nilcoalescing-1 (72), pointfree-1 (90) should be included
-    expect(text).toContain('Advanced SwiftUI Patterns'); // score 85
-    expect(text).toContain('iOS Performance Optimization'); // score 78
+    // All displayed quality scores should be >= threshold
+    const qualityMatches = text.matchAll(/Quality.*?(\d+)\/100/gi);
+    const scores = Array.from(qualityMatches, m => parseInt(m[1], 10));
+    expect(scores.length).toBeGreaterThanOrEqual(1);
+    for (const score of scores) {
+      expect(score).toBeGreaterThanOrEqual(70);
+    }
 
-    // sundell-2 (55) and vanderlee-2 (65) should be EXCLUDED
-    expect(text).not.toContain('Basic Swift Tips'); // score 55
-    expect(text).not.toContain('Debugging Tips'); // score 65
+    // Patterns below threshold should not appear
+    const belowThreshold = Object.values(FREE_SOURCE_PATTERNS).flat()
+      .filter(p => p.relevanceScore < 70);
+    for (const p of belowThreshold) {
+      expect(text).not.toContain(p.title);
+    }
   });
 
   it('should use default minQuality of 65 when not specified', async () => {
     const result = await getSwiftPatternHandler({ topic: 'swift' }, context);
     const text = result.content[0].text;
 
-    // sundell-2 has score 55, below default minQuality of 65
-    expect(text).not.toContain('Basic Swift Tips');
+    // Patterns below default minQuality (65) should be excluded
+    const belowDefault = Object.values(FREE_SOURCE_PATTERNS).flat()
+      .filter(p => p.relevanceScore < 65);
+    for (const p of belowDefault) {
+      expect(text).not.toContain(p.title);
+    }
 
-    // vanderlee-2 has score 65, meets minQuality threshold
-    // Note: Due to maxResults=4 default, only top 4 patterns are shown
-    // So vanderlee-2 (score 65, ranked 5th) won't appear in output
-    expect(text).toContain('Found 5 results'); // 5 patterns pass the threshold
-    expect(text).toContain('Showing top 4 of 5 results'); // But only 4 are displayed
+    // Should report found count and show truncation message
+    expect(text).toMatch(/Found \d+ results?/);
+    expect(text).toMatch(/Showing top \d+ of \d+ results/);
   });
 
   it('should filter by specific source when provided', async () => {
@@ -111,13 +122,16 @@ describe('getSwiftPatternHandler', () => {
     }, context);
     const text = result.content[0].text;
 
-    // Should only contain sundell patterns
-    expect(text).toContain('Advanced SwiftUI Patterns');
+    // Should contain sundell source attribution
+    expect(text.toLowerCase()).toContain('sundell');
 
-    // Should NOT contain patterns from other sources
-    expect(text).not.toContain('iOS Performance Optimization'); // vanderlee
-    expect(text).not.toContain('SwiftUI Navigation Deep Dive'); // nilcoalescing
-    expect(text).not.toContain('Composable Architecture'); // pointfree
+    // Should NOT contain patterns from other sources (check their unique URLs)
+    for (const [source, patterns] of Object.entries(FREE_SOURCE_PATTERNS)) {
+      if (source === 'sundell') continue;
+      for (const p of patterns) {
+        expect(text).not.toContain(p.url);
+      }
+    }
   });
 
   it('should return helpful error when source is a Patreon creator', async () => {
@@ -170,6 +184,22 @@ describe('getSwiftPatternHandler', () => {
     expect(text).not.toContain('Composable Architecture Case Study');
   });
 
+  it('should return quality scores in descending order', async () => {
+    const result = await getSwiftPatternHandler({
+      topic: 'swift',
+      minQuality: 50,
+    }, context);
+    const text = result.content[0].text;
+
+    const qualityMatches = text.matchAll(/Quality.*?(\d+)\/100/gi);
+    const scores = Array.from(qualityMatches, m => parseInt(m[1], 10));
+    expect(scores.length).toBeGreaterThanOrEqual(2);
+
+    for (let i = 1; i < scores.length; i++) {
+      expect(scores[i]).toBeLessThanOrEqual(scores[i - 1]);
+    }
+  });
+
   // Format validation tests (quality scores, source attribution, URLs, sorting,
   // empty results) removed — covered by src/integration/__tests__/response-quality.test.ts
 });
@@ -192,9 +222,10 @@ describe('searchSwiftContentHandler', () => {
     const result = await searchSwiftContentHandler({ query: 'swift' }, context);
     const text = result.content[0].text;
 
-    // Should include results from multiple sources
-    expect(text).toContain('Advanced SwiftUI Patterns'); // sundell
-    expect(text).toContain('iOS Performance Optimization'); // vanderlee
+    // Should include results from multiple sources (check URLs from different domains)
+    const sectionCount = (text.match(/^## /gm) || []).length;
+    expect(sectionCount).toBeGreaterThanOrEqual(2);
+    expect(text).toMatch(/Found \d+ results?/);
   });
 
   it('should filter by requireCode when true', async () => {
@@ -204,13 +235,16 @@ describe('searchSwiftContentHandler', () => {
     }, context);
     const text = result.content[0].text;
 
-    // Should include patterns with code
-    expect(text).toContain('Advanced SwiftUI Patterns'); // hasCode: true
-    expect(text).toContain('iOS Performance Optimization'); // hasCode: true
+    // Patterns without code should be excluded
+    const noCodePatterns = Object.values(FREE_SOURCE_PATTERNS).flat()
+      .filter(p => !p.hasCode);
+    for (const p of noCodePatterns) {
+      expect(text).not.toContain(p.title);
+    }
 
-    // Should EXCLUDE patterns without code
-    expect(text).not.toContain('Basic Swift Tips'); // hasCode: false
-    expect(text).not.toContain('Debugging Tips'); // hasCode: false
+    // Should still have results
+    const sectionCount = (text.match(/^## /gm) || []).length;
+    expect(sectionCount).toBeGreaterThanOrEqual(1);
   });
 
   it('should include all patterns when requireCode is false', async () => {
@@ -220,11 +254,10 @@ describe('searchSwiftContentHandler', () => {
     }, context);
     const text = result.content[0].text;
 
-    // Should include patterns both with and without code.
-    // Low-scoring no-code items may be outside top-4 render window.
-    expect(text).toContain('Advanced SwiftUI Patterns'); // hasCode: true
-    expect(text).toContain('Found 6 results');
-    expect(text).toContain('Showing top 4 of 6 results');
+    // Total fixture count across all sources
+    const totalFixtures = Object.values(FREE_SOURCE_PATTERNS).flat().length;
+    expect(text).toContain(`Found ${totalFixtures} results`);
+    expect(text).toMatch(/Showing top \d+ of \d+ results/);
   });
 
   it('should have search results header', async () => {

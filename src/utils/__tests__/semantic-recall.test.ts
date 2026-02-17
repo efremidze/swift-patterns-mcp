@@ -12,13 +12,16 @@ vi.mock('@xenova/transformers', () => ({
   env: { allowLocalModels: false },
 }));
 
-// Mock ml-distance
+// Mock ml-distance — compare actual array values so different embeddings
+// produce different similarity scores (embeddings vary by fill value).
 vi.mock('ml-distance', () => ({
   similarity: {
     cosine: vi.fn((a: Float32Array, b: Float32Array) => {
-      // Simple mock: higher similarity for more similar lengths
-      const lenDiff = Math.abs(a.length - b.length);
-      return 1 - lenDiff / 1000;
+      // Compute similarity from element-wise difference of fill values.
+      // The pipeline mock fills arrays with (0.1 + text.length / 1000),
+      // so different text lengths produce distinct fill values.
+      const diff = Math.abs(a[0] - b[0]);
+      return Math.max(0, 1 - diff * 10);
     }),
   },
 }));
@@ -158,11 +161,13 @@ describe('SemanticRecallIndex', () => {
         minRelevanceScore: 70,
       });
 
+      // Use varying title lengths so the embedding mock produces distinct
+      // fill values, which the cosine mock translates to different scores.
       const patterns = [
-        createMockPattern({ id: 'p1', title: 'Pattern 1', relevanceScore: 75 }),
-        createMockPattern({ id: 'p2', title: 'Pattern 2', relevanceScore: 80 }),
-        createMockPattern({ id: 'p3', title: 'Pattern 3', relevanceScore: 85 }),
-        createMockPattern({ id: 'p4', title: 'Pattern 4', relevanceScore: 90 }),
+        createMockPattern({ id: 'p1', title: 'Short', excerpt: 'x', relevanceScore: 75 }),
+        createMockPattern({ id: 'p2', title: 'A bit longer title here', excerpt: 'xx', relevanceScore: 80 }),
+        createMockPattern({ id: 'p3', title: 'Medium length title', excerpt: 'xxx', relevanceScore: 85 }),
+        createMockPattern({ id: 'p4', title: 'A very long and descriptive title about patterns', excerpt: 'xxxx', relevanceScore: 90 }),
       ];
 
       await index.index(patterns);
@@ -170,6 +175,10 @@ describe('SemanticRecallIndex', () => {
 
       // Should return only top 2
       expect(results.length).toBe(2);
+      // Results should be a subset of the indexed patterns
+      for (const r of results) {
+        expect(patterns.map(p => p.id)).toContain(r.id);
+      }
     });
 
     it('should return empty array when no patterns indexed', async () => {
@@ -250,12 +259,17 @@ describe('SemanticRecallIndex', () => {
         relevanceScore: 75,
       });
 
-      // Index with different content but same ID
+      // Index with different content but same ID — second call updates the entry
       await index.index([pattern1]);
       await index.index([pattern2]);
 
-      // Should not throw - different cache keys
-      expect(true).toBe(true);
+      // Index should still contain 1 entry (same id, updated content)
+      expect(index.size).toBe(1);
+
+      // Search should return the updated pattern (pattern2's title)
+      const results = await index.search('Title', 10);
+      expect(results.length).toBe(1);
+      expect(results[0].title).toBe('Title 2');
     });
 
     it('should use incremental indexing (skip unchanged patterns)', async () => {

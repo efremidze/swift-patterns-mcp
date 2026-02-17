@@ -97,10 +97,9 @@ describeIntegration('Response Quality Validation', () => {
         minQuality: 60,
       });
 
-      if (!response.includes('No patterns found')) {
-        // Each pattern should have a quality score
-        expect(response).toMatch(/Quality.*:\s*\d+\/100/i);
-      }
+      // Free sources should always return swiftui results
+      expect(response).not.toContain('No patterns found');
+      expect(response).toMatch(/Quality.*:\s*\d+\/100/i);
     }, 60000);
 
     it('should include source attribution for each pattern', async () => {
@@ -109,10 +108,8 @@ describeIntegration('Response Quality Validation', () => {
         minQuality: 60,
       });
 
-      if (!response.includes('No patterns found')) {
-        // Each pattern should have a source
-        expect(response).toMatch(/Source.*:/i);
-      }
+      expect(response).not.toContain('No patterns found');
+      expect(response).toMatch(/Source.*:/i);
     }, 60000);
 
     it('should include valid URLs in pattern output', async () => {
@@ -121,23 +118,21 @@ describeIntegration('Response Quality Validation', () => {
         minQuality: 60,
       });
 
-      if (!response.includes('No patterns found')) {
-        // Should have clickable markdown links
-        const urlMatch = response.match(/\[.+\]\((https?:\/\/[^)]+)\)/);
-        expect(urlMatch).not.toBeNull();
+      expect(response).not.toContain('No patterns found');
 
-        // URL should be from a known source
-        if (urlMatch) {
-          const url = urlMatch[1];
-          const isValidSource =
-            url.includes('swiftbysundell.com') ||
-            url.includes('avanderlee.com') ||
-            url.includes('nilcoalescing.com') ||
-            url.includes('pointfree.co') ||
-            url.includes('github.com/pointfreeco');
-          expect(isValidSource).toBe(true);
-        }
-      }
+      // Should have clickable markdown links
+      const urlMatch = response.match(/\[.+\]\((https?:\/\/[^)]+)\)/);
+      expect(urlMatch).not.toBeNull();
+
+      // URL should be from a known source
+      const url = urlMatch![1];
+      const isValidSource =
+        url.includes('swiftbysundell.com') ||
+        url.includes('avanderlee.com') ||
+        url.includes('nilcoalescing.com') ||
+        url.includes('pointfree.co') ||
+        url.includes('github.com/pointfreeco');
+      expect(isValidSource).toBe(true);
     }, 60000);
 
     it('should handle no results with helpful message', async () => {
@@ -158,17 +153,9 @@ describeIntegration('Response Quality Validation', () => {
         query: 'async await',
       });
 
-      if (response.includes('No results found')) {
-        expect(response).toContain('No results found');
-        return;
-      }
-
+      // Free sources should always have async/await content
+      expect(response).not.toContain('No results found');
       expect(response).toMatch(/# Search Results/);
-
-      if (response.includes('No results found')) {
-        expect(response).toContain('No results found');
-        return;
-      }
 
       // Results should be relevant to the query
       const lowerResponse = response.toLowerCase();
@@ -325,10 +312,8 @@ describeIntegration('Response Quality Validation', () => {
       ]);
 
       for (const response of responses) {
-        // Should have markdown headers for successful result lists
-        if (!response.includes('No patterns found')) {
-          expect(response).toMatch(/^#+ /m);
-        }
+        // Should have markdown headers
+        expect(response).toMatch(/^#+ /m);
         // Should NOT have HTML tags
         expect(response).not.toMatch(/<div|<span|<p>|<br>/);
       }
@@ -352,12 +337,11 @@ describeIntegration('Response Quality Validation', () => {
         minQuality: 50,
       });
 
-      if (!response.includes('No patterns found')) {
-        // Multiple patterns should be separated
-        const patternCount = (response.match(/^## /gm) || []).length;
-        if (patternCount > 1) {
-          expect(response).toMatch(/---/);
-        }
+      expect(response).not.toContain('No patterns found');
+      const patternCount = (response.match(/^## /gm) || []).length;
+      expect(patternCount).toBeGreaterThanOrEqual(1);
+      if (patternCount > 1) {
+        expect(response).toMatch(/---/);
       }
     }, 60000);
 
@@ -367,15 +351,16 @@ describeIntegration('Response Quality Validation', () => {
         minQuality: 50,
       });
 
-      if (!response.includes('No patterns found')) {
-        // Extract quality scores from the response
-        const qualityMatches = response.matchAll(/Quality.*?(\d+)\/100/gi);
-        const scores = Array.from(qualityMatches, m => parseInt(m[1], 10));
+      expect(response).not.toContain('No patterns found');
 
-        // Verify scores are in descending order
-        for (let i = 1; i < scores.length; i++) {
-          expect(scores[i]).toBeLessThanOrEqual(scores[i - 1]);
-        }
+      // Extract quality scores from the response
+      const qualityMatches = response.matchAll(/Quality.*?(\d+)\/100/gi);
+      const scores = Array.from(qualityMatches, m => parseInt(m[1], 10));
+      expect(scores.length).toBeGreaterThanOrEqual(1);
+
+      // Verify scores are in descending order
+      for (let i = 1; i < scores.length; i++) {
+        expect(scores[i]).toBeLessThanOrEqual(scores[i - 1]);
       }
     }, 60000);
   });
