@@ -3,7 +3,7 @@
 import path from 'path';
 import { rssCache, articleCache } from '../../utils/cache.js';
 import { CachedSearchIndex } from '../../utils/search.js';
-import { detectTopics, hasCodeContent, calculateRelevance } from '../../utils/swift-analysis.js';
+import { detectTopics, hasCodeContent, calculateRelevance, extractDescriptiveTitle } from '../../utils/swift-analysis.js';
 import { createSourceConfig } from '../../config/swift-keywords.js';
 import { fetchJson, fetchText, buildHeaders } from '../../utils/http.js';
 import pLimit from 'p-limit';
@@ -89,6 +89,7 @@ function isContentPath(filePath: string): boolean {
 }
 
 function extractTitle(filePath: string, content: string): string {
+  // Check frontmatter title (PointFree-specific)
   const frontMatterMatch = content.match(/^---[\s\S]*?^---/m);
   if (frontMatterMatch) {
     const titleMatch = frontMatterMatch[0].match(/title:\s*["']?(.+?)["']?$/m);
@@ -96,15 +97,16 @@ function extractTitle(filePath: string, content: string): string {
       return titleMatch[1].trim();
     }
   }
-  const markdownTitle = content.match(/^#\s+(.+)$/m);
-  if (markdownTitle?.[1]) {
-    return markdownTitle[1].trim();
-  }
+
+  // Check Swift string literal title (PointFree .swift file-specific)
   const swiftTitle = content.match(/title:\s*"([^"]+)"/);
   if (swiftTitle?.[1]) {
     return swiftTitle[1].trim();
   }
-  return path.basename(filePath, path.extname(filePath)).replace(/[-_]/g, ' ');
+
+  // Delegate H1/H2 extraction to shared utility, falling back to filename
+  const fallbackTitle = path.basename(filePath, path.extname(filePath)).replace(/[-_]/g, ' ');
+  return extractDescriptiveTitle(content, fallbackTitle);
 }
 
 function stripFormatting(content: string): string {
