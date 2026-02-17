@@ -1,0 +1,27 @@
+version: 0.1.0
+pattern: modular
+language: typescript
+rootDir: ./src
+layers:
+  - name: ui
+    pattern: '**/ui/**'
+    canDependOn:
+      - business_logic
+    description: User interface module
+  - name: business_logic
+    pattern: '**/business/**'
+    canDependOn: []
+    description: Business logic module
+  - name: data
+    pattern: '**/data/**'
+    canDependOn:
+      - business_logic
+    description: Data access module
+rules:
+  enforceLayerBoundaries: true
+  preventCircularDependencies: true
+  businessLogicInDomain: false
+ignore:
+  - '**/*.test.ts'
+  - '**/*.test.tsx'
+  - '**/node_modules/**'
