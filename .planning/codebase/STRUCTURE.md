@@ -1,277 +1,269 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-02-09
+**Analysis Date:** 2026-02-17
 
 ## Directory Layout
 
 ```
 swift-mcp/
-├── src/                           # TypeScript source code
-│   ├── index.ts                   # MCP server entry point + CLI routing
-│   ├── cli/                       # Command-line interface modules
-│   │   ├── setup.ts               # Interactive setup wizard
-│   │   ├── patreon.ts             # Patreon OAuth and configuration
-│   │   └── sources.ts             # Source management CLI
-│   ├── config/                    # Configuration and source definitions
-│   │   ├── sources.ts             # SourceManager class and source definitions
-│   │   ├── creators.ts            # Patreon creator metadata
-│   │   └── swift-keywords.ts      # Swift topic keywords for analysis
-│   ├── tools/                     # MCP tool system
-│   │   ├── index.ts               # Barrel export and handler registration
-│   │   ├── registry.ts            # Tool handler registry
-│   │   ├── types.ts               # ToolHandler, ToolResponse, ToolContext types
-│   │   ├── extract-cookie.ts      # Cookie extraction utility
-│   │   ├── handlers/              # Tool handler implementations
-│   │   │   ├── getSwiftPattern.ts
-│   │   │   ├── searchSwiftContent.ts
-│   │   │   ├── getPatreonPatterns.ts
-│   │   │   ├── setupPatreon.ts
-│   │   │   ├── listContentSources.ts
-│   │   │   ├── enableSource.ts
-│   │   │   └── __tests__/         # Handler tests
-│   │   └── __tests__/             # Tool registry tests
-│   ├── sources/                   # Content source implementations
-│   │   ├── free/                  # Free (no-auth) sources
-│   │   │   ├── rssPatternSource.ts  # Base RSS pattern class
-│   │   │   ├── sundell.ts           # Swift by Sundell
-│   │   │   ├── vanderlee.ts         # Antoine van der Lee
-│   │   │   ├── nilcoalescing.ts     # Nil Coalescing
-│   │   │   ├── pointfree.ts         # Point-Free
-│   │   │   └── __tests__/
-│   │   └── premium/               # Premium (auth required) sources
-│   │       ├── patreon.ts         # Patreon content fetcher
-│   │       ├── patreon-oauth.ts   # OAuth token management
-│   │       ├── patreon-dl.ts      # Patreon content downloader
-│   │       ├── youtube.ts         # YouTube video metadata
-│   │       └── __tests__/
-│   ├── utils/                     # Shared utilities and infrastructure
-│   │   ├── cache.ts               # Two-tier file+memory cache
-│   │   ├── search.ts              # MiniSearch wrapper with stemming
-│   │   ├── search-terms.ts        # Tokenization and normalization
-│   │   ├── semantic-recall.ts     # Embedding-based semantic search
-│   │   ├── memvid-memory.ts       # Cross-session memory integration
-│   │   ├── intent-cache.ts        # Query-level result caching
-│   │   ├── inflight-dedup.ts      # Request coalescing
-│   │   ├── source-registry.ts     # Centralized source instance management
-│   │   ├── response-helpers.ts    # Markdown formatting
-│   │   ├── pattern-formatter.ts   # Result formatting for display
-│   │   ├── swift-analysis.ts      # Topic/code/relevance detection
-│   │   ├── patreon-env.ts         # Environment variable helpers
-│   │   ├── http.ts                # Fetch wrapper
-│   │   ├── errors.ts              # Error utilities
-│   │   ├── logger.ts              # Pino logger
-│   │   ├── paths.ts               # Config/cache directory paths
-│   │   └── __tests__/             # Utility tests
-│   └── integration/               # Integration tests
-│       ├── test-client.ts         # MCP client test harness
-│       └── __tests__/
-├── build/                         # Compiled JavaScript (auto-generated)
-├── scripts/                       # Build and deployment scripts
-├── docs/                          # Documentation
-├── .planning/                     # GSD planning documents
-├── package.json                   # Dependencies and scripts
-├── tsconfig.json                  # TypeScript configuration
-├── eslint.config.js               # ESLint configuration
-├── vitest.config.ts               # Test runner configuration
-└── README.md                      # Project documentation
+├── src/                    # TypeScript source (ES modules, compiled to build/)
+│   ├── index.ts            # Entry point - CLI router + server startup
+│   ├── server.ts           # MCP server implementation
+│   ├── cli/                # CLI commands and interactive setup
+│   ├── tools/              # Tool handlers and registry
+│   ├── sources/            # Pattern sources (free + premium)
+│   ├── config/             # Configuration and source definitions
+│   ├── utils/              # Shared utilities (caching, search, formatting)
+│   └── integration/        # Integration tests
+├── build/                  # Compiled JavaScript output (generated)
+├── scripts/                # Development scripts and E2E test runners
+├── docs/                   # Documentation
+├── .planning/              # GSD planning files and logs
+├── coverage/               # Test coverage reports (generated)
+├── package.json            # Dependencies and build scripts
+├── tsconfig.json           # TypeScript configuration
+└── eslint.config.js        # Linting rules
 ```
 
 ## Directory Purposes
 
-**src/**
-- Purpose: All TypeScript source code
-- Contains: Entry point, CLI, tools, sources, utilities
-- Key files: `index.ts` (server), `tools/handlers/` (tool implementations), `sources/` (content providers)
+**src/:**
+- Purpose: All source TypeScript code
+- Contains: Handlers, sources, utilities, configuration, CLI
+- Compiled to: `build/` directory
 
-**src/cli/**
-- Purpose: Command-line interface for setup and configuration
-- Contains: Interactive wizards, OAuth flows, CLI commands
-- Key files: `setup.ts` (onboarding), `patreon.ts` (Patreon auth), `sources.ts` (source management)
+**src/index.ts:**
+- Purpose: Binary entry point for `swift-patterns-mcp` command
+- Contains: Environment loading, CLI routing logic, server startup
+- Key files: References `src/cli/router.ts` and `src/server.ts`
 
-**src/config/**
-- Purpose: Configuration management and source metadata
-- Contains: SourceManager class, source definitions, keywords
-- Key files: `sources.ts` (SourceManager, AVAILABLE_SOURCES, SourceConfig), `creators.ts` (creator metadata)
+**src/server.ts:**
+- Purpose: MCP server initialization and protocol implementation
+- Contains: Server setup, ListTools and CallTool handlers, source manager instantiation
+- Key export: `startServer()` function
 
-**src/tools/**
-- Purpose: MCP tool implementation framework
-- Contains: Registry system, handler types, tool dispatcher
-- Key files: `index.ts` (barrel/registration), `registry.ts` (Map-based registry), `handlers/` (implementations)
+**src/cli/:**
+- Purpose: Interactive CLI commands and setup wizards
+- Contains: Command handlers for `sources`, `patreon`, `setup`
+- Key files:
+  - `router.ts`: Routes CLI subcommands and detects interactive wizard
+  - `setup.ts`: Interactive onboarding wizard
+  - `patreon.ts`: Patreon authentication and credential management
+  - `sources.ts`: List and manage content sources
+  - `setup-utils.ts`: Shared UI helpers for prompts
 
-**src/tools/handlers/**
-- Purpose: Individual MCP tool implementations
-- Contains: Business logic for each tool
-- Key files: `getSwiftPattern.ts` (topic search), `searchSwiftContent.ts` (unified search), `getPatreonPatterns.ts` (premium search)
+**src/tools/:**
+- Purpose: Tool definitions and handler implementations
+- Contains: Handler functions, tool registration, validation logic
+- Key files:
+  - `index.ts`: Barrel export that registers all handlers on import
+  - `registry.ts`: Handler registry and tool list generation
+  - `registration.ts`: Tool definitions (CORE_TOOLS, PATREON_TOOLS) and `getToolList()`
+  - `types.ts`: ToolHandler, ToolContext, ToolResponse, PatreonPattern interfaces
+  - `validation.ts`: Input validation helpers
+  - `handlers/`: Individual tool implementation files
 
-**src/sources/free/**
-- Purpose: Free content providers
-- Contains: RSS-based source implementations
-- Key files: `rssPatternSource.ts` (base class), `sundell.ts`, `vanderlee.ts`, `nilcoalescing.ts`, `pointfree.ts`
+**src/tools/handlers/:**
+- Purpose: Implementation of each MCP tool
+- Contains: 6 tool handlers + cached search utility
+- Key files:
+  - `getSwiftPattern.ts`: Search free sources with topic and quality filters; implements hybrid ranking
+  - `searchSwiftContent.ts`: Unified search across all enabled sources with semantic/memvid supplementation
+  - `listContentSources.ts`: List all sources and their status
+  - `enableSource.ts`: Enable/disable sources
+  - `setupPatreon.ts`: Patreon setup and status checking
+  - `getPatreonPatterns.ts`: Search Patreon creator content
+  - `cached-search.ts`: Intent-based caching wrapper for search results
 
-**src/sources/premium/**
-- Purpose: Premium content providers
-- Contains: Patreon integration, OAuth, YouTube metadata
-- Key files: `patreon.ts` (main source), `patreon-oauth.ts` (token management), `patreon-dl.ts` (content fetch)
+**src/sources/:**
+- Purpose: Pattern source implementations
+- Contains: Free (RSS) and premium (API) sources
+- Key files:
+  - `free/rssPatternSource.ts`: Base class for RSS-based sources with caching and search
+  - `free/sundell.ts`: Swift by Sundell RSS source
+  - `free/vanderlee.ts`: Antoine van der Lee RSS source
+  - `free/nilcoalescing.ts`: Nil Coalescing RSS source
+  - `free/pointfree.ts`: Point-Free RSS source with special content extraction
+  - `premium/patreon.ts`: Main Patreon integration (conditional import)
+  - `premium/patreon-oauth.ts`: OAuth flow and token management
+  - `premium/patreon-dl.ts`: Content downloading and processing
+  - `premium/youtube.ts`: YouTube API integration for creator video content
 
-**src/utils/**
-- Purpose: Shared infrastructure and utilities
-- Contains: Caching, search, formatting, error handling, logging
-- Key files: `cache.ts` (file+memory caching), `search.ts` (MiniSearch), `semantic-recall.ts` (embeddings), `source-registry.ts` (source management)
+**src/config/:**
+- Purpose: Application configuration and source definitions
+- Contains: Source registry, configuration schema, creator database
+- Key files:
+  - `sources.ts`: SourceManager class (enables/disables sources, persists config), AVAILABLE_SOURCES list, config schema with zod
+  - `creators.ts`: Database of known Swift/iOS creators with metadata
+  - `swift-keywords.ts`: Swift-related keywords for topic detection
 
-**src/integration/**
-- Purpose: Integration testing utilities
-- Contains: MCP client test harness for E2E tests
-- Key files: `test-client.ts` (JSON-RPC client)
+**src/utils/:**
+- Purpose: Shared utilities across handlers and sources
+- Contains: Caching, search, analysis, formatting, HTTP, logging
+- Key files (by function):
+  - **Caching**: `cache.ts` (in-memory + file-based with TTL), `intent-cache.ts` (query result caching)
+  - **Search**: `search.ts` (MiniSearch wrapper with term weighting), `source-registry.ts` (singleton source instances, deduplication)
+  - **Analysis**: `swift-analysis.ts` (topic detection, code detection, relevance scoring), `query-analysis.ts` (query tokenization, overlap scoring)
+  - **Formatting**: `pattern-formatter.ts` (markdown/text output formatting), `response-helpers.ts` (MCP response builders)
+  - **Semantic**: `semantic-recall.ts` (embedding model and similarity search)
+  - **Memory**: `memvid-memory.ts` (persistent cross-session pattern storage)
+  - **HTTP**: `http.ts` (fetch with headers), `fetch.ts` (fetch wrapper)
+  - **Other**: `logger.ts` (pino configuration), `paths.ts` (config directory), `errors.ts` (error utils)
 
-**build/**
-- Purpose: Compiled JavaScript output (auto-generated by TypeScript)
-- Generated: Yes
-- Committed: No (in .gitignore)
+**src/__tests__/:**
+- Purpose: Test fixtures and shared test setup
+- Contains: Mock patterns, test harnesses
+- Key files:
+  - `fixtures/patterns.ts`: Mock pattern data for all sources
+
+**src/tools/handlers/__tests__/:**
+- Purpose: Tests for tool handlers
+- Contains: Mocked sources, handler invocation tests
+- Key files:
+  - `handlers.test.ts`: Tests for core handlers (getSwiftPattern, search, list, enable)
+  - `getPatreonPatterns.test.ts`: Tests for Patreon handler
+  - `harness.ts`: Helper to create mock ToolContext
+
+**src/config/__tests__/:**
+- Purpose: Tests for configuration and source management
+- Contains: SourceManager behavior tests
+
+**src/sources/free/__tests__/ and src/sources/premium/__tests__/:**
+- Purpose: Tests for individual source implementations
+- Contains: Source-specific fetch and search tests
+
+**src/utils/__tests__/:**
+- Purpose: Tests for utilities
+- Contains: Cache, search, analysis, registry tests
+
+**src/integration/__tests__/:**
+- Purpose: Integration tests
+- Contains: E2E MCP client tests, slow tests (actual source fetches), cache behavior tests
+
+**build/:**
+- Purpose: Generated compiled JavaScript
+- Contains: Output of `tsc` compilation
+- Auto-generated: Never commit changes, regenerate with `npm run build`
+
+**scripts/:**
+- Purpose: Development and testing utilities
+- Contains: Load testing, benchmarking, E2E test runners, query testing scripts
+
+**docs/:**
+- Purpose: User-facing documentation
+- Contains: Architecture diagrams, integration guides, development setup
 
 ## Key File Locations
 
 **Entry Points:**
-- `src/index.ts`: MCP server initialization, CLI routing, tool dispatch
-- `src/cli/setup.ts`: Interactive setup wizard (fallback when no args + TTY)
-- `src/cli/patreon.ts`: Patreon OAuth flow
-- `src/cli/sources.ts`: Source management commands
+- `src/index.ts`: Binary entry point (shebang at top, no imports)
+- `src/server.ts`: MCP server startup function
+- `src/cli/router.ts`: CLI command routing decision logic
 
 **Configuration:**
-- `src/config/sources.ts`: SourceManager class, AVAILABLE_SOURCES, SourceConfig schema
-- `src/utils/paths.ts`: Config/cache directory resolution
-- `src/utils/logger.ts`: Pino logger initialization
+- `src/config/sources.ts`: Source definitions and SourceManager
+- `.env.example`: Required environment variables template
+- `~/.config/swift-patterns-mcp/config.json`: Runtime config location (created by SourceManager)
 
 **Core Logic:**
-- `src/tools/handlers/getSwiftPattern.ts`: Topic-based pattern search
-- `src/tools/handlers/searchSwiftContent.ts`: Unified cross-source search with semantic/memvid fallback
-- `src/tools/handlers/getPatreonPatterns.ts`: Patreon-specific pattern search
-- `src/utils/source-registry.ts`: Centralized source instantiation and in-flight dedup
-- `src/utils/cache.ts`: Two-tier caching system
-- `src/sources/free/rssPatternSource.ts`: Base class for RSS sources
+- `src/tools/handlers/*.ts`: All 6 tools implemented here
+- `src/utils/source-registry.ts`: Source instantiation and deduplication
+- `src/utils/cache.ts`: Multi-level caching strategy
 
 **Testing:**
-- `src/tools/handlers/__tests__/handlers.test.ts`: Tool handler tests
-- `src/sources/free/__tests__/`: Individual source tests
-- `src/utils/__tests__/`: Utility function tests
-- `src/integration/__tests__/`: E2E MCP client tests
+- `src/__tests__/fixtures/patterns.ts`: Test pattern data
+- `src/tools/handlers/__tests__/harness.ts`: Test context factory
+- `src/integration/__tests__/*.test.ts`: E2E tests
 
 ## Naming Conventions
 
 **Files:**
-- Camel case: `getSwiftPattern.ts`, `searchSwiftContent.ts`
-- Index files: `index.ts` for barrel exports
-- Test files: `{name}.test.ts` or `{name}.spec.ts`
-- CLI modules: Named command: `setup.ts`, `patreon.ts`, `sources.ts`
-- Classes: `RssPatternSource`, `SourceManager`, `FileCache`, `SemanticRecallIndex`
+- Handlers: `camelCase.ts` (e.g., `getSwiftPattern.ts`, `searchSwiftContent.ts`)
+- Sources: `kebab-case.ts` or `camelCase.ts` (e.g., `patreon-oauth.ts`, `RssPatternSource.ts`)
+- Utilities: `kebab-case.ts` (e.g., `source-registry.ts`, `response-helpers.ts`)
+- Tests: File name + `.test.ts` or `.spec.ts` (e.g., `handlers.test.ts`)
 
 **Directories:**
-- Plural for collections: `src/tools/`, `src/sources/`, `src/utils/`
-- Structured by feature: `free/`, `premium/` under sources
-- Handlers grouped: All in `src/tools/handlers/`
-- Tests co-located: `__tests__/` adjacent to code or in parallel directory
+- Grouped by feature: `tools/`, `sources/`, `utils/`, `config/`
+- Test directories: `__tests__/` (Vitest convention) alongside source
+- Subdirectories: `handlers/` (tool implementations), `free/` / `premium/` (source types)
 
-**Functions & Variables:**
-- Camel case: `searchMultipleSources()`, `prefetchAllSources()`, `getHandler()`
-- Descriptive action verbs: `fetch`, `search`, `format`, `enable`, `disable`, `validate`
-- Constants: All caps: `DEFAULT_TTL`, `SEMANTIC_TIMEOUT_MS`, `AVAILABLE_SOURCES`
-- Types: Pascal case: `ToolResponse`, `BasePattern`, `SourceConfig`
+**Functions and Classes:**
+- Handlers: PascalCase ending with `Handler` (e.g., `getSwiftPatternHandler`)
+- Sources: PascalCase (e.g., `RssPatternSource`, `PatreonSource`)
+- Utilities: camelCase (e.g., `searchMultipleSources`, `formatSearchPatterns`)
+- Interfaces: PascalCase, often prefixed with I or suffixed with "Interface" or descriptive name (e.g., `ToolResponse`, `BasePattern`)
 
 ## Where to Add New Code
 
-**New Tool Implementation:**
-- Implementation: `src/tools/handlers/{toolName}.ts` (export handler function)
-- Registration: Add to `src/tools/index.ts` (registerHandler call)
-- Tests: `src/tools/handlers/__tests__/{toolName}.test.ts`
-- Tool definition: Add to CORE_TOOLS or PATREON_TOOLS array in `src/index.ts`
+**New Tool:**
+1. Implement handler in `src/tools/handlers/[toolName].ts`
+2. Export handler function with type `ToolHandler`
+3. Register in `src/tools/index.ts` via `registerHandler()`
+4. Add tool definition to `CORE_TOOLS` or `PATREON_TOOLS` in `src/tools/registration.ts`
+5. Add tests in `src/tools/handlers/__tests__/[toolName].test.ts`
 
-**New Content Source (Free):**
-- Implementation: `src/sources/free/{sourceName}.ts` extending RssPatternSource
-- Registration: Import in `src/utils/source-registry.ts` and add to SOURCE_CLASSES
-- Config: Add to AVAILABLE_SOURCES array in `src/config/sources.ts`
-- Tests: `src/sources/free/__tests__/{sourceName}.test.ts`
+**New Source (Free):**
+1. Create `src/sources/free/[sourceName].ts` extending `RssPatternSource`
+2. Define feed URL and topic keywords in constructor
+3. Add source definition to `AVAILABLE_SOURCES` in `src/config/sources.ts`
+4. Export default instance of source class
+5. Add entry to `SOURCE_CLASSES` in `src/utils/source-registry.ts`
+6. Add tests in `src/sources/free/__tests__/[sourceName].test.ts`
 
-**New Content Source (Premium):**
-- Implementation: `src/sources/premium/{sourceName}.ts`
-- Registration: Conditional import in `src/index.ts` (like patreon.ts)
-- Config: Add to AVAILABLE_SOURCES in `src/config/sources.ts`
-- Tests: `src/sources/premium/__tests__/{sourceName}.test.ts`
+**New Source (Premium):**
+1. Create `src/sources/premium/[sourceName].ts` implementing `PatreonSourceInstance` interface
+2. Handle authentication via environment variables or credential storage
+3. Implement `fetchPatterns()` and `searchPatterns()` methods
+4. Add source definition to `AVAILABLE_SOURCES` in `src/config/sources.ts`
+5. Import conditionally in `src/server.ts` (like Patreon)
+6. Add tests in `src/sources/premium/__tests__/[sourceName].test.ts`
 
-**New Utility Function:**
-- Implementation: `src/utils/{utilityName}.ts` or add to existing util
-- Exports: Named exports, not default
-- Tests: `src/utils/__tests__/{utilityName}.test.ts`
+**New Utility:**
+1. Create `src/utils/[utilName].ts`
+2. Export functions/classes
+3. Add unit tests in `src/utils/__tests__/[utilName].test.ts`
+4. Import where needed
 
 **New CLI Command:**
-- Implementation: `src/cli/{commandName}.ts`
-- Routing: Add to CLI_COMMANDS map in `src/index.ts`
-- Tests: `src/cli/__tests__/{commandName}.test.ts`
+1. Create `src/cli/[commandName].ts`
+2. Implement command logic (use `src/cli/setup-utils.ts` for UI)
+3. Add to `CLI_COMMANDS` map in `src/cli/router.ts`
+4. Add tests in `src/cli/__tests__/[commandName].test.ts`
 
 ## Special Directories
 
-**src/__tests__/ & src/**/__tests__/:**
-- Purpose: Co-located test files using Vitest
-- Generated: No
-- Committed: Yes
-- Pattern: Mirror source structure, one test file per source file
+**node_modules/:**
+- Purpose: Installed dependencies
+- Generated: Yes (run `npm install`)
+- Committed: No (in .gitignore)
 
 **build/:**
 - Purpose: Compiled JavaScript output
-- Generated: Yes (by `npm run build`)
-- Committed: No
-- Source: TypeScript compiler output, published to npm
+- Generated: Yes (run `npm run build`)
+- Committed: No (in .gitignore)
 
-**.planning/codebase/:**
-- Purpose: GSD codebase analysis documents
-- Generated: By `/gsd:map-codebase` command
-- Contents: ARCHITECTURE.md, STRUCTURE.md, CONVENTIONS.md, TESTING.md, STACK.md, INTEGRATIONS.md, CONCERNS.md
+**coverage/:**
+- Purpose: Test coverage reports
+- Generated: Yes (run `npm run test:coverage`)
+- Committed: No (in .gitignore)
 
-**docs/:**
-- Purpose: Project documentation and planning
-- Contains: README, setup guides, planning documents, benchmarks
-- Key files: `README.md` (main documentation)
+**.planning/:**
+- Purpose: GSD orchestrator planning documents and logs
+- Generated: Yes (by GSD tools)
+- Committed: Yes (tracked for context)
 
-## File Type Patterns
+**.env:**
+- Purpose: Environment variables (secrets)
+- Generated: No (manual setup)
+- Committed: No (in .gitignore)
+- See: `.env.example` for template
 
-**Configuration Files:**
-- `tsconfig.json`: TypeScript compiler options
-- `eslint.config.js`: ESLint rules
-- `vitest.config.ts`: Test runner configuration
-- `package.json`: Dependencies and npm scripts
-
-**Entry Point Pattern:**
-- Shebang: `#!/usr/bin/env node` for CLI modules
-- Top export from handlers: Single default export or named export matching handler name
-- Index files: Barrel exports re-exporting from submodules
-
-**Handler Pattern:**
-All handlers follow this structure:
-```typescript
-import type { ToolHandler } from '../types.js';
-
-export const {handlerName}Handler: ToolHandler = async (args, context) => {
-  // Argument validation
-  // Intent cache check
-  // Business logic
-  // Response formatting
-  return createTextResponse(...);
-};
-```
-
-**Source Implementation Pattern:**
-Free sources extend RssPatternSource:
-```typescript
-export class {SourceName}Source extends RssPatternSource<{SourceName}Pattern> {
-  constructor() {
-    super({
-      feedUrl: '...',
-      cacheKey: '...',
-      topicKeywords: { ... },
-      qualitySignals: { ... },
-    });
-  }
-}
-```
+**dist/ or build/:**
+- Purpose: Compiled output for distribution
+- Output of: `npm run build` (TypeScript → JavaScript)
+- Location specified in: `tsconfig.json` outDir
 
 ---
 
-*Structure analysis: 2026-02-09*
+*Structure analysis: 2026-02-17*

@@ -1,229 +1,182 @@
 # Architecture
 
-**Analysis Date:** 2026-02-09
+**Analysis Date:** 2026-02-17
 
 ## Pattern Overview
 
-**Overall:** Model Context Protocol (MCP) Server with layered handler-based architecture
+**Overall:** Modular MCP (Model Context Protocol) server with multi-source pattern aggregation, optional premium integrations, and hybrid search capabilities.
 
 **Key Characteristics:**
-- Request/response pattern using MCP SDK (Model Context Protocol)
-- Handler registry system for decoupled tool implementations
-- Source abstraction layer supporting free and premium content providers
-- Multi-level caching with semantic search fallback
-- Persistent cross-session memory via Memvid integration
+- Dual-mode entry point (CLI or MCP server)
+- Multi-source plugin architecture with free and premium sources
+- Layered search combining lexical, semantic, and cross-session recall
+- Configuration-driven source and feature enablement
+- Handler-based tool execution with request validation
 
 ## Layers
 
-**Entry Point & Server Layer:**
-- Purpose: Initialize MCP server, CLI routing, and request handling
-- Location: `src/index.ts`
-- Contains: Server setup, tool registration, MCP request/response handling
-- Depends on: MCP SDK, tool handlers, source manager, config
+**Entry Point Layer:**
+- Purpose: Route between CLI and MCP server modes based on arguments
+- Location: `src/index.ts`, `src/cli/router.ts`
+- Contains: CLI command routing, interactive wizard detection, MCP server startup
+- Depends on: CLI modules, server module
+- Used by: Node.js runtime (package.json bin entry)
+
+**MCP Server Layer:**
+- Purpose: Implement Model Context Protocol server interface for tool registration and execution
+- Location: `src/server.ts`
+- Contains: MCP server setup, tool request handling, source manager initialization
+- Depends on: @modelcontextprotocol/sdk, tool handlers, source manager
 - Used by: MCP clients (Claude, Cursor, etc.)
 
 **Tool Handler Layer:**
-- Purpose: Implement MCP tool logic and client-facing interfaces
-- Location: `src/tools/handlers/`
-- Contains: Core handlers (get_swift_pattern, search_swift_content, list_content_sources, enable_source) and premium handlers (get_patreon_patterns, setup_patreon)
-- Depends on: Source registry, response helpers, caching, validation
-- Used by: MCP server request dispatcher
+- Purpose: Implement business logic for individual tools (search, fetch, enable, setup)
+- Location: `src/tools/handlers/*.ts`
+- Contains: Request validation, multi-source search coordination, response formatting
+- Depends on: Source registry, utilities (caching, formatting, analysis), validation
+- Used by: MCP server via handler registry
 
-**Source Abstraction Layer:**
-- Purpose: Provide consistent interface for content providers (free and premium)
-- Location: `src/sources/free/` and `src/sources/premium/`
-- Contains: RSS-based free sources (Sundell, van der Lee, Nil Coalescing, Point-Free) and Patreon premium source
-- Depends on: HTTP utilities, cache, content analysis
-- Used by: Tool handlers, source registry
+**Configuration Layer:**
+- Purpose: Manage source enablement, feature flags, and persistent settings
+- Location: `src/config/sources.ts`, `src/config/creators.ts`, `src/config/swift-keywords.ts`
+- Contains: Source definitions, configuration schema, runtime state management
+- Depends on: zod for validation, file system for persistence
+- Used by: Server, handlers, CLI
 
-**Configuration & State Layer:**
-- Purpose: Manage source configuration, feature flags, and user preferences
-- Location: `src/config/sources.ts`
-- Contains: SourceManager class, source definitions, default configuration, semantic recall settings
-- Depends on: File system, Zod validation
-- Used by: Server initialization, handlers, CLI
+**Source Layer:**
+- Purpose: Fetch and process patterns from RSS feeds, APIs, and external sources
+- Location: `src/sources/free/*.ts`, `src/sources/premium/patreon*.ts`
+- Contains: Source-specific pattern fetching, content extraction, enrichment
+- Depends on: HTTP utilities, caching, parsing (RSS, HTML), analysis utilities
+- Used by: Source registry, handlers
 
-**Utility & Infrastructure Layer:**
-- Purpose: Cross-cutting concerns and shared utilities
-- Location: `src/utils/`
-- Contains:
-  - Cache (`cache.ts`): File + memory caching with TTL and cleanup
-  - Search (`search.ts`): MiniSearch + stemming for lexical search
-  - Semantic recall (`semantic-recall.ts`): Xenova embeddings fallback
-  - Response helpers (`response-helpers.ts`): Markdown formatting
-  - Error handling (`errors.ts`): Structured error logging
-  - HTTP (`http.ts`): Fetch with headers and deduplication
-  - Logging (`logger.ts`): Pino-based structured logging
-  - Memvid integration (`memvid-memory.ts`): Cross-session pattern storage
-  - Intent cache (`intent-cache.ts`): Query-level result caching
+**Utility Layer:**
+- Purpose: Cross-cutting concerns: caching, search, analysis, formatting, HTTP
+- Location: `src/utils/*.ts`
+- Contains: Pattern formatting, relevance scoring, semantic indexing, response building, HTTP with headers
+- Depends on: External libraries (minisearch, transformers, pino for logging)
 - Used by: All layers
 
 **CLI Layer:**
-- Purpose: Interactive setup and configuration outside MCP context
-- Location: `src/cli/`
-- Contains: Interactive setup wizard, Patreon OAuth flow, source management CLI
-- Depends on: Readline, SourceManager, OAuth handlers
-- Used by: Direct user invocation via package binary
+- Purpose: Interactive setup and source management outside of MCP server
+- Location: `src/cli/*.ts`
+- Contains: Setup wizards, Patreon authentication, source listing
+- Depends on: Source manager, HTTP utilities, interactive prompts
+- Used by: index.ts when CLI subcommands are detected
 
 ## Data Flow
 
-**Search Flow (get_swift_pattern / search_swift_content):**
+**Tool Request Flow:**
 
-1. User invokes tool via MCP with query and optional filters
-2. Handler checks intent cache for previous results with same parameters
-3. If cache miss:
-   - Query routed to source registry → multiple sources searched in parallel
-   - Results combined and sorted by relevance score
-   - If semantic recall enabled and lexical score < threshold → Xenova embeddings supplement results
-   - If memvid enabled → patterns from previous sessions retrieved and merged
-   - Results cached in intent cache with semantic/memvid additions
-4. Results formatted as markdown with optional code snippets
-5. Response returned to MCP client
+1. MCP client sends `CallToolRequest` to server via stdio
+2. `src/server.ts` receives request, looks up handler by tool name
+3. Handler in `src/tools/handlers/*.ts` validates arguments using `src/tools/validation.ts`
+4. Handler executes search/fetch logic, potentially using multiple sources
+5. Source registry (`src/utils/source-registry.ts`) instantiates source singletons and deduplicates concurrent requests
+6. Individual source (`src/sources/free/*.ts` or `src/sources/premium/*.ts`) fetches patterns
+7. Patterns are cached by `src/utils/cache.ts` to avoid redundant fetches
+8. Results are processed through supplementary layers (semantic recall, memvid memory, deduplication)
+9. Handler formats results using `src/utils/pattern-formatter.ts`
+10. Response is serialized and sent back to MCP client
 
-**Patreon Setup Flow (setup_patreon):**
+**Search Execution:**
 
-1. Handler detects setup request
-2. If "start" action:
-   - Generates OAuth URL for Patreon authentication
-   - Stores temporary session state
-   - Returns URL to user
-3. If "status" action:
-   - Checks if PATREON_CLIENT_ID, PATREON_CLIENT_SECRET, YOUTUBE_API_KEY are set
-   - Returns configuration status
-4. OAuth callback (triggered externally) validates token and enables source
+- **Lexical Search**: Query tokenization → multi-source search via MiniSearch index → relevance scoring via quality signals
+- **Semantic Recall**: Triggered when lexical results are weak or empty → lazy initialization of embedding model → semantic search → deduplication with lexical results
+- **Memvid Memory**: Cross-session pattern recall from persistent memory → semantic or lexical matching → merging with current search results
+- **Ranking**: Patterns ranked by relevance score, then by query overlap analysis, then by secondary signals (code presence, publish date)
 
-**Startup Flow:**
+**State Management:**
 
-1. index.ts loads dotenv configuration
-2. Checks CLI subcommand (sources, patreon, setup)
-3. If no CLI command and TTY available → runs interactive setup wizard
-4. Otherwise starts MCP server:
-   - Initializes SourceManager from config file
-   - Conditionally imports PatreonSource (premium)
-   - Auto-enables Patreon if credentials detected
-   - Registers all tool handlers
-   - Starts stdio transport
-   - Background: Prefetches sources if enabled, prefetches embedding model if semantic recall enabled
-
-## State Management
-
-**Configuration State:**
-- Persisted in JSON file at `~/.config/swift-patterns-mcp/config.json`
-- Managed by SourceManager class
-- Contains: enabled sources, semantic recall settings, memvid settings, prefetch preference
-- Modified via: enableSource/disableSource methods or CLI commands
-
-**Runtime Caches:**
-- In-memory: Quick-LRU cache for hot items (max 100 entries)
-- File-based: JSON cache in ~/.cache/swift-patterns-mcp/{namespace}/ with TTL
-- Search indexes: Singleton source instances maintain MiniSearch indexes
-- Inflight dedup: Prevents concurrent duplicate requests to same source/query
-
-**Semantic Index:**
-- Singleton SemanticRecallIndex per process
-- Cached embeddings stored in file cache with content hash keys
-- Only activated when lexical search score falls below minLexicalScore threshold
-
-**Cross-Session Memory (Memvid):**
-- SDK client connected to Memvid API
-- Stores patterns with optional semantic embeddings
-- Survives across multiple MCP server invocations
-- Disabled by default but auto-populated when enabled
+- **Configuration**: Persisted to `~/.config/swift-patterns-mcp/config.json` via `SourceManager`
+- **Source Caches**: In-memory singleton instances of source classes keep search indexes warm
+- **Search Result Caching**: Intent-based caching at `src/tools/handlers/cached-search.ts` deduplicates identical queries
+- **Pattern Caches**: RSS and article content cached with TTLs via `src/utils/cache.ts` (in-memory with optional file-based fallback)
+- **Semantic Index**: Lazy-loaded and kept in memory for the lifetime of the server process
 
 ## Key Abstractions
 
-**ContentSource Interface:**
-- Purpose: Metadata for available sources (free and premium)
-- Examples:
-  - `src/config/sources.ts`: AVAILABLE_SOURCES array
-  - Each source has id, name, type, enabled, requiresAuth, status, configKeys
-- Pattern: Configuration-driven source discovery
-
-**RssPatternSource Class:**
-- Purpose: Base class for RSS-feed-based pattern extraction
-- Location: `src/sources/free/rssPatternSource.ts`
-- Pattern: Abstract class with template methods for RSS parsing, content extraction, topic detection
-- Subclasses: SundellSource, VanderLeeSource, NilCoalescingSource, PointFreeSource
+**Source Interface:**
+- Purpose: Uniform interface for RSS-based and API-based pattern sources
+- Examples: `src/sources/free/rssPatternSource.ts` (base class), `src/sources/free/sundell.ts` (RSS subclass), `src/sources/premium/patreon.ts` (API-based)
+- Pattern: Template method pattern - subclasses define `feedUrl` and `topicKeywords`, parent handles fetch/search/cache
 
 **ToolHandler Type:**
-- Purpose: Async function signature for MCP tool implementations
-- Signature: `(args: Record<string, unknown>, context: ToolContext) => Promise<ToolResponse>`
-- Pattern: Dependency injection via context parameter containing SourceManager and PatreonSource
+- Purpose: Standardized function signature for all tool implementations
+- Examples: `getSwiftPatternHandler`, `searchSwiftContentHandler`, `setupPatreonHandler`
+- Pattern: Async function receiving args dict and context, returning `ToolResponse` with MCP-compliant structure
 
-**SourceRegistry:**
-- Purpose: Centralized singleton access to source instances with inflight dedup
-- Location: `src/utils/source-registry.ts`
-- Pattern: Lazy instantiation, duplicate request coalescing, Promise.allSettled for fault tolerance
+**ToolContext:**
+- Purpose: Dependency injection for handlers - provides access to source manager and premium sources
+- Examples: Used in all handler files
+- Pattern: Immutable context object passed to every handler invocation
 
-**FileCache:**
-- Purpose: Two-tier caching (memory + disk) with automatic TTL and cleanup
-- Location: `src/utils/cache.ts`
-- Pattern: Memory tier checked first, disk tier for persistence, periodic cleanup on 1-hour interval
+**BasePattern Interface:**
+- Purpose: Unified pattern structure across all sources
+- Examples: `src/sources/free/rssPatternSource.ts`
+- Pattern: All sources return patterns conforming to this interface (title, url, content, topics, relevanceScore, hasCode, etc.)
+
+**CachedSearchIndex:**
+- Purpose: Efficient search across patterns using keyword indexing
+- Examples: `src/utils/search.ts` - used by each RSS source instance
+- Pattern: Wraps MiniSearch library, caches results per source/query pair, invalidates on data refresh
 
 ## Entry Points
 
-**MCP Server (Default):**
+**CLI Entry Point (index.ts):**
 - Location: `src/index.ts`
-- Triggers: Package invocation with no args or --server flag
-- Responsibilities: Initialize MCP server, list available tools, dispatch tool calls
+- Triggers: `npm start` or installed binary `swift-patterns-mcp`
+- Responsibilities: Load environment, route between CLI and server based on argv
 
-**Interactive Setup Wizard:**
-- Location: `src/cli/setup.ts`
-- Triggers: Package invocation with no args + TTY available (unless SWIFT_PATTERNS_SKIP_WIZARD=1)
-- Responsibilities: Guide user through MCP client setup, source configuration
+**Server Entry Point (server.ts):**
+- Location: `src/server.ts`
+- Triggers: `startServer()` called from index.ts when no CLI command matched
+- Responsibilities: Initialize MCP server, attach tool handlers, set up prefetching, implement protocol handlers
 
-**Patreon OAuth Handler:**
-- Location: `src/cli/patreon.ts`
-- Triggers: `swift-patterns-mcp patreon` command or `setup_patreon` tool
-- Responsibilities: OAuth flow, token storage, credential validation
+**Tool Handlers:**
+- Location: `src/tools/handlers/*.ts`
+- Triggers: MCP client calls `CallToolRequest` with handler name
+- Responsibilities: Validate arguments, execute search/fetch, format and return results
 
-**Source CLI:**
-- Location: `src/cli/sources.ts`
-- Triggers: `swift-patterns-mcp sources` command
-- Responsibilities: List sources, enable/disable sources, show configuration
+**CLI Commands:**
+- Location: `src/cli/*.ts` (sources.ts, patreon.ts, setup.ts)
+- Triggers: `swift-patterns-mcp sources`, `swift-patterns-mcp patreon`, `swift-patterns-mcp setup`
+- Responsibilities: Interactive configuration, source management, Patreon authentication
 
 ## Error Handling
 
-**Strategy:** Graceful degradation with structured logging
+**Strategy:** Graceful degradation with partial results; never throw unhandled errors from handlers.
 
 **Patterns:**
 
-- **Source Failures:** `Promise.allSettled()` collects partial results from multiple sources; single source failure doesn't break overall response
-
-- **Semantic Search Timeout:** 5-second timeout with fallback to lexical-only results; semantic failures never block response
-
-- **Memvid Errors:** Try/catch with warning log; memvid errors don't interrupt search
-
-- **Cache Failures:** Fall through to fresh fetch; file I/O errors silently ignored
-
-- **Response Format:** All errors wrapped in ToolResponse with isError=true, displayed as markdown text
-
-- **Logging:** Structured errors logged via Pino with context, error object, and metadata
+- **Promise.allSettled**: Used in `src/utils/source-registry.ts` to collect results from multiple sources even if some fail (see `searchMultipleSources`, `prefetchAllSources`, `fetchAllPatterns`)
+- **Try-catch with empty fallback**: Semantic recall and memvid operations catch errors internally and return empty arrays, allowing main search to complete without interruption (see `src/tools/handlers/searchSwiftContent.ts` lines 62-93)
+- **Timeout with Promise.race**: Semantic and Patreon searches wrapped in race with timeout - if semantic indexing is slow, lexical results are already returned (see `trySemanticRecall`, `SEMANTIC_TIMEOUT_MS`)
+- **Validation-first**: Input validation via `src/tools/validation.ts` returns `ToolResponse` errors immediately, preventing cascading failures
+- **Logging at layer boundaries**: Errors logged when crossing layer boundaries (e.g., source fetch failures in `prefetchAllSources`), reducing noise from recovered errors
 
 ## Cross-Cutting Concerns
 
 **Logging:**
-- Framework: Pino with service='swift-patterns-mcp' base context
-- Level: Configured via LOG_LEVEL environment variable (default 'info')
-- Usage: Structured logging throughout with { context, err, metadata } payloads
+- Framework: `pino` configured in `src/utils/logger.ts`
+- Approach: Structured logging with error context passed as objects; used at layer boundaries and for non-recoverable issues
+- Examples: `logger.info`, `logger.warn`, `logger.error` with contextual data
 
 **Validation:**
-- Zod schemas for configuration deserialization
-- Type guards for runtime type narrowing
-- Minimal input validation in handlers (assume MCP SDK pre-validates)
+- Framework: `zod` for configuration schemas; custom validators in `src/tools/validation.ts` for request arguments
+- Approach: Synchronous validation of inputs returns either valid value or ToolResponse error
+- Examples: `validateRequiredString`, `validateOptionalNumber`, `isValidationError` guard function
 
 **Authentication:**
-- Patreon: OAuth 2.0 flow stored in Keytar/system credential storage
-- YouTube API: API key validation for video content
-- Config: Environment variables required at startup time
+- Approach: Environment variable based for Patreon (PATREON_CLIENT_ID, PATREON_CLIENT_SECRET, YOUTUBE_API_KEY)
+- Credential storage: Secure keytar-based storage for tokens (via `src/sources/premium/patreon-oauth.ts`)
+- Source enablement: Conditional - Patreon only added to tool list if credentials present and source enabled
 
-**Caching Strategy:**
-- Intent cache: Query-level results with semantic/memvid merged additions
-- Source cache: RSS feed items (3600s TTL) and full article content
-- Search index: Singleton MiniSearch instances kept warm across calls
-- Embedding cache: Content hash-based caching of ONNX model outputs
-- Dedup: Inflight request coalescing prevents thundering herd
+**Caching:**
+- Multi-level strategy: Source-level search index cache + pattern cache (RSS, articles) + intent-based result cache
+- TTLs: Configurable per cache layer; defaults to 1 hour for RSS, 24 hours for articles
+- Invalidation: Search index invalidated after new patterns fetched; intent cache keyed by query + sources + filters
 
 ---
 
-*Architecture analysis: 2026-02-09*
+*Architecture analysis: 2026-02-17*
