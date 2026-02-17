@@ -272,7 +272,7 @@ describeIntegration('Response Quality Validation', () => {
       });
 
       expect(
-        response.includes('Patreon Patterns') ||
+        response.includes('Swift Patterns') ||
         response.includes('No Patreon patterns found')
       ).toBe(true);
     }, 120000);
