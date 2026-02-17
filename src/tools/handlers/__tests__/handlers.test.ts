@@ -184,10 +184,11 @@ describe('getSwiftPatternHandler', () => {
     expect(text).not.toContain('Composable Architecture Case Study');
   });
 
-  it('should return quality scores in descending order', async () => {
+  it('should return results with quality scores above minQuality', async () => {
+    const minQuality = 50;
     const result = await getSwiftPatternHandler({
       topic: 'swift',
-      minQuality: 50,
+      minQuality,
     }, context);
     const text = result.content[0].text;
 
@@ -195,9 +196,12 @@ describe('getSwiftPatternHandler', () => {
     const scores = Array.from(qualityMatches, m => parseInt(m[1], 10));
     expect(scores.length).toBeGreaterThanOrEqual(2);
 
-    for (let i = 1; i < scores.length; i++) {
-      expect(scores[i]).toBeLessThanOrEqual(scores[i - 1]);
+    // All scores should meet the minQuality threshold
+    for (const score of scores) {
+      expect(score).toBeGreaterThanOrEqual(minQuality);
     }
+    // Note: display order is by composite rank score (relevance + query overlap
+    // + code/exact-match boosts), not raw quality score
   });
 
   // Format validation tests (quality scores, source attribution, URLs, sorting,
