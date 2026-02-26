@@ -62,7 +62,7 @@
     "@xenova/transformers": "^2.17.2",
     "adm-zip": "^0.5.16",
     "async-cache-dedupe": "^3.4.0",
-    "dotenv": "^17.2.4",
+    "dotenv": "^17.3.1",
     "linkedom": "^0.18.12",
     "minisearch": "^7.2.0",
     "ml-distance": "^4.0.1",
@@ -79,14 +79,14 @@
     "keytar": "^7.9.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
+    "@eslint/js": "^9.39.3",
     "@types/adm-zip": "^0.5.7",
-    "@types/node": "^25.2.3",
+    "@types/node": "^25.3.2",
     "@vitest/coverage-v8": "^3.2.4",
-    "eslint": "^9.39.2",
+    "eslint": "^9.39.3",
     "globals": "^17.3.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.55.0",
+    "typescript-eslint": "^8.56.1",
     "vitest": "^3.2.4"
   },
   "engines": {
