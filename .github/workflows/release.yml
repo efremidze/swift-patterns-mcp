@@ -27,12 +27,12 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: '.nvmrc'
           cache: 'npm'
           registry-url: 'https://registry.npmjs.org/'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build
         run: npm run build
@@ -44,6 +44,14 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Stash local changes (if any)
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Working tree is dirty before version bump. Stashing changes:"
+            git status --short
+            git stash push --include-untracked -m "release-workflow-preversion"
+          fi
 
       - name: Bump version
         run: |
