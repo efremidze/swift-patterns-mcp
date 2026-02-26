@@ -1,6 +1,6 @@
 {
   "name": "swift-patterns-mcp",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "MCP server providing curated Swift/SwiftUI best practices from leading iOS developers, including patterns and real-world code examples from Swift by Sundell, SwiftLee, and other trusted sources.",
   "type": "module",
   "bin": {
