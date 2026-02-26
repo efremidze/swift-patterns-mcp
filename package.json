@@ -63,7 +63,6 @@
     "adm-zip": "^0.5.16",
     "async-cache-dedupe": "^3.4.0",
     "dotenv": "^17.2.4",
-    "keytar": "^7.9.0",
     "linkedom": "^0.18.12",
     "minisearch": "^7.2.0",
     "ml-distance": "^4.0.1",
@@ -75,6 +74,9 @@
     "stemmer": "^2.0.1",
     "string-strip-html": "^13.5.3",
     "zod": "^3.25.76"
+  },
+  "optionalDependencies": {
+    "keytar": "^7.9.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
