@@ -33,6 +33,9 @@ Thank you for your interest in contributing to swift-patterns-mcp! We welcome co
 - Install dependencies: `npm install`
 - Build the project: `npm run build`
 - Run tests: `npm test`
+- CLI smoke test: `npx tsx scripts/test-query.ts "swiftui navigation" --tool get_swift_pattern --min-quality 70`
+- Performance baseline: `npm run bench` (writes JSON under `docs/benchmarks/`)
+- Dependency report: `npm run deps:report`
 
 ## Reporting Issues
 
