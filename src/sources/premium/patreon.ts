@@ -9,7 +9,7 @@ import { fetch } from '../../utils/fetch.js';
 import logger from '../../utils/logger.js';
 import { createCache, type Cache } from 'async-cache-dedupe';
 import { buildQueryProfile, PATREON_DEFAULT_QUERY } from '../../utils/query-analysis.js';
-import { rankPatternsForQuery, selectCreatorsForQuery } from './patreon-scoring.js';
+import { rankPatternsForQuery, selectCreatorsForQuery, sortPatternsByScoreThenRecency } from './patreon-scoring.js';
 import {
   dedupePatterns,
   isPatreonPostUrl,
@@ -312,7 +312,18 @@ export class PatreonSource {
     const downloadedPatterns = includeDownloadedFallback ? getDownloadedPatterns(query, queryProfile) : [];
 
     const merged = dedupePatterns([...enrichedPatterns, ...downloadedPatterns], 'prefer-best');
-    return merged.sort((a, b) => b.relevanceScore - a.relevanceScore);
+    const reranked = rankPatternsForQuery(
+      merged,
+      queryProfile,
+      pattern => `${pattern.title} ${pattern.excerpt} ${pattern.content} ${pattern.topics.join(' ')}`,
+      { fallbackToOriginal: true }
+    );
+
+    // If overlap ranking falls back, still keep a stable relevance+recency ordering.
+    if (reranked === merged) {
+      return sortPatternsByScoreThenRecency(merged);
+    }
+    return reranked;
   }
 
   async searchPatterns(query: string, options: PatreonSearchOptions = {}): Promise<PatreonPattern[]> {
