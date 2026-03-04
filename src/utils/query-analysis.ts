@@ -8,6 +8,35 @@ export const PATREON_DEFAULT_QUERY = 'swiftui';
 export const QUERY_OVERLAP_SCORE_CAP = 8;
 export const QUERY_OVERLAP_RELEVANCE_MULTIPLIER = 1.5;
 
+const CONVERSATIONAL_PREFIX_PATTERNS: RegExp[] = [
+  /^\s*i\s+want\s+to\s+/i,
+  /^\s*i\s+need\s+to\s+/i,
+  /^\s*i(?:'m| am)\s+trying\s+to\s+/i,
+  /^\s*(?:build|create|make)\s+(?:a|an|the)\s+/i,
+  /^\s*(?:build|create|make)\s+/i,
+  /^\s*can\s+you\s+/i,
+  /^\s*could\s+you\s+/i,
+  /^\s*please\s+/i,
+  /^\s*help\s+me\s+(?:build|create|make|with)\s+/i,
+  /^\s*show\s+me\s+(?:how\s+to\s+)?/i,
+  /^\s*how\s+do\s+i\s+/i,
+];
+
+const LOW_SIGNAL_QUERY_TOKENS = new Set([
+  'want',
+  'need',
+  'build',
+  'create',
+  'make',
+  'show',
+  'help',
+  'implement',
+  'trying',
+  'look',
+  'looking',
+  'like',
+]);
+
 export interface QueryProfile {
   compiledQueries: string[];
   weightedTokens: Array<{ token: string; weight: number }>;
@@ -21,6 +50,34 @@ export interface QueryOverlap {
 export interface OverlapScoredPattern {
   pattern: any;
   overlap: QueryOverlap;
+}
+
+function stripConversationalFraming(query: string): string {
+  let normalized = query
+    .replace(/\((?:use|using)\s+patreon\)/ig, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  let changed = true;
+  while (changed && normalized.length > 0) {
+    changed = false;
+    for (const pattern of CONVERSATIONAL_PREFIX_PATTERNS) {
+      const next = normalized.replace(pattern, '').trim();
+      if (next && next !== normalized) {
+        normalized = next;
+        changed = true;
+        break;
+      }
+    }
+  }
+
+  return normalized;
+}
+
+function removeLowSignalTokens(tokens: string[]): string[] {
+  const filtered = tokens.filter(token => !LOW_SIGNAL_QUERY_TOKENS.has(token));
+  // Keep original token stream if filtering would over-prune.
+  return filtered.length >= 2 ? filtered : tokens;
 }
 
 export function canonicalizeToken(token: string): string {
@@ -53,7 +110,18 @@ export function buildQueryProfile(query: string): QueryProfile {
     push(original);
   }
 
-  const tokens = normalizeTokens(original).map(canonicalizeToken);
+  const deFramed = stripConversationalFraming(original);
+  if (deFramed.length > 0) {
+    push(deFramed);
+  }
+
+  const rawTokens = normalizeTokens(deFramed || original).map(canonicalizeToken);
+  const tokens = removeLowSignalTokens(rawTokens);
+  if (tokens.length > 0) {
+    // Preserve token order for high-signal keyword phrase searches.
+    push(tokens.join(' '));
+  }
+
   const tokenStats = new Map<string, { count: number; firstIndex: number }>();
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
@@ -75,14 +143,11 @@ export function buildQueryProfile(query: string): QueryProfile {
     .sort((a, b) => b.weight - a.weight);
 
   if (weightedTokens.length > 0) {
-    const normalized = weightedTokens.map(t => t.token).join(' ');
-    push(normalized);
+    const top5 = weightedTokens.slice(0, 5).map(t => t.token).join(' ');
+    if (top5) push(top5);
 
     const top3 = weightedTokens.slice(0, 3).map(t => t.token).join(' ');
     if (top3) push(top3);
-
-    const top5 = weightedTokens.slice(0, 5).map(t => t.token).join(' ');
-    if (top5) push(top5);
   }
 
   // Keep a broad fallback if no meaningful variant exists.
