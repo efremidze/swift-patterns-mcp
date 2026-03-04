@@ -12,14 +12,22 @@ import {
   rankPatternsForQuery,
   selectCreatorsForQuery,
   shouldReplaceByQuality,
+  sortPatternsByScoreThenRecency,
 } from '../patreon-scoring.js';
 
-function pattern(id: string, title: string, relevanceScore: number, hasCode = false, creator = 'Kavsoft') {
+function pattern(
+  id: string,
+  title: string,
+  relevanceScore: number,
+  hasCode = false,
+  creator = 'Kavsoft',
+  publishDate = '2026-01-01'
+) {
   return {
     id,
     title,
     url: `https://www.patreon.com/posts/${id}`,
-    publishDate: '2026-01-01',
+    publishDate,
     excerpt: '',
     content: '',
     creator,
@@ -108,6 +116,26 @@ describe('patreon-scoring', () => {
     );
     expect(ranked).toHaveLength(1);
     expect(ranked[0].id).toBe('1');
+  });
+
+  it('prefers recent pattern when overlap and score are otherwise tied', () => {
+    const profile = buildQueryProfile('calendar infinite scrollview');
+    const patterns = [
+      pattern('old', 'Calendar Infinite ScrollView', 91, false, 'Kavsoft', '2021-01-01T00:00:00Z'),
+      pattern('new', 'Calendar Infinite ScrollView', 91, false, 'Kavsoft', '2026-01-10T19:35:26Z'),
+    ];
+    const ranked = rankPatternsForQuery(patterns as any, profile, p => p.title, { fallbackToOriginal: true });
+    expect(ranked[0].id).toBe('new');
+  });
+
+  it('sorts fallback lists by relevance and recency', () => {
+    const patterns = [
+      pattern('older-high', 'A', 90, false, 'Kavsoft', '2020-01-01T00:00:00Z'),
+      pattern('newer-mid', 'B', 88, false, 'Kavsoft', '2026-01-10T19:35:26Z'),
+      pattern('older-mid', 'C', 88, false, 'Kavsoft', '2022-01-01T00:00:00Z'),
+    ];
+    const sorted = sortPatternsByScoreThenRecency(patterns as any);
+    expect(sorted.map(p => p.id)).toEqual(['newer-mid', 'older-high', 'older-mid']);
   });
 
   it('prefers candidate with higher relevance score', () => {
