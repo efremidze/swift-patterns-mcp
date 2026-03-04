@@ -1,41 +1,13 @@
 // src/utils/query-analysis.ts
 // Query profiling and overlap scoring for pattern search
 
+import nlp from 'compromise';
 import { normalizeTokens } from './search-terms.js';
 
 export const MAX_QUERY_VARIANTS = 4;
 export const PATREON_DEFAULT_QUERY = 'swiftui';
 export const QUERY_OVERLAP_SCORE_CAP = 8;
 export const QUERY_OVERLAP_RELEVANCE_MULTIPLIER = 1.5;
-
-const CONVERSATIONAL_PREFIX_PATTERNS: RegExp[] = [
-  /^\s*i\s+want\s+to\s+/i,
-  /^\s*i\s+need\s+to\s+/i,
-  /^\s*i(?:'m| am)\s+trying\s+to\s+/i,
-  /^\s*(?:build|create|make)\s+(?:a|an|the)\s+/i,
-  /^\s*(?:build|create|make)\s+/i,
-  /^\s*can\s+you\s+/i,
-  /^\s*could\s+you\s+/i,
-  /^\s*please\s+/i,
-  /^\s*help\s+me\s+(?:build|create|make|with)\s+/i,
-  /^\s*show\s+me\s+(?:how\s+to\s+)?/i,
-  /^\s*how\s+do\s+i\s+/i,
-];
-
-const LOW_SIGNAL_QUERY_TOKENS = new Set([
-  'want',
-  'need',
-  'build',
-  'create',
-  'make',
-  'show',
-  'help',
-  'implement',
-  'trying',
-  'look',
-  'looking',
-  'like',
-]);
 
 export interface QueryProfile {
   compiledQueries: string[];
@@ -52,32 +24,83 @@ export interface OverlapScoredPattern {
   overlap: QueryOverlap;
 }
 
-function stripConversationalFraming(query: string): string {
-  let normalized = query
-    .replace(/\((?:use|using)\s+patreon\)/ig, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  let changed = true;
-  while (changed && normalized.length > 0) {
-    changed = false;
-    for (const pattern of CONVERSATIONAL_PREFIX_PATTERNS) {
-      const next = normalized.replace(pattern, '').trim();
-      if (next && next !== normalized) {
-        normalized = next;
-        changed = true;
-        break;
-      }
-    }
-  }
-
-  return normalized;
+interface NlpTerm {
+  text: string;
+  tags?: string[];
 }
 
-function removeLowSignalTokens(tokens: string[]): string[] {
-  const filtered = tokens.filter(token => !LOW_SIGNAL_QUERY_TOKENS.has(token));
-  // Keep original token stream if filtering would over-prune.
-  return filtered.length >= 2 ? filtered : tokens;
+interface NlpSentence {
+  terms?: NlpTerm[];
+}
+
+function hasTag(term: NlpTerm, tag: string): boolean {
+  return Array.isArray(term.tags) && term.tags.includes(tag);
+}
+
+function isKeywordTerm(term: NlpTerm): boolean {
+  if (hasTag(term, 'Pronoun') || hasTag(term, 'Determiner') || hasTag(term, 'Conjunction')) {
+    return false;
+  }
+
+  return (
+    hasTag(term, 'Noun') ||
+    hasTag(term, 'ProperNoun') ||
+    hasTag(term, 'Acronym') ||
+    hasTag(term, 'Adjective')
+  );
+}
+
+function extractNlpKeywordPhrases(query: string): string[] {
+  try {
+    const doc = nlp(query);
+    const json = doc.json() as unknown as NlpSentence[];
+    const phrases: string[] = [];
+    const seen = new Set<string>();
+
+    const push = (value: string): void => {
+      const phrase = value.trim().replace(/\s+/g, ' ');
+      if (!phrase) return;
+      const key = phrase.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      phrases.push(phrase);
+    };
+
+    const terms = json.flatMap(sentence => sentence.terms ?? []);
+    const current: string[] = [];
+
+    const flush = (): void => {
+      if (current.length === 0) return;
+      push(current.join(' '));
+      current.length = 0;
+    };
+
+    for (const term of terms) {
+      if (isKeywordTerm(term)) {
+        current.push(term.text);
+      } else {
+        flush();
+      }
+    }
+    flush();
+
+    // Enrich with noun chunks from compromise for broader phrase coverage.
+    const nounChunks = doc.nouns().out('array');
+    for (const chunk of nounChunks) {
+      push(chunk);
+    }
+
+    return phrases
+      .map(p => p.replace(/[()]/g, '').trim())
+      .filter(p => p.length > 1 && p.toLowerCase() !== 'i')
+      .sort((a, b) => {
+        const byWordCount = b.split(' ').length - a.split(' ').length;
+        if (byWordCount !== 0) return byWordCount;
+        return b.length - a.length;
+      });
+  } catch {
+    return [];
+  }
 }
 
 export function canonicalizeToken(token: string): string {
@@ -110,13 +133,13 @@ export function buildQueryProfile(query: string): QueryProfile {
     push(original);
   }
 
-  const deFramed = stripConversationalFraming(original);
-  if (deFramed.length > 0) {
-    push(deFramed);
+  const keywordPhrases = extractNlpKeywordPhrases(original);
+  for (const phrase of keywordPhrases.slice(0, 2)) {
+    push(phrase);
   }
 
-  const rawTokens = normalizeTokens(deFramed || original).map(canonicalizeToken);
-  const tokens = removeLowSignalTokens(rawTokens);
+  const tokenSource = keywordPhrases[0] || original;
+  const tokens = normalizeTokens(tokenSource).map(canonicalizeToken);
   if (tokens.length > 0) {
     // Preserve token order for high-signal keyword phrase searches.
     push(tokens.join(' '));
