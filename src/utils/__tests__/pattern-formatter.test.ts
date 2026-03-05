@@ -137,6 +137,29 @@ describe('pattern-formatter', () => {
       expect(text).toContain('Search Results');
       expect(text).not.toContain('Found');
     });
+
+    it('should append ellipsis only when excerpt is truncated', () => {
+      const shortExcerpt = 'A short excerpt.';
+      const longExcerpt = 'A '.repeat(200) + 'end.';
+
+      const textShort = formatSearchPatterns(
+        [makePattern({ excerpt: shortExcerpt })],
+        'test',
+        { ...COMMON_FORMAT_OPTIONS, excerptLength: 200 },
+      );
+      const textLong = formatSearchPatterns(
+        [makePattern({ excerpt: longExcerpt })],
+        'test',
+        { ...COMMON_FORMAT_OPTIONS, excerptLength: 200 },
+      );
+
+      // Short excerpt fits within limit — no ellipsis
+      expect(textShort).toContain(shortExcerpt);
+      expect(textShort).not.toContain(`${shortExcerpt}...`);
+
+      // Long excerpt is truncated — ellipsis appended
+      expect(textLong).toContain('...');
+    });
   });
 
   describe('formatTopicPatterns', () => {

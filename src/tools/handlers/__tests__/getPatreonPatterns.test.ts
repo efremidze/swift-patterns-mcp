@@ -167,6 +167,63 @@ describe('getPatreonPatternsHandler', () => {
     });
   });
 
+  // ─── minQuality filtering ───
+
+  describe('minQuality filtering', () => {
+    it('should filter out patterns below the specified minQuality', async () => {
+      setPatreonEnvVars();
+      const patterns = [
+        createPatreonPattern({ id: 'high', title: 'High Quality', relevanceScore: 90 }),
+        createPatreonPattern({ id: 'low', title: 'Low Quality', relevanceScore: 50 }),
+      ];
+      const { MockClass } = createMockPatreonSource({ searchResult: patterns });
+
+      const result = await getPatreonPatternsHandler(
+        { topic: 'test', minQuality: 80 },
+        createContext(MockClass),
+      );
+      const text = result.content[0].text;
+
+      expect(text).toContain('High Quality');
+      expect(text).not.toContain('Low Quality');
+    });
+
+    it('should apply default minQuality of 70 when not specified', async () => {
+      setPatreonEnvVars();
+      const patterns = [
+        createPatreonPattern({ id: 'pass', title: 'Passing Pattern', relevanceScore: 75 }),
+        createPatreonPattern({ id: 'fail', title: 'Failing Pattern', relevanceScore: 60 }),
+      ];
+      const { MockClass } = createMockPatreonSource({ searchResult: patterns });
+
+      const result = await getPatreonPatternsHandler(
+        { topic: 'test' },
+        createContext(MockClass),
+      );
+      const text = result.content[0].text;
+
+      expect(text).toContain('Passing Pattern');
+      expect(text).not.toContain('Failing Pattern');
+    });
+
+    it('should return "No patterns found" when all patterns are below minQuality', async () => {
+      setPatreonEnvVars();
+      const patterns = [
+        createPatreonPattern({ id: 'low1', title: 'Low 1', relevanceScore: 40 }),
+        createPatreonPattern({ id: 'low2', title: 'Low 2', relevanceScore: 55 }),
+      ];
+      const { MockClass } = createMockPatreonSource({ searchResult: patterns });
+
+      const result = await getPatreonPatternsHandler(
+        { topic: 'test', minQuality: 70 },
+        createContext(MockClass),
+      );
+      const text = result.content[0].text;
+
+      expect(text).toContain('No Patreon patterns found');
+    });
+  });
+
   // ─── Response formatting ───
 
   describe('response formatting', () => {

@@ -23,7 +23,7 @@ export const CORE_TOOLS: Tool[] = [
         },
         minQuality: {
           type: "number",
-          description: "Minimum quality score 0-100 (default: 60)",
+          description: "Minimum quality score 0-100 (default: 65)",
         },
       },
       required: ["topic"],
