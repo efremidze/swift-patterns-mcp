@@ -139,9 +139,30 @@ export async function prefetchAllSources(): Promise<PromiseSettledResult<BasePat
  * @param sourceIds - Optional array of source IDs to fetch from. Defaults to all sources.
  */
 export async function fetchAllPatterns(
-  sourceIds?: FreeSourceName[]
+  sourceIds?: FreeSourceName[],
+  signal?: AbortSignal
 ): Promise<BasePattern[]> {
   const names = sourceIds ?? (Object.keys(SOURCE_CLASSES) as FreeSourceName[]);
+
+  if (signal?.aborted) return [];
+
+  // Abort-aware path: fetch sequentially so we can stop starting more work once aborted.
+  if (signal) {
+    const aggregated: BasePattern[] = [];
+
+    for (const name of names) {
+      if (signal.aborted) break;
+      try {
+        const patterns = await dedupFetch(name, getSource(name));
+        if (signal.aborted) break;
+        aggregated.push(...patterns);
+      } catch {
+        // Best-effort aggregation: skip failed sources.
+      }
+    }
+
+    return aggregated;
+  }
 
   const results = await Promise.allSettled(
     names.map(name => dedupFetch(name, getSource(name)))

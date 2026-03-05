@@ -2,6 +2,7 @@
 // Query profiling and overlap scoring for pattern search
 
 import { normalizeTokens } from './search-terms.js';
+import { extractNlpKeywordPhrases } from './query-rewrite.js';
 
 export const MAX_QUERY_VARIANTS = 4;
 export const PATREON_DEFAULT_QUERY = 'swiftui';
@@ -53,7 +54,18 @@ export function buildQueryProfile(query: string): QueryProfile {
     push(original);
   }
 
-  const tokens = normalizeTokens(original).map(canonicalizeToken);
+  const keywordPhrases = extractNlpKeywordPhrases(original);
+  for (const phrase of keywordPhrases.slice(0, 2)) {
+    push(phrase);
+  }
+
+  const tokenSource = keywordPhrases[0] || original;
+  const tokens = normalizeTokens(tokenSource).map(canonicalizeToken);
+  if (tokens.length > 0) {
+    // Preserve token order for high-signal keyword phrase searches.
+    push(tokens.join(' '));
+  }
+
   const tokenStats = new Map<string, { count: number; firstIndex: number }>();
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
@@ -75,14 +87,11 @@ export function buildQueryProfile(query: string): QueryProfile {
     .sort((a, b) => b.weight - a.weight);
 
   if (weightedTokens.length > 0) {
-    const normalized = weightedTokens.map(t => t.token).join(' ');
-    push(normalized);
+    const top5 = weightedTokens.slice(0, 5).map(t => t.token).join(' ');
+    if (top5) push(top5);
 
     const top3 = weightedTokens.slice(0, 3).map(t => t.token).join(' ');
     if (top3) push(top3);
-
-    const top5 = weightedTokens.slice(0, 5).map(t => t.token).join(' ');
-    if (top5) push(top5);
   }
 
   // Keep a broad fallback if no meaningful variant exists.

@@ -7,7 +7,6 @@ import {
   type OverlapScoredPattern,
   computeQueryOverlap,
   isStrongQueryOverlap,
-  compareByOverlapThenScore,
   QUERY_OVERLAP_SCORE_CAP,
   QUERY_OVERLAP_RELEVANCE_MULTIPLIER,
 } from '../../utils/query-analysis.js';
@@ -51,7 +50,7 @@ export function rankPatternsForQuery(
 
   const overlapped = scored
     .filter(({ overlap }) => isStrongQueryOverlap(overlap, profile))
-    .sort(compareByOverlapThenScore)
+    .sort(compareByOverlapThenScoreWithRecency)
     .map(({ pattern }) => pattern);
 
   if (overlapped.length === 0 && options.fallbackToOriginal) {
@@ -66,4 +65,58 @@ export function shouldReplaceByQuality(existing: PatreonPattern, candidate: Patr
     candidate.relevanceScore > existing.relevanceScore ||
     (candidate.relevanceScore === existing.relevanceScore && candidate.hasCode && !existing.hasCode)
   );
+}
+
+function parsePublishedTimestamp(iso: string | undefined): number {
+  if (!iso) return 0;
+  const ts = Date.parse(iso);
+  return Number.isFinite(ts) ? ts : 0;
+}
+
+function recencyBoost(pattern: PatreonPattern, nowMs = Date.now()): number {
+  const published = parsePublishedTimestamp(pattern.publishDate);
+  if (published <= 0) return 0;
+
+  const ageDays = (nowMs - published) / (24 * 60 * 60 * 1000);
+  if (ageDays < 0) return 0;
+  if (ageDays <= 14) return 8;
+  if (ageDays <= 30) return 6;
+  if (ageDays <= 90) return 4;
+  if (ageDays <= 180) return 2;
+  if (ageDays <= 365) return 1;
+  return 0;
+}
+
+function boostedScore(pattern: PatreonPattern): number {
+  return pattern.relevanceScore + recencyBoost(pattern);
+}
+
+function compareByOverlapThenScoreWithRecency(a: OverlapScoredPattern, b: OverlapScoredPattern): number {
+  if (b.overlap.score !== a.overlap.score) {
+    return b.overlap.score - a.overlap.score;
+  }
+
+  const boostedDiff = boostedScore(b.pattern) - boostedScore(a.pattern);
+  if (boostedDiff !== 0) {
+    return boostedDiff;
+  }
+
+  if (b.pattern.relevanceScore !== a.pattern.relevanceScore) {
+    return b.pattern.relevanceScore - a.pattern.relevanceScore;
+  }
+
+  return parsePublishedTimestamp(b.pattern.publishDate) - parsePublishedTimestamp(a.pattern.publishDate);
+}
+
+export function sortPatternsByScoreThenRecency(patterns: PatreonPattern[]): PatreonPattern[] {
+  return [...patterns].sort((a, b) => {
+    const boostedDiff = boostedScore(b) - boostedScore(a);
+    if (boostedDiff !== 0) return boostedDiff;
+
+    if (b.relevanceScore !== a.relevanceScore) {
+      return b.relevanceScore - a.relevanceScore;
+    }
+
+    return parsePublishedTimestamp(b.publishDate) - parsePublishedTimestamp(a.publishDate);
+  });
 }

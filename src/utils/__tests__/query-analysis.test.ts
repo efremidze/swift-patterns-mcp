@@ -23,6 +23,25 @@ describe('query-analysis', () => {
     expect(profile.weightedTokens.length).toBeGreaterThan(2);
   });
 
+  it('strips conversational framing and low-signal intent tokens', () => {
+    const profile = buildQueryProfile('i want to build a Style Resizing Floating Sheets');
+    expect(profile.compiledQueries[0]).toBe('i want to build a Style Resizing Floating Sheets');
+    expect(profile.compiledQueries).toContain('Style Resizing Floating Sheets');
+    expect(profile.compiledQueries).toContain('style resiz float sheet');
+    const weighted = profile.weightedTokens.map(t => t.token);
+    expect(weighted).not.toContain('want');
+    expect(weighted).not.toContain('build');
+  });
+
+  it('removes explicit Patreon parenthetical hint from rewritten variants', () => {
+    const profile = buildQueryProfile('i want to build a Dynamic Island QR Code Scanner (use Patreon)');
+    expect(profile.compiledQueries[0]).toBe('i want to build a Dynamic Island QR Code Scanner (use Patreon)');
+    // The de-framed variant should focus on retrieval terms rather than instructions.
+    expect(profile.compiledQueries).toContain('Dynamic Island QR Code Scanner');
+    const normalizedVariants = profile.compiledQueries.slice(1).map(q => q.toLowerCase());
+    expect(normalizedVariants.some(q => q.includes('use patreon'))).toBe(false);
+  });
+
   it('falls back to default query when input is empty', () => {
     const profile = buildQueryProfile('   ');
     expect(profile.compiledQueries).toEqual(['swiftui']);

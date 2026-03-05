@@ -15,10 +15,24 @@ export interface YouTubeResult<T> {
   error: string | null;
 }
 
-function fetchWithTimeout(url: string): Promise<Response> {
+function fetchWithTimeout(url: string, signal?: AbortSignal): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timeoutId));
+  const onAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) {
+      controller.abort();
+    } else {
+      signal.addEventListener('abort', onAbort, { once: true });
+    }
+  }
+
+  return fetch(url, { signal: controller.signal }).finally(() => {
+    clearTimeout(timeoutId);
+    if (signal) {
+      signal.removeEventListener('abort', onAbort);
+    }
+  });
 }
 
 export interface Video {
@@ -109,10 +123,11 @@ function extractVideoIds(items: Array<{ id?: { videoId?: string } }>): string {
 
 async function fetchFullVideoItems(
   apiKey: string,
-  videoIds: string
+  videoIds: string,
+  signal?: AbortSignal
 ): Promise<Array<{ id?: string; snippet?: YouTubeSnippet }> | null> {
   const videosUrl = `${API_BASE}/videos?key=${apiKey}&id=${videoIds}&part=snippet`;
-  const videosRes = await fetchWithTimeout(videosUrl);
+  const videosRes = await fetchWithTimeout(videosUrl, signal);
 
   if (!videosRes.ok) {
     return null;
@@ -132,12 +147,13 @@ async function hydrateSearchItems(
   searchItems: Array<{
     id?: { videoId?: string };
     snippet?: YouTubeSnippet;
-  }>
+  }>,
+  signal?: AbortSignal
 ): Promise<Video[]> {
   const videoIds = extractVideoIds(searchItems);
   if (!videoIds) return [];
 
-  const fullItems = await fetchFullVideoItems(apiKey, videoIds);
+  const fullItems = await fetchFullVideoItems(apiKey, videoIds, signal);
   if (!fullItems) {
     return mapSearchItems(searchItems);
   }
@@ -160,10 +176,15 @@ export async function getChannelVideos(
   }, YOUTUBE_CACHE_TTL);
 }
 
-async function _fetchChannelVideos(apiKey: string, channelId: string, maxResults: number): Promise<Video[]> {
+async function _fetchChannelVideos(
+  apiKey: string,
+  channelId: string,
+  maxResults: number,
+  signal?: AbortSignal
+): Promise<Video[]> {
   try {
     const searchUrl = `${API_BASE}/search?key=${apiKey}&channelId=${channelId}&part=snippet&type=video&order=date&maxResults=${maxResults}`;
-    const searchRes = await fetchWithTimeout(searchUrl);
+    const searchRes = await fetchWithTimeout(searchUrl, signal);
 
     if (!searchRes.ok) {
       logError('YouTube', `Search failed: ${searchRes.status}`, { channelId });
@@ -177,7 +198,7 @@ async function _fetchChannelVideos(apiKey: string, channelId: string, maxResults
       }>;
     };
     // Get full video details (includes tags and complete description), fallback to search snippets.
-    return await hydrateSearchItems(apiKey, searchData.items);
+    return await hydrateSearchItems(apiKey, searchData.items, signal);
   } catch (error) {
     logError('YouTube', error, { channelId });
     return [];
@@ -187,11 +208,20 @@ async function _fetchChannelVideos(apiKey: string, channelId: string, maxResults
 export async function searchVideos(
   query: string,
   channelId?: string,
-  maxResults = 25
+  maxResults = 25,
+  signal?: AbortSignal
 ): Promise<Video[]> {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) {
     return [];
+  }
+
+  if (signal?.aborted) {
+    return [];
+  }
+
+  if (signal) {
+    return _fetchSearchVideos(apiKey, query, channelId, maxResults, signal);
   }
 
   const cacheKey = `search-${channelId || 'all'}-${query}-${maxResults}`;
@@ -200,14 +230,20 @@ export async function searchVideos(
   }, YOUTUBE_CACHE_TTL);
 }
 
-async function _fetchSearchVideos(apiKey: string, query: string, channelId: string | undefined, maxResults: number): Promise<Video[]> {
+async function _fetchSearchVideos(
+  apiKey: string,
+  query: string,
+  channelId: string | undefined,
+  maxResults: number,
+  signal?: AbortSignal
+): Promise<Video[]> {
   try {
     let url = `${API_BASE}/search?key=${apiKey}&q=${encodeURIComponent(query)}&part=snippet&type=video&maxResults=${maxResults}`;
     if (channelId) {
       url += `&channelId=${channelId}`;
     }
 
-    const res = await fetchWithTimeout(url);
+    const res = await fetchWithTimeout(url, signal);
     if (!res.ok) {
       return [];
     }
@@ -219,7 +255,7 @@ async function _fetchSearchVideos(apiKey: string, query: string, channelId: stri
       }>;
     };
     // Fetch full details; fallback to search snippets when videos API misses/fails.
-    return await hydrateSearchItems(apiKey, searchData.items);
+    return await hydrateSearchItems(apiKey, searchData.items, signal);
   } catch (error) {
     logError('YouTube', error, { query, channelId });
     return [];
