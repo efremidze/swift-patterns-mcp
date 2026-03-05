@@ -43,6 +43,7 @@ export const getPatreonPatternsHandler: ToolHandler = async (args, context) => {
 
   const minQualityValidated = validateOptionalNumber(args, 'minQuality');
   if (isValidationError(minQualityValidated)) return minQualityValidated;
+  const minQuality = minQualityValidated ?? 70;
 
   const patreon = new context.patreonSource();
   let patterns: PatreonPattern[] = topic
@@ -52,6 +53,8 @@ export const getPatreonPatternsHandler: ToolHandler = async (args, context) => {
   if (requireCode) {
     patterns = patterns.filter(p => p.hasCode);
   }
+
+  patterns = patterns.filter(p => p.relevanceScore >= minQuality);
 
   if (patterns.length === 0) {
     return createTextResponse(`No Patreon patterns found${topic ? ` for "${topic}"` : ''}${requireCode ? ' with code' : ''}.`);
