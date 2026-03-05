@@ -18,6 +18,7 @@ describe('query-analysis', () => {
   it('builds unique ordered query variants up to max limit', () => {
     const profile = buildQueryProfile('SwiftUI scrolling animations navigation transitions scrolling');
     expect(profile.compiledQueries.length).toBeLessThanOrEqual(4);
+    expect(profile.retrievalQueries.length).toBeLessThanOrEqual(4);
     expect(profile.compiledQueries[0]).toBe('SwiftUI scrolling animations navigation transitions scrolling');
     expect(new Set(profile.compiledQueries).size).toBe(profile.compiledQueries.length);
     expect(profile.weightedTokens.length).toBeGreaterThan(2);
@@ -28,6 +29,7 @@ describe('query-analysis', () => {
     expect(profile.compiledQueries[0]).toBe('i want to build a Style Resizing Floating Sheets');
     expect(profile.compiledQueries).toContain('Style Resizing Floating Sheets');
     expect(profile.compiledQueries).toContain('style resiz float sheet');
+    expect(profile.retrievalQueries[0]).toBe('Style Resizing Floating Sheets');
     const weighted = profile.weightedTokens.map(t => t.token);
     expect(weighted).not.toContain('want');
     expect(weighted).not.toContain('build');
@@ -45,7 +47,17 @@ describe('query-analysis', () => {
   it('falls back to default query when input is empty', () => {
     const profile = buildQueryProfile('   ');
     expect(profile.compiledQueries).toEqual(['swiftui']);
+    expect(profile.retrievalQueries).toEqual(['swiftui']);
+    expect(profile.fallbackQueries).toEqual([]);
     expect(profile.weightedTokens).toEqual([]);
+  });
+
+  it('extracts and prioritizes intent facets for compound prompts', () => {
+    const profile = buildQueryProfile('build a photo editor flow PhotosPicker crop filters export share');
+    expect(profile.intentFacets.length).toBeGreaterThan(0);
+    expect(profile.retrievalQueries.some(q => q.includes('crop filters'))).toBe(true);
+    const retrievalSet = new Set(profile.retrievalQueries.map(q => q.toLowerCase()));
+    expect(profile.fallbackQueries.every(q => !retrievalSet.has(q.toLowerCase()))).toBe(true);
   });
 
   it('scores overlap using weighted token matches', () => {

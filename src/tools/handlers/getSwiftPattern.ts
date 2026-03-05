@@ -101,7 +101,7 @@ function mergeAndRankPatterns(
 }
 
 async function runBroadSearch(topic: string, source: FreeSourceName | 'all', profile: QueryProfile): Promise<BasePattern[]> {
-  const variants = profile.compiledQueries.slice(0, HYBRID_VARIANT_LIMIT);
+  const variants = profile.retrievalQueries.slice(0, HYBRID_VARIANT_LIMIT);
   if (variants.length === 0) return [];
 
   const all = await Promise.all(

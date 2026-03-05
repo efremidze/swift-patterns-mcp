@@ -60,6 +60,32 @@ export function rankPatternsForQuery(
   return overlapped;
 }
 
+export function shouldTriggerConfidenceFallback(
+  patterns: PatreonPattern[],
+  profile: QueryProfile,
+  toHaystack: (pattern: PatreonPattern) => string,
+): boolean {
+  if (profile.weightedTokens.length === 0) return false;
+  if (patterns.length === 0) return true;
+
+  const probes = patterns
+    .slice(0, 5)
+    .map(pattern => computeQueryOverlap(toHaystack(pattern).toLowerCase(), profile));
+  if (probes.length === 0) return true;
+
+  const strongMatches = probes.filter(overlap => isStrongQueryOverlap(overlap, profile)).length;
+  if (strongMatches > 0) return false;
+
+  const [top] = probes;
+  const coverage = top.matchedTokens / Math.max(profile.weightedTokens.length, 1);
+
+  if (profile.weightedTokens.length >= 5) {
+    return coverage < 0.5 || top.matchedTokens < 2;
+  }
+
+  return top.matchedTokens === 0;
+}
+
 export function shouldReplaceByQuality(existing: PatreonPattern, candidate: PatreonPattern): boolean {
   return (
     candidate.relevanceScore > existing.relevanceScore ||

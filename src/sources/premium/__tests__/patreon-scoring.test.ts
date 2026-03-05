@@ -11,6 +11,7 @@ import {
   applyOverlapBoost,
   rankPatternsForQuery,
   selectCreatorsForQuery,
+  shouldTriggerConfidenceFallback,
   shouldReplaceByQuality,
   sortPatternsByScoreThenRecency,
 } from '../patreon-scoring.js';
@@ -103,6 +104,28 @@ describe('patreon-scoring', () => {
     const patterns = [pattern('1', 'SwiftUI intro', 30), pattern('2', 'Basic list view', 29)];
     const ranked = rankPatternsForQuery(patterns as any, profile, p => p.title, { fallbackToOriginal: false });
     expect(ranked).toEqual([]);
+  });
+
+  it('triggers confidence fallback when top results weakly match long query', () => {
+    const profile = buildQueryProfile('photo editor flow photospicker crop filters export share');
+    const patterns = [
+      pattern('1', 'SwiftUI intro list basics', 90),
+      pattern('2', 'Simple animation examples', 88),
+    ];
+
+    const shouldFallback = shouldTriggerConfidenceFallback(patterns as any, profile, p => p.title);
+    expect(shouldFallback).toBe(true);
+  });
+
+  it('does not trigger confidence fallback when top result strongly matches query', () => {
+    const profile = buildQueryProfile('calendar infinite scrollview');
+    const patterns = [
+      pattern('1', 'Calendar Infinite ScrollView', 85),
+      pattern('2', 'Calendar List Basics', 70),
+    ];
+
+    const shouldFallback = shouldTriggerConfidenceFallback(patterns as any, profile, p => p.title);
+    expect(shouldFallback).toBe(false);
   });
 
   it('uses haystack mapper for overlap calculations', () => {

@@ -9,7 +9,12 @@ import { fetch } from '../../utils/fetch.js';
 import logger from '../../utils/logger.js';
 import { createCache, type Cache } from 'async-cache-dedupe';
 import { buildQueryProfile, PATREON_DEFAULT_QUERY } from '../../utils/query-analysis.js';
-import { rankPatternsForQuery, selectCreatorsForQuery, sortPatternsByScoreThenRecency } from './patreon-scoring.js';
+import {
+  rankPatternsForQuery,
+  selectCreatorsForQuery,
+  shouldTriggerConfidenceFallback,
+  sortPatternsByScoreThenRecency,
+} from './patreon-scoring.js';
 import {
   dedupePatterns,
   isPatreonPostUrl,
@@ -49,7 +54,8 @@ const PATREON_YOUTUBE_GLOBAL_MAX_RESULTS = 30;
 const PATREON_YOUTUBE_MIN_MATCHES_BEFORE_FALLBACK = 4;
 const PATREON_YOUTUBE_FALLBACK_MAX_CREATORS = 1;
 const PATREON_YOUTUBE_FALLBACK_MAX_VARIANTS = 1;
-const PATREON_YOUTUBE_SEARCH_CALL_BUDGET = 3;
+const PATREON_YOUTUBE_SEARCH_CALL_BUDGET = 4;
+const PATREON_YOUTUBE_CONFIDENCE_FALLBACK_MAX_VARIANTS = 2;
 
 function isSwiftRelated(name: string, summary?: string): boolean {
   const text = `${name} ${summary || ''}`.toLowerCase();
@@ -202,8 +208,9 @@ export class PatreonSource {
 
     const selectedCreators = selectCreatorsForQuery(query)
       .slice(0, getPositiveIntEnv('PATREON_YOUTUBE_MAX_CREATORS', PATREON_YOUTUBE_MAX_CREATORS));
-    const queryVariants = queryProfile.compiledQueries
+    const queryVariants = queryProfile.retrievalQueries
       .slice(0, getPositiveIntEnv('PATREON_YOUTUBE_MAX_VARIANTS', PATREON_YOUTUBE_MAX_VARIANTS));
+    const fallbackQueryVariants = queryProfile.fallbackQueries;
     const globalMaxResults = getPositiveIntEnv('PATREON_YOUTUBE_GLOBAL_MAX_RESULTS', PATREON_YOUTUBE_GLOBAL_MAX_RESULTS);
     const minMatchesBeforeFallback = getPositiveIntEnv(
       'PATREON_YOUTUBE_MIN_MATCHES_BEFORE_FALLBACK',
@@ -217,10 +224,23 @@ export class PatreonSource {
       'PATREON_YOUTUBE_FALLBACK_MAX_VARIANTS',
       PATREON_YOUTUBE_FALLBACK_MAX_VARIANTS
     );
-    let remainingSearchCalls = getPositiveIntEnv(
+    const totalSearchCallBudget = getPositiveIntEnv(
       'PATREON_YOUTUBE_SEARCH_CALL_BUDGET',
       PATREON_YOUTUBE_SEARCH_CALL_BUDGET
     );
+    const confidenceFallbackMaxVariants = getPositiveIntEnv(
+      'PATREON_YOUTUBE_CONFIDENCE_FALLBACK_MAX_VARIANTS',
+      PATREON_YOUTUBE_CONFIDENCE_FALLBACK_MAX_VARIANTS
+    );
+    const reserveConfidenceCall = fallbackQueryVariants.length > 0 && totalSearchCallBudget > 1 ? 1 : 0;
+    const preConfidenceSearchBudget = Math.max(1, totalSearchCallBudget - reserveConfidenceCall);
+    let usedSearchCalls = 0;
+
+    const consumeSearchCall = (budget: number): boolean => {
+      if (usedSearchCalls >= budget) return false;
+      usedSearchCalls += 1;
+      return true;
+    };
 
     const creatorByChannelId = new Map<string, string>();
     for (const creator of selectedCreators) {
@@ -232,10 +252,13 @@ export class PatreonSource {
     logger.info({
       query,
       queryVariants,
+      fallbackQueryVariants: fallbackQueryVariants.slice(0, 3),
+      intentFacets: queryProfile.intentFacets.slice(0, 5),
       weightedTokens: queryProfile.weightedTokens.slice(0, 5),
       creators: selectedCreators.map(c => c.name),
       globalMaxResults,
-      remainingSearchCalls,
+      totalSearchCallBudget,
+      preConfidenceSearchBudget,
     }, 'Patreon search strategy');
 
     const patternByVideoId = new Map<string, PatreonPattern>();
@@ -251,8 +274,7 @@ export class PatreonSource {
 
     // 1) Global-first: query all channels once per variant, then filter to known creators.
     for (const variant of queryVariants) {
-      if (remainingSearchCalls <= 0) break;
-      remainingSearchCalls -= 1;
+      if (!consumeSearchCall(preConfidenceSearchBudget)) break;
 
       try {
         const videos = await searchVideos(variant, undefined, globalMaxResults);
@@ -267,7 +289,7 @@ export class PatreonSource {
     }
 
     // 2) Sparse fallback: only probe top creator(s) and top variant(s).
-    if (patternByVideoId.size < minMatchesBeforeFallback && remainingSearchCalls > 0) {
+    if (patternByVideoId.size < minMatchesBeforeFallback && usedSearchCalls < preConfidenceSearchBudget) {
       const fallbackCreators = selectedCreators.slice(0, fallbackMaxCreators);
       const fallbackVariants = queryVariants.slice(0, fallbackMaxVariants);
 
@@ -275,8 +297,7 @@ export class PatreonSource {
         if (!creator.youtubeChannelId) continue;
 
         for (const variant of fallbackVariants) {
-          if (remainingSearchCalls <= 0) break;
-          remainingSearchCalls -= 1;
+          if (!consumeSearchCall(preConfidenceSearchBudget)) break;
 
           try {
             const videos = await searchVideos(variant, creator.youtubeChannelId, MAX_VIDEOS_PER_CREATOR);
@@ -286,16 +307,54 @@ export class PatreonSource {
           }
         }
 
-        if (remainingSearchCalls <= 0) break;
+        if (usedSearchCalls >= preConfidenceSearchBudget) break;
       }
     }
 
-    const patterns = rankPatternsForQuery(
+    const toQueryHaystack = (pattern: PatreonPattern): string =>
+      `${pattern.title} ${pattern.excerpt} ${pattern.topics.join(' ')}`;
+
+    let patterns = rankPatternsForQuery(
       Array.from(patternByVideoId.values()),
       queryProfile,
-      pattern => `${pattern.title} ${pattern.excerpt} ${pattern.topics.join(' ')}`,
+      toQueryHaystack,
       { fallbackToOriginal: true }
     );
+    const remainingConfidenceBudget = totalSearchCallBudget - usedSearchCalls;
+    const needsConfidenceFallback = fallbackQueryVariants.length > 0
+      && remainingConfidenceBudget > 0
+      && shouldTriggerConfidenceFallback(patterns, queryProfile, toQueryHaystack);
+
+    if (needsConfidenceFallback) {
+      const usedVariantKeys = new Set(queryVariants.map(variant => variant.toLowerCase()));
+      const confidenceVariants = fallbackQueryVariants
+        .filter(variant => !usedVariantKeys.has(variant.toLowerCase()))
+        .slice(0, Math.min(confidenceFallbackMaxVariants, remainingConfidenceBudget));
+
+      logger.info({
+        query,
+        confidenceVariants,
+        remainingConfidenceBudget,
+      }, 'Patreon confidence fallback triggered');
+
+      for (const variant of confidenceVariants) {
+        if (!consumeSearchCall(totalSearchCallBudget)) break;
+
+        try {
+          const videos = await searchVideos(variant, undefined, globalMaxResults);
+          addVideosForKnownCreators(videos);
+        } catch (error) {
+          logError('Patreon', error, { strategy: 'confidence-fallback', query, variant });
+        }
+      }
+
+      patterns = rankPatternsForQuery(
+        Array.from(patternByVideoId.values()),
+        queryProfile,
+        toQueryHaystack,
+        { fallbackToOriginal: true }
+      );
+    }
 
     let enrichedPatterns = patterns;
     if (enrichLinkedPosts) {
