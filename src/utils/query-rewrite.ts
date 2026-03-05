@@ -73,9 +73,20 @@ export function extractNlpKeywordPhrases(query: string): string[] {
       push(chunk);
     }
 
-    return phrases
+    const normalized = phrases
       .map(p => p.replace(/[()]/g, '').trim())
-      .map(p => p.replace(/^(?:a|an|the)\s+/i, ''))
+      .map(p => p.replace(/^(?:a|an|the)\s+/i, ''));
+
+    const deduped: string[] = [];
+    const normalizedSeen = new Set<string>();
+    for (const phrase of normalized) {
+      const key = phrase.toLowerCase();
+      if (normalizedSeen.has(key)) continue;
+      normalizedSeen.add(key);
+      deduped.push(phrase);
+    }
+
+    return deduped
       .filter(p => p.length > 1 && p.toLowerCase() !== 'i')
       .sort((a, b) => {
         const byWordCount = b.split(' ').length - a.split(' ').length;

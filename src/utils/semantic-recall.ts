@@ -21,6 +21,18 @@ export const DEFAULT_CONFIG: SemanticRecallConfig = {
 let sharedPipeline: any = null;
 let pipelinePromise: Promise<any> | null = null;
 
+function abortError(): Error {
+  const error = new Error('Operation aborted');
+  error.name = 'AbortError';
+  return error;
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw abortError();
+  }
+}
+
 async function getSharedPipeline(): Promise<any> {
   if (sharedPipeline) return sharedPipeline;
   if (!pipelinePromise) {
@@ -80,9 +92,12 @@ export class SemanticRecallIndex {
   /**
    * Generate embedding for text using the shared module-scope pipeline
    */
-  private async embed(text: string): Promise<Float32Array> {
+  private async embed(text: string, signal?: AbortSignal): Promise<Float32Array> {
+    throwIfAborted(signal);
     const pipe = await getSharedPipeline();
+    throwIfAborted(signal);
     const output = await pipe(text, { pooling: 'mean', normalize: true });
+    throwIfAborted(signal);
     return output.data;
   }
 
@@ -91,7 +106,8 @@ export class SemanticRecallIndex {
    * Filters patterns by minRelevanceScore and caches embeddings.
    * Uses incremental indexing - only processes new/changed patterns.
    */
-  async index(patterns: BasePattern[]): Promise<void> {
+  async index(patterns: BasePattern[], signal?: AbortSignal): Promise<void> {
+    throwIfAborted(signal);
     // Filter patterns by relevance score
     const highQualityPatterns = patterns.filter(
       p => p.relevanceScore >= this.config.minRelevanceScore
@@ -102,6 +118,7 @@ export class SemanticRecallIndex {
 
     // Index each pattern (incremental - skip unchanged patterns)
     for (const pattern of highQualityPatterns) {
+      throwIfAborted(signal);
       const contentHash = getContentHash(pattern);
       const cacheKey = `embedding::${pattern.id}::${contentHash}`;
       currentKeys.add(cacheKey);
@@ -116,6 +133,7 @@ export class SemanticRecallIndex {
 
       // Try to load from file cache
       const embedding = await this.cache.get<number[]>(cacheKey);
+      throwIfAborted(signal);
 
       if (embedding) {
         // File cache hit - use cached embedding
@@ -127,10 +145,12 @@ export class SemanticRecallIndex {
       } else {
         // Cache miss - compute embedding
         const content = extractIndexableContent(pattern);
-        const embeddingArray = await this.embed(content);
+        const embeddingArray = await this.embed(content, signal);
+        throwIfAborted(signal);
 
         // Store in file cache (convert Float32Array to regular array for JSON serialization)
         await this.cache.set(cacheKey, Array.from(embeddingArray), 86400 * 7); // 7 days TTL
+        throwIfAborted(signal);
 
         this.indexedMap.set(cacheKey, {
           pattern,
@@ -152,16 +172,19 @@ export class SemanticRecallIndex {
    * Search indexed patterns by semantic similarity.
    * Returns top-K patterns sorted by cosine similarity.
    */
-  async search(query: string, limit: number): Promise<BasePattern[]> {
+  async search(query: string, limit: number, signal?: AbortSignal): Promise<BasePattern[]> {
+    throwIfAborted(signal);
     if (this.indexedMap.size === 0) {
       return [];
     }
 
     // Generate query embedding
-    const queryEmbedding = await this.embed(query);
+    const queryEmbedding = await this.embed(query, signal);
+    throwIfAborted(signal);
 
     // Calculate cosine similarity for each indexed pattern
     const { similarity } = await import('ml-distance');
+    throwIfAborted(signal);
 
     const scored = Array.from(this.indexedMap.values()).map(({ pattern, embedding }) => ({
       pattern,

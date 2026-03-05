@@ -15,8 +15,8 @@ import { validateRequiredString, validateOptionalBoolean, isValidationError } fr
 import { cachedSearch } from './cached-search.js';
 
 interface SemanticRecallIndexLike {
-  index(patterns: BasePattern[]): Promise<void>;
-  search(query: string, limit: number): Promise<BasePattern[]>;
+  index(patterns: BasePattern[], signal?: AbortSignal): Promise<void>;
+  search(query: string, limit: number, signal?: AbortSignal): Promise<BasePattern[]>;
 }
 
 interface MemvidMemoryLike {
@@ -56,6 +56,49 @@ interface SemanticRecallOptions {
   config: SemanticRecallConfig;
   sourceManager: SourceManager;
   requireCode: boolean;
+}
+
+function abortError(): Error {
+  const error = new Error('Operation aborted');
+  error.name = 'AbortError';
+  return error;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw abortError();
+  }
+}
+
+async function withAbortTimeout<T>(
+  operation: (signal: AbortSignal) => Promise<T>,
+  timeoutMs: number,
+  fallbackValue: T
+): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  const abortFallback = new Promise<T>(resolve => {
+    controller.signal.addEventListener('abort', () => resolve(fallbackValue), { once: true });
+  });
+
+  try {
+    return await Promise.race([
+      operation(controller.signal).catch(error => {
+        if (isAbortError(error) || controller.signal.aborted) {
+          return fallbackValue;
+        }
+        throw error;
+      }),
+      abortFallback,
+    ]);
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 const SEMANTIC_TIMEOUT_MS = 5_000;
@@ -111,18 +154,22 @@ export function createSearchSwiftContentHandler(
   };
 
   async function trySemanticRecall(options: SemanticRecallOptions): Promise<BasePattern[]> {
-    return Promise.race([
-      trySemanticRecallInner(options),
-      new Promise<BasePattern[]>(resolve =>
-        setTimeout(() => resolve([]), deps.semanticTimeoutMs)
-      ),
-    ]);
+    return withAbortTimeout<BasePattern[]>(
+      signal => trySemanticRecallInner(options, signal),
+      deps.semanticTimeoutMs,
+      []
+    );
   }
 
-  async function trySemanticRecallInner(options: SemanticRecallOptions): Promise<BasePattern[]> {
+  async function trySemanticRecallInner(
+    options: SemanticRecallOptions,
+    signal?: AbortSignal
+  ): Promise<BasePattern[]> {
     const { query, lexicalResults, config, sourceManager, requireCode } = options;
 
     try {
+      throwIfAborted(signal);
+
       // Check if semantic recall should activate
       const maxScore = lexicalResults.length > 0
         ? Math.max(...lexicalResults.map(p => p.relevanceScore)) / 100
@@ -134,12 +181,15 @@ export function createSearchSwiftContentHandler(
       // Get/create index and fetch patterns from enabled sources
       const index = deps.createSemanticIndex(config);
       const enabledSourceIds = sourceManager.getEnabledSources().map(s => s.id as FreeSourceName);
-      const allPatterns = await deps.fetchAllPatterns(enabledSourceIds);
+      const allPatterns = await deps.fetchAllPatterns(enabledSourceIds, signal);
+      throwIfAborted(signal);
 
-      await index.index(allPatterns);
+      await index.index(allPatterns, signal);
+      throwIfAborted(signal);
 
       // Search and filter
-      const semanticResults = await index.search(query, 5);
+      const semanticResults = await index.search(query, 5, signal);
+      throwIfAborted(signal);
       const existingIds = new Set(lexicalResults.map(p => p.id));
 
       return semanticResults.filter(p =>
@@ -193,10 +243,11 @@ export function createSearchSwiftContentHandler(
         if (patreonEnabled && context.patreonSource) {
           try {
             const patreon = new context.patreonSource() as PatreonSourceInstance;
-            const patreonResults = await Promise.race([
-              patreon.searchPatterns(query, { mode: 'fast' }),
-              new Promise<[]>(resolve => setTimeout(() => resolve([]), deps.patreonUnifiedTimeoutMs)),
-            ]);
+            const patreonResults = await withAbortTimeout<BasePattern[]>(
+              signal => patreon.searchPatterns(query, { mode: 'fast', signal }),
+              deps.patreonUnifiedTimeoutMs,
+              []
+            );
             const patreonFiltered = requireCode
               ? patreonResults.filter(r => r.hasCode)
               : patreonResults;

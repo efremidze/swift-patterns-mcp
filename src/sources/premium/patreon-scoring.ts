@@ -78,6 +78,7 @@ function recencyBoost(pattern: PatreonPattern, nowMs = Date.now()): number {
   if (published <= 0) return 0;
 
   const ageDays = (nowMs - published) / (24 * 60 * 60 * 1000);
+  if (ageDays < 0) return 0;
   if (ageDays <= 14) return 8;
   if (ageDays <= 30) return 6;
   if (ageDays <= 90) return 4;

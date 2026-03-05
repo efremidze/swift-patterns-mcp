@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildQueryProfile } from '../../../utils/query-analysis.js';
 
 const mockWithYouTube = vi.hoisted(() => vi.fn());
@@ -118,24 +118,44 @@ describe('patreon-scoring', () => {
     expect(ranked[0].id).toBe('1');
   });
 
-  it('prefers recent pattern when overlap and score are otherwise tied', () => {
-    const profile = buildQueryProfile('calendar infinite scrollview');
-    const patterns = [
-      pattern('old', 'Calendar Infinite ScrollView', 91, false, 'Kavsoft', '2021-01-01T00:00:00Z'),
-      pattern('new', 'Calendar Infinite ScrollView', 91, false, 'Kavsoft', '2026-01-10T19:35:26Z'),
-    ];
-    const ranked = rankPatternsForQuery(patterns as any, profile, p => p.title, { fallbackToOriginal: true });
-    expect(ranked[0].id).toBe('new');
-  });
+  describe('recency ordering', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-02-01T00:00:00Z'));
+    });
 
-  it('sorts fallback lists by relevance and recency', () => {
-    const patterns = [
-      pattern('older-high', 'A', 90, false, 'Kavsoft', '2020-01-01T00:00:00Z'),
-      pattern('newer-mid', 'B', 88, false, 'Kavsoft', '2026-01-10T19:35:26Z'),
-      pattern('older-mid', 'C', 88, false, 'Kavsoft', '2022-01-01T00:00:00Z'),
-    ];
-    const sorted = sortPatternsByScoreThenRecency(patterns as any);
-    expect(sorted.map(p => p.id)).toEqual(['newer-mid', 'older-high', 'older-mid']);
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('prefers recent pattern when overlap and score are otherwise tied', () => {
+      const profile = buildQueryProfile('calendar infinite scrollview');
+      const patterns = [
+        pattern('old', 'Calendar Infinite ScrollView', 91, false, 'Kavsoft', '2021-01-01T00:00:00Z'),
+        pattern('new', 'Calendar Infinite ScrollView', 91, false, 'Kavsoft', '2026-01-10T19:35:26Z'),
+      ];
+      const ranked = rankPatternsForQuery(patterns as any, profile, p => p.title, { fallbackToOriginal: true });
+      expect(ranked[0].id).toBe('new');
+    });
+
+    it('sorts fallback lists by relevance and recency', () => {
+      const patterns = [
+        pattern('older-high', 'A', 90, false, 'Kavsoft', '2020-01-01T00:00:00Z'),
+        pattern('newer-mid', 'B', 88, false, 'Kavsoft', '2026-01-10T19:35:26Z'),
+        pattern('older-mid', 'C', 88, false, 'Kavsoft', '2022-01-01T00:00:00Z'),
+      ];
+      const sorted = sortPatternsByScoreThenRecency(patterns as any);
+      expect(sorted.map(p => p.id)).toEqual(['newer-mid', 'older-high', 'older-mid']);
+    });
+
+    it('does not over-boost future-dated patterns', () => {
+      const patterns = [
+        pattern('future', 'A', 88, false, 'Kavsoft', '2030-01-01T00:00:00Z'),
+        pattern('recent', 'B', 88, false, 'Kavsoft', '2026-01-10T00:00:00Z'),
+      ];
+      const sorted = sortPatternsByScoreThenRecency(patterns as any);
+      expect(sorted[0].id).toBe('recent');
+    });
   });
 
   it('prefers candidate with higher relevance score', () => {

@@ -39,6 +39,7 @@ export interface PatreonSourceInstance {
     query: string,
     options?: {
       mode?: 'fast' | 'deep';
+      signal?: AbortSignal;
     }
   ): Promise<PatreonPattern[]>;
 }

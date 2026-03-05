@@ -31,9 +31,13 @@ const PATREON_API = 'https://www.patreon.com/api/oauth2/v2';
 
 type PatreonSearchMode = 'fast' | 'deep';
 
-interface PatreonSearchOptions { mode?: PatreonSearchMode }
+interface PatreonSearchOptions { mode?: PatreonSearchMode; signal?: AbortSignal }
 
-interface InternalPatreonSearchOptions { enrichLinkedPosts: boolean; includeDownloadedFallback: boolean }
+interface InternalPatreonSearchOptions {
+  enrichLinkedPosts: boolean;
+  includeDownloadedFallback: boolean;
+  signal?: AbortSignal;
+}
 
 interface PatreonCampaign { id: string; type: 'campaign'; attributes: { creation_name: string; url: string; summary?: string } }
 interface PatreonMember { id: string; type: 'member'; attributes: { patron_status: 'active_patron' | 'declined_patron' | 'former_patron' | null }; relationships?: { campaign?: { data: { id: string; type: string } } } }
@@ -197,7 +201,8 @@ export class PatreonSource {
     query: string,
     options: InternalPatreonSearchOptions
   ): Promise<PatreonPattern[]> {
-    const { enrichLinkedPosts, includeDownloadedFallback } = options;
+    const { enrichLinkedPosts, includeDownloadedFallback, signal } = options;
+    if (signal?.aborted) return [];
     const queryProfile = buildQueryProfile(query);
 
     const selectedCreators = selectCreatorsForQuery(query)
@@ -251,11 +256,12 @@ export class PatreonSource {
 
     // 1) Global-first: query all channels once per variant, then filter to known creators.
     for (const variant of queryVariants) {
+      if (signal?.aborted) break;
       if (remainingSearchCalls <= 0) break;
       remainingSearchCalls -= 1;
 
       try {
-        const videos = await searchVideos(variant, undefined, globalMaxResults);
+        const videos = await searchVideos(variant, undefined, globalMaxResults, signal);
         addVideosForKnownCreators(videos);
       } catch (error) {
         logError('Patreon', error, { strategy: 'global', query, variant });
@@ -272,14 +278,16 @@ export class PatreonSource {
       const fallbackVariants = queryVariants.slice(0, fallbackMaxVariants);
 
       for (const creator of fallbackCreators) {
+        if (signal?.aborted) break;
         if (!creator.youtubeChannelId) continue;
 
         for (const variant of fallbackVariants) {
+          if (signal?.aborted) break;
           if (remainingSearchCalls <= 0) break;
           remainingSearchCalls -= 1;
 
           try {
-            const videos = await searchVideos(variant, creator.youtubeChannelId, MAX_VIDEOS_PER_CREATOR);
+            const videos = await searchVideos(variant, creator.youtubeChannelId, MAX_VIDEOS_PER_CREATOR, signal);
             addVideosForKnownCreators(videos);
           } catch (error) {
             logError('Patreon', error, { strategy: 'fallback', creator: creator.name, query, variant });
@@ -289,6 +297,8 @@ export class PatreonSource {
         if (remainingSearchCalls <= 0) break;
       }
     }
+
+    if (signal?.aborted) return [];
 
     const patterns = rankPatternsForQuery(
       Array.from(patternByVideoId.values()),
@@ -328,6 +338,8 @@ export class PatreonSource {
 
   async searchPatterns(query: string, options: PatreonSearchOptions = {}): Promise<PatreonPattern[]> {
     const mode: PatreonSearchMode = options.mode ?? 'deep';
+    const signal = options.signal;
+    if (signal?.aborted) return [];
     const directPatterns = await this.searchDirectPostUrl(query, mode);
     if (directPatterns !== null) {
       return directPatterns;
@@ -336,10 +348,21 @@ export class PatreonSource {
     if (mode === 'fast') {
       const localMatches = getDownloadedPatterns(query);
       if (localMatches.length > 0) return localMatches;
+      if (signal) {
+        return this.searchPatternsInternal(query, {
+          enrichLinkedPosts: false,
+          includeDownloadedFallback: true,
+          signal,
+        });
+      }
       return this.fastSearchCache.fastSearch(query);
     }
 
-    return this.searchPatternsInternal(query, { enrichLinkedPosts: true, includeDownloadedFallback: true });
+    return this.searchPatternsInternal(query, {
+      enrichLinkedPosts: true,
+      includeDownloadedFallback: true,
+      signal,
+    });
   }
 
   isAvailable(): boolean {
