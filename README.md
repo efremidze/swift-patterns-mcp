@@ -1,6 +1,7 @@
 # swift-patterns-mcp
 
 [![MCP Badge](https://lobehub.com/badge/mcp/efremidze-swift-patterns-mcp)](https://lobehub.com/mcp/efremidze-swift-patterns-mcp)
+![Release](https://img.shields.io/github/v/release/efremidze/swift-patterns-mcp)
 
 An MCP server providing curated Swift and SwiftUI best practices from leading iOS developers — with intelligent search, persistent memory, and optional premium integrations.
 
