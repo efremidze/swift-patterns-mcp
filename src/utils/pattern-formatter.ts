@@ -49,7 +49,7 @@ export const COMMON_FORMAT_OPTIONS: FormatOptions = {
 /**
  * Detect if the user wants to see code examples based on args or query content
  */
-export function detectCodeIntent(args: any, query: string): boolean {
+export function detectCodeIntent(args: Record<string, unknown>, query: string): boolean {
   return Boolean(args?.includeCode) || /code|example|snippet/i.test(query);
 }
 
@@ -102,9 +102,10 @@ function formatPattern(pattern: BasePattern, options: FormatOptions = {}): strin
     formatted += `**Code**: ✅\n`;
   }
 
-  // Use smart truncation at sentence boundaries
+  // Use smart truncation at sentence boundaries; only append ellipsis when truncated
   const excerpt = truncateAtSentence(pattern.excerpt, opts.excerptLength);
-  formatted += `\n${excerpt}...\n\n`;
+  const ellipsis = excerpt.length < pattern.excerpt.length ? '...' : '';
+  formatted += `\n${excerpt}${ellipsis}\n\n`;
   formatted += `[Read more](${pattern.url})`;
 
   return formatted;
