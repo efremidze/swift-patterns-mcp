@@ -9,7 +9,7 @@ on:
 
 jobs:
   integration:
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'integration-tests' }}
+    if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'integration-tests') }}
     runs-on: ubuntu-latest
 
     steps:
