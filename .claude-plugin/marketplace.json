@@ -3,12 +3,15 @@
   "owner": {
     "name": "Lasha Efremidze"
   },
+  "metadata": {
+    "description": "Claude plugin marketplace entry for the swift-patterns-mcp server, offering curated Swift and SwiftUI best practices, patterns, and real-world examples."
+  },
   "plugins": [
     {
       "name": "swift-patterns-mcp",
       "source": "./",
       "description": "MCP server providing curated Swift/SwiftUI best practices from leading iOS developers, including patterns and real-world code examples from Swift by Sundell, SwiftLee, and other trusted sources.",
-      "version": "1.0.10"
+      "version": "1.0.21"
     }
   ]
 }
