@@ -500,3 +500,8 @@ MIT License - Copyright (c) 2026 Lasha Efremidze
 **Made with ❤️ for the Swift community**
 
 [⭐ Star this repo](https://github.com/efremidze/swift-patterns-mcp) • [🐛 Report Bug](https://github.com/efremidze/swift-patterns-mcp/issues) • [✨ Request Feature](https://github.com/efremidze/swift-patterns-mcp/issues)
+
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/efremidze-swift-patterns-mcp).
+
