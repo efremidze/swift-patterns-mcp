@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/efremidze-swift-patterns-mcp-badge.png)](https://mseep.ai/app/efremidze-swift-patterns-mcp)
+
 # swift-patterns-mcp
 
 [![MCP Badge](https://lobehub.com/badge/mcp/efremidze-swift-patterns-mcp)](https://lobehub.com/mcp/efremidze-swift-patterns-mcp)
