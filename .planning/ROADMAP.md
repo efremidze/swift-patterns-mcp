@@ -2,7 +2,7 @@
 
 ## Overview
 
-This milestone hardens the MCP server against security vulnerabilities and known bugs, then refactors architecture for testability and adds comprehensive test coverage. Phases 1-2 fix critical security/bugs, Phase 3 decomposes monolithic files, Phase 4 adds test coverage for critical paths, and Phase 5 establishes sustainable test infrastructure with security hardening.
+This milestone hardens the MCP server against security vulnerabilities and known bugs, then refactors architecture for testability and adds comprehensive test coverage. Phases 1-2 fix critical security/bugs, Phase 3 decomposes monolithic files, Phase 4 adds test coverage for critical paths, and Phase 5 establishes sustainable test infrastructure with security hardening. Phase 6 reshapes the Patreon content pipeline from a live per-query fan-out into an offline ingest plus local query.
 
 ## Phases
 
@@ -17,6 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Architecture Refactoring** - Decompose monolithic files, eliminate anti-patterns
 - [x] **Phase 4: Test Coverage** - Critical/high-priority test coverage, fix failing tests, enable CI
 - [x] **Phase 5: Test Infrastructure & Hardening** - Coverage tools, fixtures, error paths, security, benchmarks
+- [ ] **Phase 6: Patreon Ingest Architecture** - Catalog crawl, library downloader, persistent index, sync job
 
 ## Phase Details
 
@@ -106,10 +107,37 @@ Plans:
 - [x] 05-02-PLAN.md — Expand HTTP/dedup and free-source error-path coverage plus infrastructure edge-case tests
 - [x] 05-03-PLAN.md — Add OAuth state+PKCE hardening, cache observability metrics, and benchmark/load-test baselines
 
+### Phase 6: Patreon Ingest Architecture
+**Goal**: Patreon content discovery runs as an offline ingest feeding a local index, so queries are pure local reads
+**Depends on**: Phase 5 (reshaping a pipeline is safest on top of the coverage baseline)
+**Review**: docs/plans/2026-09-17-patreon-architecture-review.md
+**Requirements**: ING-01 through ING-08, SEC-04 (PERF-02 is superseded by ING-05, not covered here)
+**Success Criteria** (what must be TRUE):
+  1. A `get_patreon_patterns` call makes zero YouTube API requests and zero downloads
+  2. Full catalog backfill for the **fixed three-creator baseline** costs under 50 YouTube quota units (was ~300 per query). This is a baseline benchmark, not a universal bound: a crawl costs ~1 channel lookup plus ~2 list calls per 50 videos per channel, so once 06-05 resolves an arbitrary membership-derived creator set the total scales with channel and page count and can legitimately exceed 50
+  3. Membership-derived syncs are quota-*bounded* rather than quota-*capped*: every request is accounted per ING-02, the crawl stops early when `hasQuotaFor()` fails, and the status surface reports a refresh that ended quota-limited
+  4. The seven `PATREON_YOUTUBE_*` budget knobs no longer exist
+  5. The Patreon session cookie never appears in a process argument list
+  6. `patreon-dl` is a pinned `package.json` dependency, not a runtime `npx --yes` install
+  7. Cookie state lives at `~/.swift-patterns-mcp/` with mode 0600 and survives a change of working directory
+  8. Repeated queries perform no filesystem tree walks and no zip extraction
+  9. `swift-patterns-mcp sync` owns all network and disk mutation, and is resumable after interruption
+  10. Content discovery does not depend on per-post Patreon links appearing in YouTube descriptions
+  11. The creator set reflects the user's actual active memberships rather than a hardcoded three-entry array
+  12. Expired cookies, empty indexes, stale indexes, and unavailable keychains each produce a distinct actionable message
+**Plans**: 5 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — Replace per-query search.list with a channel catalog crawl, local search, and quota accounting
+- [ ] 06-02-PLAN.md — Import patreon-dl as a pinned library, relocate the cookie, and classify download failures
+- [ ] 06-03-PLAN.md — Replace the recursive content scan with a persisted, mtime-incremental manifest
+- [ ] 06-04-PLAN.md — Move download/parse into a `sync` ingest job and make the query path read-only
+- [ ] 06-05-PLAN.md — Drive creators from memberships, match posts to videos by similarity, surface actionable failures
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -118,7 +146,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 3. Architecture Refactoring | 2/2 | Complete | 2026-02-10 |
 | 4. Test Coverage | 3/3 | Complete | 2026-02-11 |
 | 5. Test Infrastructure & Hardening | 3/3 | Complete | 2026-02-11 |
+| 6. Patreon Ingest Architecture | 0/5 | Planned | — |
 
 ---
 *Roadmap created: 2026-01-29*
-*Last updated: 2026-02-11 — Marked Phases 3-5 complete after plan execution*
+*Last updated: 2026-09-17 — Added Phase 6 from the Patreon architecture review*

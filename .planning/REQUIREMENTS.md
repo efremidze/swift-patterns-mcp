@@ -27,6 +27,27 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [ ] **HARD-02**: Tests added for each security fix proving the vulnerability is closed
 - [ ] **HARD-03**: Tests added for each bug fix proving correct behavior
 
+## v1.1 Requirements — Patreon Ingest Architecture
+
+Added 2026-09-17 from `docs/plans/2026-09-17-patreon-architecture-review.md`. Maps to roadmap Phase 6.
+
+### Discovery
+
+- [ ] **ING-01**: Creator video discovery uses `playlistItems.list` (1 unit/50 videos) instead of `search.list` (100 units/call)
+- [ ] **ING-02**: YouTube quota consumption is tracked per UTC day and exposed via a status surface
+- [ ] **ING-03**: `YOUTUBE_API_KEY` is optional — absence degrades to keyless channel RSS, not empty results
+
+### Content Access
+
+- [ ] **ING-04**: `patreon-dl` is a pinned dependency used via its programmatic API; the session cookie is never passed as a process argument
+- [ ] **ING-05**: Downloaded content is served from a persisted manifest with mtime-incremental refresh, replacing the recursive scan and repeated zip extraction (supersedes PERF-02)
+- [ ] **ING-06**: All download and catalog-refresh work happens in an explicit, resumable `sync` job — never on the MCP request path
+
+### Coverage & Feedback
+
+- [ ] **ING-07**: Post discovery enumerates campaigns directly and matches posts to videos by title/date similarity, rather than requiring a `posts/` URL in a video description
+- [ ] **ING-08**: The creator set derives from the user's active Patreon memberships, with the built-in table as fallback only
+
 ## v2 Requirements
 
 Deferred to future milestones. Tracked but not in current roadmap.
@@ -34,7 +55,7 @@ Deferred to future milestones. Tracked but not in current roadmap.
 ### Performance
 
 - **PERF-01**: Semantic embedding model prefetched eagerly on startup
-- **PERF-02**: Patreon content scan cache TTL extended or replaced with file watchers
+- ~~**PERF-02**: Patreon content scan cache TTL extended or replaced with file watchers~~ — superseded by ING-05 (persisted manifest)
 - **PERF-03**: Memvid indexing queued asynchronously instead of blocking search
 - **PERF-04**: Singleton initialization serialized with promise-based locking
 
@@ -71,7 +92,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-01 | Phase 1 | Pending |
 | SEC-02 | Phase 2 | Pending |
 | SEC-03 | Phase 1 | Pending |
-| SEC-04 | Phase 2 | Pending |
+| SEC-04 | Phase 6 | Pending |
 | SEC-05 | Phase 2 | Pending |
 | BUG-01 | Phase 2 | Complete |
 | BUG-02 | Phase 2 | Complete |
@@ -80,11 +101,24 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HARD-02 | Phase 3 | Pending |
 | HARD-03 | Phase 3 | Pending |
 
+**v1.1 requirements (Patreon ingest architecture):**
+
+| Requirement | Phase | Plan | Status |
+|-------------|-------|------|--------|
+| ING-01 | Phase 6 | 06-01 | Pending |
+| ING-02 | Phase 6 | 06-01 | Pending |
+| ING-03 | Phase 6 | 06-01 | Pending |
+| ING-04 | Phase 6 | 06-02 | Pending |
+| ING-05 | Phase 6 | 06-03 | Pending |
+| ING-06 | Phase 6 | 06-04 | Pending |
+| ING-07 | Phase 6 | 06-05 | Pending |
+| ING-08 | Phase 6 | 06-05 | Pending |
+
 **Coverage:**
-- v1 requirements: 11 total
-- Mapped to phases: 11
-- Unmapped: 0 ✓
+- v1 requirements: 11 total — mapped to phases: 11, unmapped: 0 ✓
+- v1.1 requirements: 8 total — mapped to phases: 8, unmapped: 0 ✓
+- Note: SEC-04 moved from Phase 2 to Phase 6, which is where it is actually closed (06-05 Task 4). PERF-02 is superseded by ING-05 and is not separately tracked.
 
 ---
 *Requirements defined: 2026-01-29*
-*Last updated: 2026-01-29 after roadmap creation*
+*Last updated: 2026-09-21 — added v1.1 (ING) traceability, moved SEC-04 to Phase 6*
