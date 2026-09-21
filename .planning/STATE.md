@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 Phase: 6 of 6 (Patreon Ingest Architecture)
 Plan: 0 of 5 (none started)
 Status: Planned, not started
-Last activity: 2026-09-17 — Patreon architecture review + Phase 6 plans written
+Last activity: 2026-09-21 — Phase 6 plans revised against PR #132 review (23 bot findings)
 
 Progress: [██████████] 10/10 plans complete (Phases 1-5)
 Phase 6:  [░░░░░░░░░░] 0/5 plans complete
@@ -77,6 +77,13 @@ parallel; 06-03 depends on 06-02; 06-04 depends on 06-01 + 06-03; 06-05 depends 
 06-05 is marked `autonomous: false` — it changes OAuth scopes (user-visible consent screen)
 and the creator-resolution model, so it wants a human decision before execution.
 
+Plans were revised on 2026-09-21 against the PR #132 review. The substantive design changes
+that came out of it: a persisted per-campaign listing cursor (without one the back catalog was
+unreachable), a content fingerprint instead of a directory mtime (dir mtime misses in-place
+file edits), zip contents materialized at ingest instead of read through at query time, a
+single owner for post-download reindexing, three distinct membership states instead of two,
+and download timeouts that actually terminate the download.
+
 ### Blockers/Concerns
 
 - 06-02 Task 1 must confirm patreon-dl's exported programmatic API surface before 06-02
@@ -85,6 +92,13 @@ and the creator-resolution model, so it wants a human decision before execution.
 - 06-03 Task 2 narrows the downloaded-content ranking corpus from full file text to a
   bounded excerpt. That is a deliberate trade for bounded memory; if recall regresses
   measurably against the Phase 5 benchmark baseline, revisit before 06-04.
+- **OPEN QUESTION (06-05 Task 4): does `/identity?include=memberships.campaign` require the
+  `campaigns` OAuth scope?** The PR #132 review asserted it does; the plan originally said to
+  drop the scope. Neither docs.patreon.com nor patreondevelopers.com was reachable from the
+  session that revised this plan, so it is unverified in both directions. The plan now takes
+  the conservative side (keep `campaigns`, drop only `campaigns.members`) on risk asymmetry —
+  keeping it costs a longer consent screen, dropping it risks returning zero creators for a
+  user with real memberships. Settle it empirically with a real token before shipping.
 
 ### Quick Tasks Completed
 
@@ -100,4 +114,4 @@ Resume file: .planning/phases/06-patreon-ingest-architecture/06-01-PLAN.md
 
 ---
 *State initialized: 2026-01-29*
-*Last updated: 2026-09-17 — Phase 6 planned from the Patreon architecture review*
+*Last updated: 2026-09-21 — Phase 6 plans revised against the PR #132 review*

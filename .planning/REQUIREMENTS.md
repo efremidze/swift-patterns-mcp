@@ -92,7 +92,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-01 | Phase 1 | Pending |
 | SEC-02 | Phase 2 | Pending |
 | SEC-03 | Phase 1 | Pending |
-| SEC-04 | Phase 2 | Pending |
+| SEC-04 | Phase 6 | Pending |
 | SEC-05 | Phase 2 | Pending |
 | BUG-01 | Phase 2 | Complete |
 | BUG-02 | Phase 2 | Complete |
@@ -101,11 +101,24 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HARD-02 | Phase 3 | Pending |
 | HARD-03 | Phase 3 | Pending |
 
+**v1.1 requirements (Patreon ingest architecture):**
+
+| Requirement | Phase | Plan | Status |
+|-------------|-------|------|--------|
+| ING-01 | Phase 6 | 06-01 | Pending |
+| ING-02 | Phase 6 | 06-01 | Pending |
+| ING-03 | Phase 6 | 06-01 | Pending |
+| ING-04 | Phase 6 | 06-02 | Pending |
+| ING-05 | Phase 6 | 06-03 | Pending |
+| ING-06 | Phase 6 | 06-04 | Pending |
+| ING-07 | Phase 6 | 06-05 | Pending |
+| ING-08 | Phase 6 | 06-05 | Pending |
+
 **Coverage:**
-- v1 requirements: 11 total
-- Mapped to phases: 11
-- Unmapped: 0 ✓
+- v1 requirements: 11 total — mapped to phases: 11, unmapped: 0 ✓
+- v1.1 requirements: 8 total — mapped to phases: 8, unmapped: 0 ✓
+- Note: SEC-04 moved from Phase 2 to Phase 6, which is where it is actually closed (06-05 Task 4). PERF-02 is superseded by ING-05 and is not separately tracked.
 
 ---
 *Requirements defined: 2026-01-29*
-*Last updated: 2026-01-29 after roadmap creation*
+*Last updated: 2026-09-21 — added v1.1 (ING) traceability, moved SEC-04 to Phase 6*

@@ -111,19 +111,20 @@ Plans:
 **Goal**: Patreon content discovery runs as an offline ingest feeding a local index, so queries are pure local reads
 **Depends on**: Phase 5 (reshaping a pipeline is safest on top of the coverage baseline)
 **Review**: docs/plans/2026-09-17-patreon-architecture-review.md
-**Requirements**: ING-01 through ING-08, SEC-04, PERF-02
+**Requirements**: ING-01 through ING-08, SEC-04 (PERF-02 is superseded by ING-05, not covered here)
 **Success Criteria** (what must be TRUE):
   1. A `get_patreon_patterns` call makes zero YouTube API requests and zero downloads
-  2. Full catalog backfill for the configured creators costs under 50 YouTube quota units (was ~300 per query)
-  3. The seven `PATREON_YOUTUBE_*` budget knobs no longer exist
-  4. The Patreon session cookie never appears in a process argument list
-  5. `patreon-dl` is a pinned `package.json` dependency, not a runtime `npx --yes` install
-  6. Cookie state lives at `~/.swift-patterns-mcp/` with mode 0600 and survives a change of working directory
-  7. Repeated queries perform no filesystem tree walks and no zip extraction
-  8. `swift-patterns-mcp sync` owns all network and disk mutation, and is resumable after interruption
-  9. Content discovery does not depend on per-post Patreon links appearing in YouTube descriptions
-  10. The creator set reflects the user's actual active memberships rather than a hardcoded three-entry array
-  11. Expired cookies, empty indexes, stale indexes, and unavailable keychains each produce a distinct actionable message
+  2. Full catalog backfill for the **fixed three-creator baseline** costs under 50 YouTube quota units (was ~300 per query). This is a baseline benchmark, not a universal bound: a crawl costs ~1 channel lookup plus ~2 list calls per 50 videos per channel, so once 06-05 resolves an arbitrary membership-derived creator set the total scales with channel and page count and can legitimately exceed 50
+  3. Membership-derived syncs are quota-*bounded* rather than quota-*capped*: every request is accounted per ING-02, the crawl stops early when `hasQuotaFor()` fails, and the status surface reports a refresh that ended quota-limited
+  4. The seven `PATREON_YOUTUBE_*` budget knobs no longer exist
+  5. The Patreon session cookie never appears in a process argument list
+  6. `patreon-dl` is a pinned `package.json` dependency, not a runtime `npx --yes` install
+  7. Cookie state lives at `~/.swift-patterns-mcp/` with mode 0600 and survives a change of working directory
+  8. Repeated queries perform no filesystem tree walks and no zip extraction
+  9. `swift-patterns-mcp sync` owns all network and disk mutation, and is resumable after interruption
+  10. Content discovery does not depend on per-post Patreon links appearing in YouTube descriptions
+  11. The creator set reflects the user's actual active memberships rather than a hardcoded three-entry array
+  12. Expired cookies, empty indexes, stale indexes, and unavailable keychains each produce a distinct actionable message
 **Plans**: 5 plans
 
 Plans:
